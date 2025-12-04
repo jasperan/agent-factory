@@ -1,0 +1,76 @@
+[tool.poetry]
+name = "agent-factory"
+version = "0.1.0"
+description = "A scalable framework for creating specialized AI agents with dynamic tool assignment"
+authors = ["Agent Factory Contributors"]
+readme = "README.md"
+license = "MIT"
+keywords = ["langchain", "agents", "ai", "llm", "automation"]
+package-mode = false  # Poetry 2.x: This is a framework/application, not a library package
+
+[tool.poetry.dependencies]
+python = ">=3.10.0,<3.13"
+
+# Core LangChain dependencies
+langchain = "^0.2.1"
+langchain-openai = "^0.1.8"
+langchain-community = "^0.2.1"
+langchain-anthropic = "^0.1.15"
+langchain-google-genai = "^1.0.5"
+langchainhub = "^0.1.18"
+
+# Agent orchestration
+langgraph = "^0.0.26"
+
+# LLM & Embeddings
+tiktoken = "^0.7.0"
+
+# Web search and research tools
+wikipedia = "^1.4.0"
+tavily-python = "^0.3.3"
+duckduckgo-search = "^4.1.0"
+
+# File operations and Git
+gitpython = "^3.1.40"
+
+# Utilities
+python-dotenv = "^1.0.1"
+rich = "^13.7.0"
+tenacity = "^8.2.3"
+
+# File format support
+PyPDF2 = "^3.0.1"
+
+# Data structures
+pydantic = "^2.5.0"
+
+[tool.poetry.group.dev.dependencies]
+# Development tools
+pytest = "^7.4.3"
+pytest-asyncio = "^0.21.1"
+black = "^23.12.0"
+isort = "^5.13.0"
+ruff = "^0.1.8"
+
+[tool.pyright]
+# https://github.com/microsoft/pyright/blob/main/docs/configuration.md
+useLibraryCodeForTypes = true
+exclude = [".cache", ".venv", "**/__pycache__"]
+
+[tool.ruff]
+# https://beta.ruff.rs/docs/configuration/
+select = ['E', 'W', 'F', 'I', 'B', 'C4', 'ARG', 'SIM']
+ignore = ['W291', 'W292', 'W293']
+line-length = 100
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

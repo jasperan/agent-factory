@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__github__get_file_contents",
+      "WebFetch(domain:github.com)",
+      "Bash(git clone:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebSearch",
+      "WebFetch(domain:api.python.langchain.com)",
+      "WebFetch(domain:python.langchain.com)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(poetry --version)",
+      "WebFetch(domain:python-poetry.org)",
+      "Bash(git --version)",
+      "Bash(gh:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
