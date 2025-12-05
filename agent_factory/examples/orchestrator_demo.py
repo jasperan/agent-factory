@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from agent_factory.core import AgentFactory, EventType
+from agent_factory.tools.research_tools import CurrentTimeTool
 
 
 def main():
@@ -32,24 +33,27 @@ def main():
     # Create factory
     factory = AgentFactory(verbose=True)
 
-    # Create specialist agents with minimal tools (empty list to avoid tool dependencies)
+    # Create a simple tool for agents
+    time_tool = CurrentTimeTool()
+
+    # Create specialist agents with minimal tools
     research_agent = factory.create_agent(
         role="Research Specialist",
-        tools_list=[],
+        tools_list=[time_tool],
         system_prompt="You are a research assistant. Answer questions about facts and information.",
         enable_memory=False
     )
 
     creative_agent = factory.create_agent(
         role="Creative Writer",
-        tools_list=[],
+        tools_list=[time_tool],
         system_prompt="You are a creative writer. Help with stories, poems, and creative content.",
         enable_memory=False
     )
 
     code_agent = factory.create_agent(
         role="Code Assistant",
-        tools_list=[],
+        tools_list=[time_tool],
         system_prompt="You are a coding assistant. Help with programming questions.",
         enable_memory=False
     )

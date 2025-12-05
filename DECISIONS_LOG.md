@@ -4,6 +4,125 @@
 
 ---
 
+## [2025-12-05 20:00] Hybrid Documentation Over Full PLC Style
+
+**Decision:** Use hybrid documentation (module headers + Google docstrings + REQ-* links) instead of line-by-line PLC-style comments
+
+**Rationale:**
+- User asked if line-by-line PLC comments would "break anything"
+- Answer: No, but they make code hard to read and maintain
+- Hybrid approach provides full spec traceability without verbosity
+- Python community standards favor docstrings over excessive comments
+- Tool compatibility (Sphinx, IDEs, type checkers) requires docstrings
+- Code remains readable for developers
+
+**Implementation:**
+```python
+# Module level: Header with spec SHA256 + regeneration command
+# Class/Function level: Google-style docstrings with REQ-* identifiers
+# Inline: Strategic comments only where logic is non-obvious
+```
+
+**Alternatives Considered:**
+1. **Full PLC-style (every line documented)**
+   - Pro: Maximum traceability
+   - Con: 3:1 comment-to-code ratio
+   - Con: Hard to read and maintain
+   - Con: No tool support
+   - **Rejected:** Too verbose
+
+2. **Minimal documentation**
+   - Pro: Very readable
+   - Con: Lost spec traceability
+   - Con: Hard to regenerate from specs
+   - **Rejected:** Defeats constitutional purpose
+
+3. **Hybrid approach (CHOSEN)**
+   - Pro: Readable code
+   - Pro: Full spec traceability via REQ-*
+   - Pro: Tool compatible
+   - Pro: Maintainable
+   - **Selected:** Best balance
+
+**Examples:**
+- callbacks.py: 296 lines, 15 requirements documented
+- orchestrator.py: 335 lines, 13 requirements documented
+- All docstrings link to spec sections
+- Troubleshooting sections in complex methods
+
+---
+
+## [2025-12-05 18:30] Constitutional Code Generation Approach
+
+**Decision:** Build factory.py as spec parser + code generator instead of manual coding
+
+**Rationale:**
+- User provided AGENTS.md constitutional manifest
+- 3 markdown specs already created (callbacks, orchestrator, factory)
+- Constitutional principle: "Code is disposable. Specs are eternal."
+- factory.py should read markdown and generate Python
+- Enables regeneration if specs change
+- Ultimate test: factory.py regenerates itself
+
+**Implementation Strategy:**
+1. SpecParser: Extract requirements, data structures, examples
+2. SpecValidator: Check format compliance
+3. CodeGenerator: Jinja2 templates → Python modules
+4. TestGenerator: Generate pytest tests from REQ-* statements
+5. CLI: Typer-based commands (validate, generate, info)
+
+**Phased Approach:**
+- **Phase 1 (This session):** Parser, validator, CLI, Jinja2 templates
+- **Phase 2 (Future):** Automated code generation from templates
+- **Phase 3 (Future):** Self-regeneration (factory.py → factory.py)
+
+**Current Status:**
+- ✅ SpecParser: Extracting 53 requirements across 3 specs
+- ✅ SpecValidator: Checking format
+- ✅ CLI: All commands functional
+- ✅ Templates: Created but not yet fully integrated
+- ⏳ CodeGenerator: Manual generation done, automation pending
+
+**Alternative:**
+- Manual coding per PROGRESS.md checkboxes
+- **Rejected:** User wants constitutional approach
+
+---
+
+## [2025-12-05 18:00] Jinja2 for Code Generation Templates
+
+**Decision:** Use Jinja2 templating engine for code generation
+
+**Rationale:**
+- Industry standard for Python code generation
+- Excellent documentation and community support
+- Supports complex logic (loops, conditionals)
+- Clean separation of template and data
+- Already familiar to Python developers
+
+**Template Structure:**
+- `module.py.j2`: Generate full Python modules
+- `test.py.j2`: Generate pytest test files
+- Variables: spec metadata, requirements, dataclasses, functions
+
+**Alternatives Considered:**
+1. **String concatenation**
+   - Pro: No dependencies
+   - Con: Unmaintainable for complex templates
+   - **Rejected:** Too brittle
+
+2. **Mako templates**
+   - Pro: More powerful than Jinja2
+   - Con: Less popular, steeper learning curve
+   - **Rejected:** Jinja2 sufficient
+
+3. **AST manipulation (ast module)**
+   - Pro: Generates actual Python AST
+   - Con: Very complex, hard to maintain
+   - **Rejected:** Overkill for this use case
+
+---
+
 ## [2025-12-04 18:30] Slash Command: Context Clear Implementation
 
 **Decision:** Create `/context-clear` slash command for memory system updates

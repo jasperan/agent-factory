@@ -4,6 +4,192 @@
 
 ---
 
+## [2025-12-05] Session 3 - Constitutional Code Generation System
+
+### [21:15] Git Checkpoint Committed
+**Activity:** Created comprehensive checkpoint commit
+**Commit:** `26276ca` - Constitutional system with hybrid documentation
+
+**Files Changed:** 24 total, 7354 insertions
+**New Files:**
+- factory.py (600+ lines)
+- factory_templates/module.py.j2
+- factory_templates/test.py.j2
+- specs/callbacks-v1.0.md
+- specs/orchestrator-v1.0.md
+- specs/factory-v1.0.md
+
+**Modified Files:**
+- agent_factory/core/callbacks.py (hybrid docs added)
+- agent_factory/core/orchestrator.py (hybrid docs added)
+- pyproject.toml (jinja2, markdown dependencies)
+
+**Testing:**
+```bash
+[OK] All imports successful
+[OK] Orchestrator created
+[OK] factory.py CLI commands working
+[OK] Spec parsing functional
+```
+
+---
+
+### [20:30] Core Modules Updated with Hybrid Documentation
+**Activity:** Applied hybrid documentation standard to callbacks.py and orchestrator.py
+**Files Modified:**
+- `agent_factory/core/callbacks.py` (~300 lines)
+- `agent_factory/core/orchestrator.py` (~350 lines)
+
+**Documentation Standard Applied:**
+- Module headers with spec SHA256 + regeneration commands
+- Google-style docstrings with REQ-* identifiers
+- Dataclass documentation with spec section links
+- Troubleshooting sections in complex methods
+- Type hints on all function signatures
+- Strategic inline comments (not line-by-line PLC)
+
+**Example Module Header:**
+```python
+"""
+Callbacks - Event System for Agent Observability
+
+Generated from: specs/callbacks-v1.0.md
+Generated on: 2025-12-05
+Spec SHA256: 21271162b84a
+
+REGENERATION: python factory.py specs/callbacks-v1.0.md
+"""
+```
+
+**Testing:** All imports verified working
+
+---
+
+### [19:00] Jinja2 Templates Created
+**Activity:** Created templates for future automated code generation
+**Files Created:**
+- `factory_templates/module.py.j2` (~150 lines)
+- `factory_templates/test.py.j2` (~60 lines)
+
+**Template Features:**
+- Module header generation with spec metadata
+- Dataclass generation with field documentation
+- Enum generation
+- Class method generation with docstrings
+- Test class generation with REQ-* validation
+- Hybrid documentation formatting
+
+**Purpose:** Enable automated code generation from markdown specs in future iterations
+
+---
+
+### [18:00] factory.py Code Generator Built
+**Activity:** Created constitutional code generator with full CLI
+**File Created:** `factory.py` (~540 lines)
+
+**Components Implemented:**
+
+1. **SpecParser Class**
+   - Parses markdown specifications
+   - Extracts REQ-* requirements (regex-based)
+   - Extracts data structures from code blocks
+   - Extracts dependencies and troubleshooting sections
+   - Computes spec SHA256 hash for audit trail
+
+2. **SpecValidator Class**
+   - Validates required sections present
+   - Checks REQ-* format compliance
+   - Validates requirement IDs unique
+   - Reports validation errors
+
+3. **CLI Commands (Typer-based)**
+   - `python factory.py generate <spec-file>` - Generate code from spec
+   - `python factory.py validate <spec-path>` - Validate spec format
+   - `python factory.py info <spec-file>` - Show spec details
+
+**Testing Results:**
+```bash
+poetry run python factory.py validate specs/
+[OK] callbacks-v1.0.md (15 requirements)
+[OK] factory-v1.0.md (25 requirements)
+[OK] orchestrator-v1.0.md (13 requirements)
+```
+
+**Dependencies Added:**
+- jinja2 ^3.1.2
+- markdown ^3.5.0
+- typer ^0.12.0 (already present)
+
+**Issues Fixed:**
+- Windows Unicode errors (replaced checkmarks with [OK]/[FAIL])
+- Typer compatibility (version already correct)
+
+---
+
+### [16:30] Constitutional Specification System Review
+**Activity:** User requested review of constitutional system approach
+**Discussion:** Confirmed implementation strategy
+
+**Decision Made:**
+- Implement hybrid documentation approach
+- Module headers with spec references
+- Google-style docstrings with REQ-* links
+- NO line-by-line PLC comments (too verbose)
+- Troubleshooting sections where helpful
+- Full type hints on all functions
+
+**Rationale:**
+- Readable code that developers want to maintain
+- Full spec traceability via REQ-* identifiers
+- Tool compatibility (Sphinx, IDE autocomplete)
+- No functionality impact (Python ignores comments)
+- Balances documentation with readability
+
+---
+
+### [15:00] Constitutional Specifications Created
+**Activity:** User provided 3 markdown specifications for code generation
+**Files Created:**
+- `specs/callbacks-v1.0.md` (~400 lines, 15 requirements)
+- `specs/orchestrator-v1.0.md` (~390 lines, 13 requirements)
+- `specs/factory-v1.0.md` (~600 lines, 25 requirements)
+
+**Specification Format:**
+- Header: Title, type, status, dates
+- Section 1: PURPOSE
+- Section 2+: REQUIREMENTS (REQ-AGENT-NNN)
+- Section 3: DATA STRUCTURES
+- Section 9: DEPENDENCIES
+- Section 10: USAGE EXAMPLES
+- Section 11: TROUBLESHOOTING
+
+**Constitutional Principles (from AGENTS.md):**
+- Specs are source of truth (not code)
+- Code is regenerable from specs
+- factory.py generates code + tests
+- PLC-style rung annotations link code → specs
+- Ultimate test: factory.py regenerates itself
+
+---
+
+### [14:00] Session Planning
+**Activity:** Reviewed project state and planned constitutional implementation
+**Context Reviewed:**
+- PROGRESS.md (manual checkbox approach)
+- AGENTS.md (constitutional system manifest)
+- specs/ directory (markdown specifications)
+
+**Decision:** Proceed with constitutional code generation per AGENTS.md
+
+**Plan Approved:**
+1. Build factory.py (code generator)
+2. Generate callbacks.py from spec
+3. Generate orchestrator.py from spec
+4. Update AgentFactory integration
+5. Create demo and tests
+
+---
+
 ## [2025-12-04] Session 2 - CLI Development and Memory System
 
 ### [18:30] Context Clear Command Created
