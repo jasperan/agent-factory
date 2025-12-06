@@ -182,7 +182,37 @@ poetry run pytest tests/ -v
 ```
 
 ## Phase 4: Deterministic Tools
-_Not started._
+**Status:** ✅ COMPLETE
+
+### File Tools
+- [X] ReadFileTool - Safe file reading with validation
+- [X] WriteFileTool - Atomic writes with backups
+- [X] ListDirectoryTool - Directory exploration
+- [X] FileSearchTool - Regex content search
+
+### Safety & Validation
+- [X] PathValidator - Path traversal prevention
+- [X] FileSizeValidator - Size limit enforcement
+- [X] Binary file detection
+- [X] Idempotent operations
+
+### Caching System
+- [X] CacheManager - In-memory caching with TTL
+- [X] Cache statistics tracking
+- [X] LRU eviction
+- [X] @cached_tool decorator
+
+### Testing & Demo
+- [X] test_file_tools.py (27 tests)
+- [X] test_cache.py (19 tests)
+- [X] file_tools_demo.py created
+- [X] All 138 tests passing (92 + 46 new)
+
+**CHECKPOINT TEST:**
+```bash
+poetry run pytest tests/ -v
+# 138 passed in 31.36s
+```
 
 ## Phase 5: Project Twin
 _Not started._
@@ -196,6 +226,7 @@ _Not started._
 
 | Tag | Date | What Works |
 |-----|------|------------|
+| phase-4-complete | 2025-12-05 | Deterministic tools (file ops, caching, safety), 138 tests passing |
 | factory-tests-complete | 2025-12-05 | Comprehensive factory testing, 92 tests passing |
 | phase-3-complete | 2025-12-05 | Production observability (tracing, metrics, costs), 70 tests passing |
 | phase-2-complete | 2025-12-05 | Structured outputs with Pydantic schemas, 47 tests passing |
