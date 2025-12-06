@@ -32,6 +32,7 @@ sys.path.insert(0, str(project_root))
 from agent_factory.core.agent_factory import AgentFactory
 from agent_factory.tools.coding_tools import get_coding_tools
 from agent_factory.tools.research_tools import get_research_tools
+from agent_factory.cli_builder import AgentBuilder
 
 # Load environment variables
 load_dotenv()
@@ -81,12 +82,25 @@ class AgentREPL:
         self.load_agent(agent_name)
 
     def load_agent(self, name: str) -> bool:
-        """Load an agent by name."""
-        if name not in self.AGENTS:
+        """Load an agent by name (built-in or custom)."""
+        # Try built-in agents first
+        if name in self.AGENTS:
+            return self._load_builtin_agent(name)
+
+        # Try custom agent
+        builder = AgentBuilder()
+        config = builder.load_config(name)
+
+        if config is None:
             console.print(f"[red]Error: Unknown agent '{name}'[/red]")
-            console.print(f"Available agents: {', '.join(self.AGENTS.keys())}")
+            console.print(f"Built-in agents: {', '.join(self.AGENTS.keys())}")
+            console.print("[dim]Custom agents: agentcli list-custom[/dim]")
             return False
 
+        return self._load_custom_agent(config)
+
+    def _load_builtin_agent(self, name: str) -> bool:
+        """Load a built-in agent."""
         try:
             agent_config = self.AGENTS[name]
 
@@ -124,6 +138,72 @@ class AgentREPL:
 
         except Exception as e:
             console.print(f"[red]Error loading agent: {str(e)}[/red]")
+            return False
+
+    def _load_custom_agent(self, config: dict) -> bool:
+        """Load a custom agent from configuration."""
+        try:
+            # Collect tools based on tool collections
+            tools = []
+
+            for collection in config.get("tool_collections", []):
+                if collection == "research":
+                    tools.extend(get_research_tools(
+                        include_wikipedia=True,
+                        include_duckduckgo=True,
+                        include_tavily=False,
+                        include_time=True,
+                    ))
+                elif collection in ["coding", "file"]:
+                    tools.extend(get_coding_tools(
+                        include_read=True,
+                        include_write=True,
+                        include_list=True,
+                        include_git=collection == "coding",
+                        include_search=True,
+                        base_dir=".",
+                    ))
+                elif collection == "twin":
+                    # Twin tools require ProjectTwin instance
+                    from agent_factory.refs import ProjectTwin, TwinAgent
+                    twin = ProjectTwin(project_root=Path.cwd())
+                    twin.sync(include_patterns=["*.py"])
+                    twin_agent = TwinAgent(project_twin=twin)
+                    tools.extend(twin_agent.tools)
+
+            # Create custom factory with LLM config
+            custom_factory = AgentFactory(
+                llm_provider=config.get("llm_provider", "openai"),
+                model=config.get("model", "gpt-4o-mini"),
+                temperature=config.get("temperature", 0.7),
+                verbose=self.verbose,
+            )
+
+            # Create agent
+            self.current_agent = custom_factory.create_agent(
+                role=config["role"],
+                tools_list=tools,
+                system_prompt=config["system_prompt"],
+                agent_type=config.get("agent_type", AgentFactory.AGENT_TYPE_REACT),
+                memory=config.get("memory_enabled", True),
+            )
+
+            self.agent_name = config["name"]
+
+            # Update AGENTS dict for display
+            self.AGENTS[config["name"]] = {
+                "name": config["role"],
+                "description": config["description"],
+                "type": config.get("agent_type", AgentFactory.AGENT_TYPE_REACT),
+            }
+
+            return True
+
+        except Exception as e:
+            console.print(f"[red]Error loading custom agent: {str(e)}[/red]")
+            if self.verbose:
+                import traceback
+                traceback.print_exc()
             return False
 
     def show_welcome(self):
@@ -468,6 +548,76 @@ Python: 3.10+
 [dim]https://github.com/Mikecranesync/Agent-Factory[/dim]
     """
     console.print(Panel(version_info, title="Version", border_style="cyan"))
+
+
+@app.command()
+def create():
+    """
+    Create a custom agent interactively.
+
+    Guides you through configuring a new agent:
+    - Basic info (name, role, description)
+    - Tool selection (research, coding, file, twin)
+    - LLM configuration (provider, model, temperature)
+    - Agent type and system prompt
+    - Memory settings
+
+    The agent is saved to ~/.agent_factory/agents/ and can be used
+    with 'agentcli chat --agent <name>' or 'agentcli run'.
+    """
+    try:
+        builder = AgentBuilder()
+        config = builder.build_agent_config()
+
+        # Show summary
+        builder.show_config_summary(config)
+
+        # Confirm save
+        from rich.prompt import Confirm
+        if Confirm.ask("\n[cyan]Save this agent configuration?[/cyan]", default=True):
+            config_file = builder.save_config(config)
+            console.print(f"\n[green]✓ Agent '{config['name']}' saved to {config_file}[/green]")
+            console.print(f"\n[dim]Use with: agentcli chat --agent {config['name']}[/dim]\n")
+        else:
+            console.print("\n[yellow]Agent not saved[/yellow]\n")
+
+    except KeyboardInterrupt:
+        console.print("\n\n[yellow]Agent creation cancelled[/yellow]\n")
+        raise typer.Exit(0)
+    except Exception as e:
+        console.print(f"\n[red]Error creating agent: {str(e)}[/red]\n")
+        raise typer.Exit(1)
+
+
+@app.command("list-custom")
+def list_custom_agents():
+    """List all custom agents created with 'agentcli create'."""
+    builder = AgentBuilder()
+    configs = builder.list_configs()
+
+    if not configs:
+        console.print("\n[yellow]No custom agents found[/yellow]")
+        console.print("[dim]Create one with: agentcli create[/dim]\n")
+        return
+
+    table = Table(title="Custom Agents", show_header=True, header_style="bold cyan")
+    table.add_column("Name", style="cyan", width=15)
+    table.add_column("Role", style="white", width=25)
+    table.add_column("Tools", style="dim", width=30)
+    table.add_column("LLM", style="green", width=20)
+
+    for config in configs:
+        tools_str = ", ".join(config.get("tool_collections", [])) or "None"
+        llm_str = f"{config['llm_provider']}/{config['model']}"
+        table.add_row(
+            config["name"],
+            config["role"],
+            tools_str,
+            llm_str
+        )
+
+    console.print(table)
+    console.print(f"\n[dim]Use with: agentcli chat --agent <name>[/dim]\n")
 
 
 def main():
