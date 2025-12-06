@@ -214,11 +214,153 @@ poetry run pytest tests/ -v
 # 138 passed in 31.36s
 ```
 
-## Phase 5: Project Twin
-_Not started._
+## Phase 5: Project Twin (Digital Codebase Mirror)
+**Status:** ✅ COMPLETE
 
-## Phase 6: Agent-as-Service
-_Not started._
+### Digital Twin Implementation
+- [X] Create `agent_factory/refs/` directory
+- [X] `file_node.py` - FileNode representation
+- [X] `code_analyzer.py` - AST-based code analysis
+- [X] `knowledge_graph.py` - Codebase relationship graph
+- [X] `project_twin.py` - Main ProjectTwin orchestrator
+- [X] `twin_agent.py` - LangChain agent interface
+
+### Testing
+- [X] Create `tests/test_project_twin.py` (24 tests)
+- [X] All 162 tests passing
+
+**CHECKPOINT TEST:**
+```bash
+poetry run pytest tests/ -v
+# 162 passed in 25.37s
+```
+
+---
+
+## NEW ARCHITECTURE: Spec-First Development (Dec 6, 2025 Forward)
+
+Following "The New Code" philosophy (Sean Grove, AI Engineer World's Fair 2025):
+- **Specifications are eternal** (versioned, debated, source of truth)
+- **Code is ephemeral** (regenerated from specs)
+- **80-90% of engineering value is structured communication**
+
+**Constitution:** `AGENTS.md` defines all rules and patterns
+
+---
+
+## Phase 0: OpenHands Integration (CRITICAL - Dec 15 Deadline)
+**Status:** ✅ COMPLETE (Dec 6, 2025)
+
+### OpenHands Worker
+- [X] Create `agent_factory/workers/` directory
+- [X] `openhands_worker.py` - OpenHands autonomous coding agent integration (580 lines, PLC-commented)
+- [X] `__init__.py` - Module exports
+- [X] `agent_factory.py` - Add `create_openhands_agent()` method
+- [X] `openhands_demo.py` - 4 comprehensive demos
+
+### Cost Savings Achieved
+- [X] Avoided $200/month Claude Code subscription (deadline Dec 15)
+- [X] Pay-per-use model: $0.10-0.50 per task
+- [X] Break-even: 400-2000 tasks/month
+
+### Testing
+- [X] All 162 tests passing
+- [X] Digital Twin validation successful
+- [X] Demo verified working
+
+**CHECKPOINT: Phase 0 complete before Dec 15 deadline! ✅**
+
+---
+
+## Phase 1: AGENTS.md Constitution
+**Status:** ✅ COMPLETE (Dec 6, 2025)
+
+### Constitution Creation
+- [X] Create `AGENTS.md` (655 lines, 10 Articles)
+  - Article I: Foundation - Source of Truth
+  - Article II: Specification as Source (mandatory format)
+  - Article III: Anti-Sycophancy Protocol
+  - Article IV: PLC-Style Heavy Commenting (40% density)
+  - Article V: Factory Commands & Patterns
+  - Article VI: Integration Stack
+  - Article VII: Quality Assurance
+  - Article VIII: Cost & Performance
+  - Article IX: Niche Dominator Vision
+  - Article X: Enforcement & Governance
+
+### Spec Template
+- [X] Create `specs/template.md` (450+ lines)
+- [X] Create `specs/constitution-amendments/` directory
+
+### Testing
+- [X] All 162 tests passing
+- [X] Digital Twin validation successful
+
+**CHECKPOINT: Constitution established! ✅**
+
+---
+
+## Phase 2: PLC-Style Heavy Commenting
+**Status:** ✅ COMPLETE (Dec 6, 2025)
+
+### Files Enhanced (40% Comment Density)
+- [X] `agent_factory/core/orchestrator.py` (924 lines, fully PLC-commented)
+- [X] `agent_factory/core/callbacks.py` (642 lines, fully PLC-commented)
+- [X] `agent_factory/schemas/base.py` (enhanced with PLC docs)
+- [X] `agent_factory/schemas/agent_responses.py` (enhanced with PLC docs)
+
+### Comment Template Applied
+- [X] PURPOSE: Why this exists
+- [X] WHAT THIS DOES: Step-by-step explanation
+- [X] WHY WE NEED THIS: Business/technical justification
+- [X] INPUTS/OUTPUTS: Parameters and returns
+- [X] EDGE CASES: Boundary conditions
+- [X] TROUBLESHOOTING: Common issues and solutions
+- [X] PLC ANALOGY: Industrial automation comparison
+
+### Testing
+- [X] All 162 tests passing (no regressions)
+- [X] Digital Twin validation successful
+- [X] +915 net lines of documentation added
+
+**CHECKPOINT: 40% comment density achieved! ✅**
+
+---
+
+## Phase 3: Spec → Agent Generation Pipeline
+**Status:** 🔜 NEXT (Dec 13-15, 2025)
+
+### Spec Parser
+- [ ] Read spec markdown files
+- [ ] Extract Purpose, Scope, Invariants, Success Criteria
+- [ ] Validate spec completeness
+
+### Code Generator
+- [ ] Generate LangGraph workflow from spec
+- [ ] Assign tools based on "Tools Required" section
+- [ ] Create Pydantic schemas from "Data Models"
+
+### Eval Generator
+- [ ] Generate test cases from "Behavior Examples"
+- [ ] Create anti-sycophancy tests
+- [ ] Generate performance benchmarks
+
+### Testing
+- [ ] Create sample spec
+- [ ] Generate agent from spec
+- [ ] Verify generated agent passes evals
+
+---
+
+## Future Phases (Spec-First Architecture)
+
+- **Phase 4:** Claude SDK Workers (Dec 16-18)
+- **Phase 5:** Evaluation System (Dec 19-22)
+- **Phase 6:** Google ADK Integration (Dec 23-Jan 5)
+- **Phase 7:** Computer Use Integration (Jan 6-15)
+- **Phase 8:** Niche Dominator Swarm (Jan 16-30)
+
+Target: $10K MRR by Month 2
 
 ---
 
@@ -226,11 +368,15 @@ _Not started._
 
 | Tag | Date | What Works |
 |-----|------|------------|
-| phase-4-complete | 2025-12-05 | Deterministic tools (file ops, caching, safety), 138 tests passing |
-| factory-tests-complete | 2025-12-05 | Comprehensive factory testing, 92 tests passing |
-| phase-3-complete | 2025-12-05 | Production observability (tracing, metrics, costs), 70 tests passing |
-| phase-2-complete | 2025-12-05 | Structured outputs with Pydantic schemas, 47 tests passing |
-| phase-1-complete | 2025-12-05 | Multi-agent orchestration with callbacks, 24 tests passing |
+| phase-2-plc-comments | 2025-12-06 | PLC-style heavy commenting (40% density), 162 tests |
+| phase-1-constitution | 2025-12-06 | AGENTS.md constitution created, spec template |
+| phase-0-openhands | 2025-12-06 | OpenHands integration, avoided $200/mo fee |
+| phase-5-twin-complete | 2025-12-05 | Project Twin digital codebase mirror, 162 tests |
+| phase-4-complete | 2025-12-05 | Deterministic tools (file ops, caching, safety), 138 tests |
+| factory-tests-complete | 2025-12-05 | Comprehensive factory testing, 92 tests |
+| phase-3-complete | 2025-12-05 | Production observability (tracing, metrics, costs), 70 tests |
+| phase-2-schemas-complete | 2025-12-05 | Structured outputs with Pydantic schemas, 47 tests |
+| phase-1-orchestration-complete | 2025-12-05 | Multi-agent orchestration with callbacks, 24 tests |
 ```
 
 ---
