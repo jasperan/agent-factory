@@ -30,7 +30,10 @@
       "Bash(poetry show:*)",
       "Bash(git tag:*)",
       "Bash(python:*)",
-      "Bash(poetry add:*)"
+      "Bash(poetry add:*)",
+      "WebFetch(domain:code.claude.com)",
+      "Bash(docker:*)",
+      "Bash(del debug_parser.py debug_tools.py)"
     ],
     "deny": [],
     "ask": []
