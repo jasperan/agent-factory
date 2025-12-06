@@ -58,6 +58,7 @@ class RouteResult:
     response: Union[Dict[str, Any], BaseModel, None] = None  # Agent output (dict or Pydantic model)
     error: Optional[str] = None        # Error message if failed
     duration_ms: Optional[float] = None  # Execution time
+    trace_id: Optional[str] = None     # Trace ID for observability (Phase 3)
 
 
 class AgentOrchestrator:
@@ -91,13 +92,26 @@ class AgentOrchestrator:
         self,
         llm: Optional[BaseChatModel] = None,
         event_bus: Optional[EventBus] = None,
-        verbose: bool = False
+        verbose: bool = False,
+        enable_observability: bool = True
     ):
         self._agents: Dict[str, AgentRegistration] = {}
         self._llm = llm
         self._event_bus = event_bus or create_default_event_bus(verbose)
         self._verbose = verbose
         self._fallback_agent: Optional[str] = None
+
+        # Observability (Phase 3)
+        self._enable_observability = enable_observability
+        if enable_observability:
+            from agent_factory.observability import Tracer, Metrics, CostTracker
+            self.tracer = Tracer()
+            self.metrics = Metrics()
+            self.cost_tracker = CostTracker()
+        else:
+            self.tracer = None
+            self.metrics = None
+            self.cost_tracker = None
 
     @property
     def event_bus(self) -> EventBus:
@@ -267,6 +281,23 @@ Respond with ONLY the agent name, nothing else. If no agent fits, respond with "
             )
             return None
 
+    def _extract_tokens(self, response: Any) -> Dict[str, int]:
+        """Extract token usage from agent response."""
+        # Try to extract token usage from response metadata
+        # LangChain responses may have usage_metadata
+        try:
+            if hasattr(response, 'usage_metadata'):
+                usage = response.usage_metadata
+                return {
+                    "prompt": usage.get("input_tokens", 0),
+                    "completion": usage.get("output_tokens", 0),
+                    "total": usage.get("total_tokens", 0)
+                }
+            # Fallback to empty
+            return {"prompt": 0, "completion": 0, "total": 0}
+        except:
+            return {"prompt": 0, "completion": 0, "total": 0}
+
     def route(self, query: str) -> RouteResult:
         """
         Route query to appropriate agent and execute.
@@ -281,6 +312,11 @@ Respond with ONLY the agent name, nothing else. If no agent fits, respond with "
             RouteResult with agent response or error
         """
         start_time = time.time()
+        trace_id = None
+
+        # Start trace (Phase 3 - Observability)
+        if self._enable_observability:
+            trace_id = self.tracer.start_trace(query)
 
         # Try keyword matching first
         matched = self._match_keywords(query)
@@ -301,11 +337,14 @@ Respond with ONLY the agent name, nothing else. If no agent fits, respond with "
 
         # No match at all
         if not matched:
+            if self._enable_observability:
+                self.tracer.finish_trace(success=False, error="No agent found")
             return RouteResult(
                 agent_name="",
                 method="none",
                 confidence=0.0,
-                error="No agent found for query"
+                error="No agent found for query",
+                trace_id=trace_id
             )
 
         # Emit routing decision
@@ -321,6 +360,9 @@ Respond with ONLY the agent name, nothing else. If no agent fits, respond with "
 
         # Execute agent
         try:
+            if self._enable_observability:
+                span = self.tracer.start_span("agent_execution", agent=matched.name)
+
             self._event_bus.emit(
                 EventType.AGENT_START,
                 {"query": query},
@@ -335,6 +377,38 @@ Respond with ONLY the agent name, nothing else. If no agent fits, respond with "
 
             duration_ms = (time.time() - start_time) * 1000
 
+            # Extract token usage
+            tokens = self._extract_tokens(raw_response)
+
+            # Record observability metrics (Phase 3)
+            if self._enable_observability:
+                span.finish()
+
+                # Record metrics
+                self.metrics.record_request(
+                    agent_name=matched.name,
+                    duration_ms=duration_ms,
+                    success=True,
+                    tokens=tokens
+                )
+
+                # Record costs
+                agent_metadata = matched.agent.metadata
+                self.cost_tracker.record_cost(
+                    agent_name=matched.name,
+                    provider=agent_metadata.get("llm_provider", "unknown"),
+                    model=agent_metadata.get("model", "unknown"),
+                    prompt_tokens=tokens.get("prompt", 0),
+                    completion_tokens=tokens.get("completion", 0)
+                )
+
+                # Finish trace
+                self.tracer.finish_trace(
+                    success=True,
+                    agent_name=matched.name,
+                    method=method
+                )
+
             self._event_bus.emit(
                 EventType.AGENT_END,
                 {"output": str(parsed_response), "duration_ms": duration_ms},
@@ -346,10 +420,21 @@ Respond with ONLY the agent name, nothing else. If no agent fits, respond with "
                 method=method,
                 confidence=confidence,
                 response=parsed_response,
-                duration_ms=duration_ms
+                duration_ms=duration_ms,
+                trace_id=trace_id
             )
 
         except Exception as e:
+            # Record error metrics
+            if self._enable_observability:
+                self.metrics.record_request(
+                    agent_name=matched.name,
+                    duration_ms=(time.time() - start_time) * 1000,
+                    success=False,
+                    error_type="agent_execution"
+                )
+                self.tracer.finish_trace(success=False, error=str(e))
+
             self._event_bus.emit(
                 EventType.ERROR,
                 {"error_type": "agent_execution", "message": str(e)},
@@ -360,7 +445,8 @@ Respond with ONLY the agent name, nothing else. If no agent fits, respond with "
                 agent_name=matched.name,
                 method=method,
                 confidence=confidence,
-                error=str(e)
+                error=str(e),
+                trace_id=trace_id
             )
 
     def route_to(self, agent_name: str, query: str) -> RouteResult:

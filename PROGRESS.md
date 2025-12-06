@@ -125,7 +125,42 @@ poetry run pytest tests/ -v
 ```
 
 ## Phase 3: Enhanced Observability
-_Not started._
+**Status:** ✅ COMPLETE
+
+### Observability Foundation
+- [X] Create `agent_factory/observability/` directory
+- [X] `tracer.py` - Tracer, Trace, Span classes for request tracing
+- [X] `metrics.py` - Metrics aggregator for performance tracking
+- [X] `cost_tracker.py` - CostTracker for API cost calculation
+- [X] `__init__.py` - Export all observability modules
+
+### Orchestrator Integration
+- [X] Add `enable_observability` parameter to AgentOrchestrator
+- [X] Integrate Tracer into route() method
+- [X] Record metrics automatically (latency, tokens, success rate)
+- [X] Track costs per request (provider, model, tokens)
+- [X] Add trace_id to RouteResult
+- [X] Extract token usage from LLM responses
+
+### Features Implemented
+- [X] Request tracing with unique trace_ids
+- [X] Span tracking for sub-operations
+- [X] Performance metrics (avg, p50, p95, p99 latency)
+- [X] Token usage tracking
+- [X] Cost calculation (OpenAI, Anthropic, Google)
+- [X] Error categorization
+- [X] Per-agent breakdowns
+
+### Testing & Demo
+- [X] Create `examples/observability_demo.py`
+- [X] Create `tests/test_observability.py` (23 tests)
+- [X] All 70 tests passing (13 callbacks + 11 orchestrator + 23 schemas + 23 observability)
+
+**CHECKPOINT TEST:**
+```bash
+poetry run pytest tests/ -v
+# 70 passed in 4.35s
+```
 
 ## Phase 4: Deterministic Tools
 _Not started._
@@ -142,6 +177,7 @@ _Not started._
 
 | Tag | Date | What Works |
 |-----|------|------------|
+| phase-3-complete | 2025-12-05 | Production observability (tracing, metrics, costs), 70 tests passing |
 | phase-2-complete | 2025-12-05 | Structured outputs with Pydantic schemas, 47 tests passing |
 | phase-1-complete | 2025-12-05 | Multi-agent orchestration with callbacks, 24 tests passing |
 ```
