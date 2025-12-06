@@ -20,6 +20,7 @@ from pydantic import BaseModel
 
 from .orchestrator import AgentOrchestrator
 from .callbacks import EventBus, create_default_event_bus
+from ..workers.openhands_worker import OpenHandsWorker, create_openhands_worker
 
 
 class AgentFactory:
@@ -312,4 +313,107 @@ class AgentFactory:
             llm=llm,
             event_bus=event_bus,
             verbose=verbose if verbose is not None else self.verbose
+        )
+
+    def create_openhands_agent(
+        self,
+        model: Optional[str] = None,
+        port: int = 3000
+    ) -> OpenHandsWorker:
+        """
+        Create an OpenHands autonomous coding agent worker.
+
+        PURPOSE (PLC-Style Explanation):
+            Creates a worker that can autonomously write code, fix bugs, run tests.
+            Like hiring a robot programmer - you give it tasks, it codes for you.
+
+        WHAT THIS DOES:
+            1. Creates OpenHandsWorker instance configured with your preferred LLM
+            2. Worker manages its own Docker container lifecycle
+            3. Returns ready-to-use worker you can send coding tasks to
+
+        WHY USE THIS:
+            - Avoid $200/month Claude Code fee (deadline Dec 15th!)
+            - Get production-grade AI coder (50%+ SWE-Bench accuracy)
+            - Sandboxed execution (safe, won't mess up your system)
+            - Works with Claude, GPT, Gemini, Llama (model-agnostic)
+
+        PARAMETERS:
+            model: Which LLM to use for coding (default: uses factory's default)
+                Examples:
+                    "claude-3-5-sonnet-20241022" (default, recommended)
+                    "gpt-4"
+                    "gemini-2.0-flash"
+            port: Port for OpenHands API (default: 3000)
+                Change if 3000 is already in use
+
+        RETURNS:
+            OpenHandsWorker instance ready to run coding tasks
+
+        HOW TO USE:
+            # Create the worker
+            worker = factory.create_openhands_agent()
+
+            # Run a coding task
+            result = worker.run_task("Add a function to calculate factorial")
+
+            # Check results
+            if result.success:
+                print(f"Code generated: {result.code}")
+                print(f"Files changed: {result.files_changed}")
+            else:
+                print(f"Task failed: {result.message}")
+
+        COST SAVINGS:
+            - Claude Code CLI: $200/month subscription
+            - OpenHands: Free (open source) + only pay for LLM API usage
+            - Typical task: $0.10 - $0.50 in API costs
+            - Break-even: 400-2000 tasks per month
+
+        TROUBLESHOOTING:
+            - "Docker not found" → Install Docker Desktop
+            - "Port 3000 in use" → Change port parameter
+            - Tasks failing → Try different model or clarify task description
+            - Slow performance → Simplify task or increase timeout
+
+        EDGE CASES:
+            - If model=None, uses factory's default model (usually Claude)
+            - If Docker not installed, worker creation fails with helpful error
+            - Container auto-cleans up after each task (ephemeral)
+
+        Args:
+            model: LLM model name (optional, uses factory default if not specified)
+            port: HTTP port for OpenHands API (default 3000)
+
+        Returns:
+            OpenHandsWorker: Configured worker ready to execute coding tasks
+
+        Raises:
+            RuntimeError: If Docker is not installed or not running
+        """
+        # Use factory's default model if not specified
+        # Map factory providers to OpenHands-compatible model names
+        if model is None:
+            # Use the factory's configured model
+            provider = self.default_llm_provider
+            factory_model = self.default_model
+
+            # Map to OpenHands-compatible names
+            if provider == self.LLM_ANTHROPIC:
+                # Already in correct format (e.g., "claude-3-5-sonnet-20241022")
+                model = factory_model
+            elif provider == self.LLM_OPENAI:
+                # Already in correct format (e.g., "gpt-4o")
+                model = factory_model
+            elif provider == self.LLM_GOOGLE:
+                # Map to Gemini format (e.g., "gemini-2.0-flash")
+                model = factory_model
+            else:
+                # Fallback to latest Claude if unknown provider
+                model = "claude-3-5-sonnet-20241022"
+
+        # Create and return worker
+        return OpenHandsWorker(
+            model=model,
+            port=port
         )
