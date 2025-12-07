@@ -24,14 +24,34 @@ Agent Factory includes a **production-ready chat interface** for interacting wit
 
 ```bash
 # Chat with Bob (market research agent)
-poetry run agentcli chat --agent bob-1
+poetry run agentcli chat --agent bob
 
-# Chat with any agent by name
-poetry run agentcli chat --agent <agent-name>
+# Chat with research agent
+poetry run agentcli chat --agent research
+
+# Chat with coding agent
+poetry run agentcli chat --agent coding
 
 # List available agents
-poetry run agentcli edit --list
+poetry run agentcli list-agents
 ```
+
+### Available Preset Agents
+
+Agent Factory includes **3 preset agents** ready to use:
+
+| Agent | Command | Specialization |
+|-------|---------|----------------|
+| **bob** | `agentcli chat --agent bob` | Market research & opportunity discovery |
+| **research** | `agentcli chat --agent research` | Web research & fact-finding |
+| **coding** | `agentcli chat --agent coding` | File operations & code analysis |
+
+**To see all agents:**
+```bash
+poetry run agentcli list-agents
+```
+
+---
 
 ### First Conversation
 
@@ -101,7 +121,7 @@ Type these commands during your chat session:
 **Use Case:** Iteratively refine market research
 
 ```bash
-poetry run agentcli chat --agent bob-1
+poetry run agentcli chat --agent bob
 ```
 
 **Conversation:**
@@ -174,7 +194,7 @@ poetry run agentcli chat --agent bob-1 --resume market_research_dec7.md
 **Scenario:** Validate a product idea
 
 ```bash
-poetry run agentcli chat --agent bob-1
+poetry run agentcli chat --agent bob
 ```
 
 **Session:**
@@ -619,7 +639,7 @@ for niche in niches:
 
 **Now that you understand the chat interface:**
 
-1. **Try it:** `poetry run agentcli chat --agent bob-1`
+1. **Try it:** `poetry run agentcli chat --agent bob`
 2. **Test queries:** Use examples from MARKET_RESEARCH_AGENT_INSTRUCTIONS.md
 3. **Save research:** Use `/save` command
 4. **Iterate:** Ask follow-up questions, refine insights
@@ -630,6 +650,11 @@ for niche in niches:
 - Integrate with external tools (Notion, Airtable, etc.)
 - Create research workflows
 - Automate batch research
+
+**Other Agents:**
+- Research: `poetry run agentcli chat --agent research`
+- Coding: `poetry run agentcli chat --agent coding`
+- List all: `poetry run agentcli list-agents`
 
 ---
 
