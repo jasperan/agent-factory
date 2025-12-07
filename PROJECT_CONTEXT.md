@@ -4,6 +4,49 @@
 
 ---
 
+## [2025-12-07 21:00] Bob Now Accessible via Chat Interface - CLI Fixed
+
+**Project Name:** Agent Factory
+**Current Phase:** Post-Phase 4 + CLI System Complete
+**Status:** ✅ **Bob Fully Integrated - Chat Interface Working**
+
+**What Was Fixed:**
+- Bob added to agent presets (was only accessible via Python)
+- CHAT_USAGE.md corrected (bob-1 → bob)
+- Two CLI tools clarified (agentcli.py vs agentcli entry point)
+- poetry install completed (fixed entry point warning)
+
+**Now Working:**
+```bash
+poetry run agentcli chat --agent bob       # ✅ Market research
+poetry run agentcli chat --agent research  # ✅ Web research
+poetry run agentcli chat --agent coding    # ✅ File operations
+poetry run agentcli list-agents            # ✅ Shows all 3
+```
+
+**Bob's Configuration:**
+- 10 tools (research + file ops)
+- 8 invariants preserved
+- 25 iteration limit (complex research)
+- 5-minute timeout
+- Multi-turn conversational memory
+
+**Validation:**
+- ✅ Bob agent creates via presets
+- ✅ Shows in agent list
+- ✅ Chat command ready
+- ✅ Documentation corrected
+
+**Blockers:** None
+
+**Next Steps:**
+1. Use: `poetry run agentcli chat --agent bob`
+2. Test market research queries
+3. Leverage multi-turn conversations
+4. Save sessions with /save command
+
+---
+
 ## [2025-12-07 20:00] Anti-Gravity Integration Reviewed & Enhanced
 
 **Project Name:** Agent Factory

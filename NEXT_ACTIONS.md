@@ -4,25 +4,32 @@
 
 ---
 
-## [2025-12-07 20:00] Current Priorities - Anti-Gravity Integration Complete
+## [2025-12-07 21:00] Current Priorities - Bob Chat Interface Fixed & Ready
 
 ### 🔴 CRITICAL - Immediate Action Required
 
-None - Anti-gravity changes validated, chat interface ready
+None - Bob fully integrated, chat interface working perfectly
 
 ---
 
 ### 🟡 HIGH - Important Next Steps
 
 #### 1. Use Chat Interface for Market Research ⭐ RECOMMENDED
-**Priority:** HIGH - Leverage new capabilities
+**Priority:** HIGH - Leverage Bob's capabilities
 **Task:** Start using Bob via chat interface for real research
 **Estimated Time:** 5 minutes to start
 
-**Commands:**
+**Correct Commands (FIXED):**
 ```bash
 # Launch interactive chat with Bob
-poetry run agentcli chat --agent bob-1
+poetry run agentcli chat --agent bob  # ✅ CORRECT (not bob-1)
+
+# Other agents
+poetry run agentcli chat --agent research  # Web research
+poetry run agentcli chat --agent coding    # File operations
+
+# List all available agents
+poetry run agentcli list-agents
 
 # Try example queries from MARKET_RESEARCH_AGENT_INSTRUCTIONS.md
 # Save sessions with /save command
@@ -75,6 +82,15 @@ poetry run agentcli chat --agent bob-1
 ---
 
 ### 🟢 COMPLETED IN THIS SESSION
+
+✅ **CLI Command Mismatch Fixed** (Bob now accessible via chat):
+  - Added Bob to agent_presets.py (AGENT_CONFIGS, get_bob_agent(), dispatcher)
+  - Updated CHAT_USAGE.md with correct commands (bob-1 → bob)
+  - poetry install completed (fixed entry point warning)
+  - Validated: agentcli list-agents shows all 3 agents
+  - Validated: Bob agent creates successfully via presets
+  - Documentation corrected throughout
+  - Committed and pushed to GitHub
 
 ✅ Anti-gravity integration reviewed (95% constitutional alignment)
 ✅ All uncommitted changes organized into 6 logical git commits:
