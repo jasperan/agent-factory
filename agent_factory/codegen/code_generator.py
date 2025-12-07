@@ -393,7 +393,10 @@ if __name__ == "__main__":
 
         if output_path is None:
             # Default: save to agents/ directory
-            filename = f"{spec.name.lower().replace(' ', '_')}_{spec.version.replace('.', '_')}.py"
+            # Sanitize name: remove invalid filename characters
+            import re
+            safe_name = re.sub(r'[<>:"/\\|?*]', '', spec.name.lower().replace(' ', '_'))
+            filename = f"{safe_name}_{spec.version.replace('.', '_')}.py"
             output_path = Path("agents") / filename
 
         # Ensure directory exists

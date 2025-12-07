@@ -33,7 +33,8 @@
       "Bash(poetry add:*)",
       "WebFetch(domain:code.claude.com)",
       "Bash(docker:*)",
-      "Bash(del debug_parser.py debug_tools.py)"
+      "Bash(del debug_parser.py debug_tools.py)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

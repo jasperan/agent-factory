@@ -435,7 +435,10 @@ def agent():
 
         if output_path is None:
             # Default: save to tests/ directory
-            filename = f"test_{spec.name.lower().replace(' ', '_')}_{spec.version.replace('.', '_')}.py"
+            # Sanitize name: remove invalid filename characters
+            import re
+            safe_name = re.sub(r'[<>:"/\\|?*]', '', spec.name.lower().replace(' ', '_'))
+            filename = f"test_{safe_name}_{spec.version.replace('.', '_')}.py"
             output_path = Path("tests") / filename
 
         # Ensure directory exists
