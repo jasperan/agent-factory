@@ -25,6 +25,7 @@ COMMANDS:
     agentcli eval <agent-name>     Run tests on generated agent
     agentcli list                  Show available specs
     agentcli status                Show system status
+    agentcli edit <agent-name>     Edit existing agent interactively
 
 USAGE:
     # Build agent from spec
@@ -49,6 +50,8 @@ from typing import Optional
 import subprocess
 
 from agent_factory.codegen import SpecParser, CodeGenerator, EvalGenerator
+from agent_factory.cli import InteractiveAgentCreator, list_templates
+from agent_factory.cli.agent_editor import AgentEditor, list_editable_agents
 
 
 # ========================================================================
@@ -441,9 +444,21 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Interactive agent creation (wizard mode)
+  agentcli create
+  agentcli create --template researcher
+  agentcli create --list-templates
+
+  # Edit existing agents
+  agentcli edit bob-1
+  agentcli edit --list
+
+  # Build from existing spec
   agentcli build research-agent-v1.0
   agentcli validate specs/research-agent-v1.0.md
   agentcli eval research-agent-v1.0
+
+  # System info
   agentcli list
   agentcli status
 
@@ -489,6 +504,22 @@ Philosophy:
         help='Show system status'
     )
 
+    # Create command (interactive)
+    create_parser = subparsers.add_parser(
+        'create',
+        help='Create agent interactively (wizard mode)'
+    )
+    create_parser.add_argument('--template', '-t', help='Start with template (researcher, coder, analyst, file_manager)')
+    create_parser.add_argument('--list-templates', action='store_true', help='List available templates')
+
+    # Edit command (modify existing agent)
+    edit_parser = subparsers.add_parser(
+        'edit',
+        help='Edit existing agent interactively'
+    )
+    edit_parser.add_argument('agent_name', nargs='?', help='Agent name to edit (e.g., bob-1)')
+    edit_parser.add_argument('--list', action='store_true', help='List all editable agents')
+
     args = parser.parse_args()
 
     # Show help if no command
@@ -510,6 +541,65 @@ Philosophy:
         return cli.list_specs()
     elif args.command == 'status':
         return cli.status()
+    elif args.command == 'create':
+        # List templates if requested
+        if args.list_templates:
+            print("=" * 72)
+            print("AVAILABLE TEMPLATES")
+            print("=" * 72)
+            print()
+            for template in list_templates():
+                print(f"{template['name']}:")
+                print(f"  {template['description']}")
+                print()
+            return 0
+
+        # Run interactive creator
+        creator = InteractiveAgentCreator()
+        success = creator.run(template_name=args.template)
+        return 0 if success else 1
+    elif args.command == 'edit':
+        # List agents if requested
+        if args.list:
+            print("=" * 72)
+            print("EDITABLE AGENTS")
+            print("=" * 72)
+            print()
+            agents = list_editable_agents()
+            if not agents:
+                print("  No agents found in specs/")
+                print("  Create one with: agentcli create")
+            else:
+                for agent in agents:
+                    print(f"  - {agent}")
+                print()
+                print("Edit with: agentcli edit <agent-name>")
+            print()
+            return 0
+
+        # Edit agent
+        if not args.agent_name:
+            print("Error: agent_name required")
+            print("Usage: agentcli edit <agent-name>")
+            print("       agentcli edit --list")
+            return 1
+
+        try:
+            editor = AgentEditor(args.agent_name)
+            success = editor.run()
+            return 0 if success else 1
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
+            print()
+            print("Available agents:")
+            for agent in list_editable_agents():
+                print(f"  - {agent}")
+            return 1
+        except Exception as e:
+            print(f"Error editing agent: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
     else:
         parser.print_help()
         return 1
