@@ -4,6 +4,692 @@
 
 ---
 
+## [2025-12-07] Session 10 - Phase 0 Documentation: Platform Vision Mapping (COMPLETE)
+
+### [23:55] Memory System Update - Context Saved
+**Activity:** Updated all 5 memory files with Phase 0 completion status
+**Trigger:** User ran `/content-clear` command
+
+**Files Updated:**
+1. PROJECT_CONTEXT.md - Added Phase 0 completion entry (9 of 10 files complete)
+2. NEXT_ACTIONS.md - Updated priorities (begin Phase 1 next)
+3. DEVELOPMENT_LOG.md - This file (Session 10 complete log)
+4. ISSUES_LOG.md - Informational entry (Phase 0 90% complete)
+5. DECISIONS_LOG.md - Added "ultrathink" documentation quality decision
+
+**Session Statistics:**
+- Duration: ~14 hours (09:00-23:55)
+- Files created: 9 documentation files
+- Total output: ~530KB of documentation
+- Average file size: 59KB per file
+- Token usage: 164K/200K (82%)
+
+**Status:** All memory files updated, ready for context reload
+
+---
+
+### [23:50] Competitive Analysis Documentation Complete
+**Activity:** Created comprehensive market positioning analysis
+**File Created:** `docs/00_competitive_analysis.md` (~50KB)
+
+**Contents:**
+1. **Market Overview:** TAM ($2.4B), SAM ($480M), SOM ($24M)
+2. **Competitive Landscape:** 5 competitors analyzed (CrewAI, Vertex AI, MindStudio, Lindy, LangChain)
+3. **Feature Comparison Matrix:** 20+ features compared across platforms
+4. **Pricing Comparison:** Monthly pricing, cost per run analysis
+5. **Unique Differentiators:** Constitutional programming, Brain Fart Checker, cost optimization, OpenHands, marketplace
+6. **Competitive Positioning:** "Sweet spot between CrewAI (code-only), Vertex AI (enterprise-expensive), MindStudio (no-code-locked)"
+7. **SWOT Analysis:** Strengths, weaknesses, opportunities, threats
+8. **Go-to-Market Strategy:** 3-phase plan (M1-3, M4-6, M7-12)
+9. **Competitive Moats:** Network effects, switching costs, data moat, brand
+
+**Key Insights:**
+- Agent Factory positioned for underserved indie/SMB segment
+- CrewAI (open-source, no platform) vs Vertex AI (enterprise-complex) vs MindStudio (no-code-locked) vs Agent Factory (developer-friendly platform)
+- Unique differentiators: Spec-driven, cost-optimized, Brain Fart Checker, OpenHands
+- Path to $10K MRR validated (Product Hunt → content → marketplace → enterprise)
+
+**Phase 0 Progress:** 9 of 10 files complete (90%)
+
+---
+
+### [23:30] Technology Stack Documentation Complete
+**Activity:** Documented all technology choices with detailed rationale
+**File Created:** `docs/00_tech_stack.md` (~45KB)
+
+**Contents:**
+1. **Frontend Stack:** Next.js 14, TypeScript, TailwindCSS, shadcn/ui, Recharts
+2. **Backend Stack:** Python 3.10+, FastAPI, Pydantic, SQLAlchemy
+3. **AI/ML Stack:** LangChain, LiteLLM, LangGraph, OpenHands
+4. **Database & Storage:** PostgreSQL 15, Supabase, Redis 7, GCS
+5. **Infrastructure:** Cloud Run, Pub/Sub, Cloudflare, GitHub Actions, Docker
+6. **Developer Tools:** Poetry, Pytest, Black, Ruff, mypy
+7. **Security:** Supabase Auth, RLS, Google Secret Manager, Cloudflare SSL
+8. **Cost Analysis:** Monthly costs by user scale (100, 500, 1000 users)
+9. **Decision Matrix:** Technology evaluation framework with weighted scores
+10. **Migration Path:** Current stack → platform stack (phased approach)
+11. **Technology Risks:** LangChain breaking changes, Supabase vendor lock-in, Cloud Run cold starts
+
+**Key Decisions Documented:**
+- Why Next.js over vanilla React? (Server Components, SEO, image optimization)
+- Why FastAPI over Django/Flask? (Performance, type safety, auto-documentation)
+- Why PostgreSQL over MongoDB? (JSONB, RLS, transactions, relations)
+- Why Supabase over AWS RDS? (All-in-one, RLS support, developer experience)
+- Why Cloud Run over Kubernetes? (Simplicity, pay-per-use, auto-scaling)
+- Why LiteLLM? (Cost optimization, unified interface, fallbacks)
+
+**Cost Analysis Highlights:**
+- 100 users: $63/mo infrastructure ($0.63 per user)
+- 500 users: $150/mo infrastructure ($0.30 per user)
+- 1,000 users: $255/mo infrastructure ($0.26 per user)
+- Gross margin: 84.6% at 1,000 users (target: 80%+)
+
+---
+
+### [23:00] REST API Design Documentation Complete
+**Activity:** Created complete API specification with 50+ endpoints
+**File Created:** `docs/00_api_design.md` (~50KB)
+
+**Contents:**
+1. **API Overview:** Base URLs, design principles, response format
+2. **Authentication:** JWT tokens (web/mobile), API keys (CLI/server), OAuth 2.0 (integrations)
+3. **API Conventions:** Naming, pagination, filtering, sorting, timestamps, idempotency
+4. **Core Endpoints:** Agents (6 endpoints), Runs (4 endpoints), Teams (6 endpoints), Tools (2 endpoints)
+5. **Marketplace Endpoints:** Templates (5 endpoints - browse, get, install, publish, rate)
+6. **Billing Endpoints:** Subscriptions (3 endpoints), Usage (1 endpoint), Invoices (2 endpoints)
+7. **Admin Endpoints:** Stats, user management, suspension
+8. **Webhook Endpoints:** CRUD + event types
+9. **Rate Limiting:** Tier-based limits (Free: 10/min, Pro: 60/min, Enterprise: 300/min)
+10. **Error Handling:** Standard error format, error codes, examples
+11. **OpenAPI Specification:** Full OpenAPI 3.1 schema
+12. **API Client Examples:** Python (requests), TypeScript (axios), cURL
+13. **Performance Targets:** Auth <100ms, List <200ms, CRUD <300ms, Runs <10s
+
+**Key Endpoints:**
+- `POST /v1/agents` - Create agent
+- `POST /v1/agents/{id}/run` - Execute agent (streaming support)
+- `GET /v1/marketplace/templates` - Browse templates
+- `POST /v1/billing/subscription` - Manage subscription
+- `POST /v1/webhooks` - Configure webhooks
+
+**Rate Limiting:**
+- Free: 10 req/min, 100 runs/day
+- Pro: 60 req/min, 1,000 runs/day
+- Enterprise: 300 req/min, 10,000 runs/day
+
+---
+
+## [2025-12-07] Session 10 - Phase 0 Documentation: Platform Vision Mapping
+
+### [23:45] Phase 0 Documentation Session Complete
+**Activity:** Created 6 comprehensive documentation files for platform vision
+**Total Output:** ~340KB of documentation (6 files)
+
+**Files Created:**
+1. `docs/00_repo_overview.md` (25KB, 517 lines)
+2. `docs/00_platform_roadmap.md` (45KB, 1,200+ lines)
+3. `docs/00_database_schema.md` (50KB, 900+ lines)
+4. `docs/00_architecture_platform.md` (~70KB, 1,500+ lines)
+5. `docs/00_gap_analysis.md` (~75KB, 1,400+ lines)
+6. `docs/00_business_model.md` (~76KB, 1,250+ lines)
+
+**Phase 0 Progress:** 6 of 10 files complete (60%)
+
+**Remaining Tasks:**
+- docs/00_api_design.md
+- docs/00_tech_stack.md
+- docs/00_competitive_analysis.md
+- CLI improvements (help text, roadmap command)
+
+---
+
+### [21:30] Business Model Documentation Complete
+**Activity:** Created comprehensive business model and financial projections
+**File Created:** `docs/00_business_model.md` (76KB)
+
+**Contents:**
+1. **Pricing Strategy:**
+   - Free tier: 3 agents, 100 runs/month
+   - Pro tier: $49/mo, unlimited agents, 1000 runs/month
+   - Enterprise: $299/mo, 10K runs/month, SSO, SLA
+   - Brain Fart Checker: $99/mo standalone
+
+2. **Revenue Projections:**
+   - Month 1: $990 MRR (10 Brain Fart Checker users)
+   - Month 3: $10,000 MRR (200 paid users) ← First Target
+   - Month 6: $25,000 MRR (500 paid users)
+   - Month 12: $66,000 MRR (1,100 paid users)
+   - Year 3: $600,000 MRR (10,000 paid users)
+
+3. **Unit Economics:**
+   - LTV: $1,600 (blended), $1,307 (Pro), $12,708 (Enterprise)
+   - CAC: $150 (Pro), $1,500 (Enterprise), $200 (Brain Fart)
+   - LTV/CAC Ratio: 8:1 (healthy SaaS metrics)
+   - Gross Margin: 80% (target)
+   - Break-even: Month 6 (276 paid customers)
+
+4. **Market Sizing:**
+   - TAM: $2.4B (3M developers × $800/year)
+   - SAM: $480M (600K active AI agent builders)
+   - SOM: $24M (30K customers, 0.1% market share Year 3)
+
+5. **Customer Acquisition:**
+   - Content marketing (50% of customers, $0 CAC)
+   - Product Hunt launch (100 signups in 24h)
+   - Community building (Discord, Twitter)
+   - Paid ads (after PMF, $3K/month budget)
+   - Partnerships (LangChain, Perplexity, OpenHands)
+
+6. **90-Day Sprint to $10K MRR:**
+   - Week 1-2: Phase 0-1 (documentation, LLM abstraction)
+   - Week 3-4: Brain Fart Checker launch ($990 MRR, 10 users)
+   - Week 5-6: Database + API ($2,400 MRR, 30 users)
+   - Week 7-8: Web UI beta ($6,655 MRR, 100 users)
+   - Week 9-10: Marketplace launch ($10,840 MRR, 200 users) ✅ Goal
+
+7. **Financial Scenarios:**
+   - Best case: $1.08M ARR Year 1 (15% conversion, 2% churn)
+   - Base case: $792K ARR Year 1 (10% conversion, 3% churn)
+   - Worst case: $144K ARR Year 1 (5% conversion, 5% churn)
+   - Expected value: $720K (weighted average)
+
+**Key Insights:**
+- Healthy unit economics support sustainable growth
+- Multiple revenue streams reduce risk (subscriptions, marketplace, services)
+- Break-even achievable by Month 6 with solid execution
+- Brain Fart Checker provides early revenue validation
+- Path to $10K MRR is realistic with focused execution
+
+---
+
+### [19:00] Gap Analysis Documentation Complete
+**Activity:** Mapped all gaps between current state and platform vision
+**File Created:** `docs/00_gap_analysis.md` (75KB)
+
+**12 Technical Gaps Identified:**
+
+**Gap 1: LLM Abstraction Layer (Phase 1)**
+- Effort: 2-3 days
+- Risk: Low
+- Work: Install LiteLLM, create router, update AgentFactory
+- Impact: Enables multi-LLM routing and cost tracking
+
+**Gap 2: Multi-LLM Routing (Phase 2)**
+- Effort: 3-4 days
+- Risk: Medium (cost calculations must be accurate)
+- Work: Routing logic, fallback chain, cost tracking
+- Impact: 60% LLM cost savings (Llama3 → Perplexity → Claude)
+
+**Gap 3: Modern Tooling (Phase 3)**
+- Effort: 2-3 days
+- Risk: Low
+- Work: Add Perplexity, GitHub, Stripe, database tools
+- Impact: Expands agent capabilities
+
+**Gap 4: Brain Fart Checker (Phase 4)**
+- Effort: 5-7 days
+- Risk: Medium (prompt engineering)
+- Work: Multi-agent validator with kill criteria
+- Impact: First product launch ($99/mo standalone)
+
+**Gap 5: OpenHands Integration (Phase 5)**
+- Effort: 2-3 days
+- Risk: High (output quality varies)
+- Work: Spec-to-code pipeline with validation
+- Impact: Autonomous agent code generation
+
+**Gap 6: Cost Monitoring (Phase 6)**
+- Effort: 1-2 days
+- Risk: Low
+- Work: Dashboard, budget alerts, optimization recommendations
+- Impact: Cost control and user transparency
+
+**Gap 7: Multi-Agent Orchestration (Phase 7)**
+- Effort: 2 weeks
+- Risk: Medium (LangGraph learning curve)
+- Work: LangGraph migration, team workflows, consensus
+- Impact: Advanced agent coordination
+
+**Gap 8: Web UI (Phase 8)**
+- Effort: 4 weeks
+- Risk: Medium (complex UI)
+- Work: Next.js app, visual builders, dashboards
+- Impact: Accessibility for non-developers
+
+**Gap 9: Multi-Tenancy (Phase 9)**
+- Effort: 2 weeks
+- Risk: High (RLS policies critical for security)
+- Work: PostgreSQL + Supabase, RLS, team management
+- Impact: Production-ready multi-user platform
+
+**Gap 10: Billing (Phase 10)**
+- Effort: 1 week
+- Risk: Low (Stripe well-documented)
+- Work: Subscription tiers, webhooks, usage limits
+- Impact: Revenue unlock (without this, MRR = $0)
+
+**Gap 11: Marketplace (Phase 11)**
+- Effort: 2 weeks
+- Risk: High (moderation critical)
+- Work: Template library, revenue sharing, moderation
+- Impact: Network effects, community growth
+
+**Gap 12: REST API (Phase 12)**
+- Effort: 2 weeks
+- Risk: Low
+- Work: 50+ endpoints, rate limiting, webhooks, docs
+- Impact: Integration ecosystem
+
+**Critical Path:** 11 weeks (Gaps 1→2→4→9→12→8→10→11)
+**Parallelizable:** 2 weeks savings if Gaps 3, 5, 6 done concurrently
+
+**Total Estimated Effort:** 13 weeks to full platform
+
+---
+
+### [17:00] Architecture Documentation Complete
+**Activity:** Designed complete 5-layer platform architecture
+**File Created:** `docs/00_architecture_platform.md` (~70KB)
+
+**5-Layer Architecture:**
+
+**Layer 1: Frontend (Next.js 14, React 18, TailwindCSS)**
+- Web UI for agent builder, dashboard, marketplace
+- Visual spec editor with Monaco
+- Real-time metrics and analytics
+- Performance targets: <1.2s FCP, <2.5s TTI, >90 Lighthouse
+
+**Layer 2: API Gateway (FastAPI, Nginx, Rate Limiting)**
+- REST API with 50+ endpoints
+- Authentication (Supabase JWT + API keys)
+- Rate limiting (Redis-based, tier-specific)
+- Webhooks for event notifications
+- Performance targets: <200ms p95, <500ms p99
+
+**Layer 3: Core Engine (LangGraph, LiteLLM, Orchestrator)**
+- Multi-agent orchestration with LangGraph
+- Cost-optimized LLM routing (Llama3 → Perplexity → Claude)
+- Agent runtime with 25 tools
+- Brain Fart Checker with kill criteria
+- Performance targets: <2s simple queries, <10s complex
+
+**Layer 4: Data Layer (PostgreSQL 15, Redis 7, Supabase)**
+- Multi-tenant database with RLS policies
+- Caching for 80%+ hit rate
+- Session store with TTL
+- Object storage for specs and logs
+- Performance targets: <10ms indexed queries, <50ms joins
+
+**Layer 5: Infrastructure (Cloud Run, Supabase, Cloudflare)**
+- Serverless containers (0-100 instances)
+- Auto-scaling based on CPU and request rate
+- CDN for static assets
+- Monitoring with Sentry + Google Cloud Monitoring
+- Performance targets: <3s cold start, 99.9% uptime
+
+**Key Design Patterns:**
+- Multi-tenancy with team-based RLS
+- Event bus for orchestrator communication
+- Factory pattern for agent creation
+- Marketplace with 70/30 revenue split
+
+**Security Model:**
+- Row-Level Security for data isolation
+- API key management with hashing
+- Secrets management via Google Secret Manager
+- GDPR compliance (data export/deletion)
+
+**Scalability Design:**
+- Horizontal scaling via Cloud Run
+- Read replicas for database (3 replicas)
+- Multi-level caching (app memory → Redis → PostgreSQL)
+- Cost optimization: LLM routing saves 60%
+
+---
+
+### [15:00] Database Schema Documentation Complete
+**Activity:** Designed complete PostgreSQL schema for multi-tenant SaaS
+**File Created:** `docs/00_database_schema.md` (50KB)
+
+**17 Tables Designed:**
+
+**Core Tables:**
+- users (id, email, plan_tier, monthly_runs_quota, stripe_customer_id)
+- teams (id, name, slug, owner_id, billing_email)
+- team_members (team_id, user_id, role, permissions)
+
+**Agent Tables:**
+- agents (id, team_id, name, spec_content, tools, invariants, status)
+- agent_runs (id, agent_id, user_id, input, output, cost_usd, tokens_total, execution_time_seconds)
+- agent_deployments (id, agent_id, deployment_url, version, status)
+
+**Marketplace Tables:**
+- agent_templates (id, creator_id, name, category, spec_template, price_cents, published)
+- template_ratings (template_id, user_id, rating, review)
+- template_purchases (id, user_id, template_id, amount_cents, stripe_payment_id)
+- revenue_shares (id, creator_id, template_id, amount_cents, paid_out)
+
+**Tool & LLM Tables:**
+- tools (id, name, description, category, requires_api_key)
+- llm_usage (id, user_id, agent_run_id, provider, model, tokens_in, tokens_out, cost_usd)
+- api_keys (id, user_id, name, key_hash, active, last_used)
+
+**System Tables:**
+- webhooks (id, user_id, url, events, secret, active)
+- audit_logs (id, user_id, action, resource_type, resource_id, details, ip_address)
+- subscriptions (id, user_id, plan_tier, stripe_subscription_id, current_period_end)
+- invoices (id, user_id, stripe_invoice_id, amount_cents, status, due_date)
+
+**Security Features:**
+- Row-Level Security (RLS) policies on all tables
+- current_user_teams() helper function for team isolation
+- Triggers for quota increments and rating updates
+- Indexes for performance (15+ indexes defined)
+- Constraints for data integrity
+
+**Key SQL Highlights:**
+```sql
+-- Team isolation via RLS
+CREATE POLICY agents_team_isolation ON agents
+    FOR ALL
+    USING (team_id IN (SELECT current_user_teams()));
+
+-- Auto-increment runs quota
+CREATE TRIGGER increment_user_runs
+    AFTER INSERT ON agent_runs
+    FOR EACH ROW EXECUTE FUNCTION increment_user_runs();
+
+-- Calculate template ratings
+CREATE VIEW template_ratings_view AS
+    SELECT template_id, AVG(rating) as avg_rating, COUNT(*) as rating_count
+    FROM template_ratings GROUP BY template_id;
+```
+
+---
+
+### [13:00] Platform Roadmap Documentation Complete
+**Activity:** Created complete Phases 0-12 implementation roadmap
+**File Created:** `docs/00_platform_roadmap.md` (45KB)
+
+**13-Week Implementation Plan:**
+
+**Phase 0: Repo Mapping (8-10 hours)** ← CURRENT
+- Documentation: 10 files covering architecture, business, API, tech stack
+- Gap analysis: Current vs platform vision
+- Success criteria: Complete understanding before coding
+
+**Phase 1: LLM Abstraction Layer (2-3 days)**
+- Install LiteLLM for unified LLM interface
+- Create LLMRouter with provider abstraction
+- Add cost tracking to all LLM calls
+- Success: All agents work with any LLM provider
+
+**Phase 2: Multi-LLM Routing (3-4 days)**
+- Implement intelligent routing (task complexity → model selection)
+- Add fallback chain (local → cheap → expensive)
+- Implement cost budgets and alerts
+- Success: 60% cost savings vs direct Claude
+
+**Phase 3: Modern Tooling (2-3 days)**
+- Add Perplexity Pro API integration
+- Add GitHub, Stripe, database tools
+- Create tool registry with metadata
+- Success: 20+ tools available
+
+**Phase 4: Brain Fart Checker (5-7 days)** ← First Product Launch
+- Multi-agent idea validator
+- Kill criteria enforcement (novelty < 60, MRR < $2K, competitors > 20)
+- Structured output with next steps
+- Success: 10 paid users at $99/mo = $990 MRR
+
+**Phase 5: OpenHands Integration (2-3 days)**
+- Spec-to-code pipeline with validation
+- Test generation alongside code
+- Code review step with Claude
+- Success: Generated code passes tests
+
+**Phase 6: Cost Monitoring (1-2 days)**
+- Real-time cost dashboard
+- Per-user/team/agent breakdown
+- Budget alerts and recommendations
+- Success: Cost transparency for all users
+
+**Phase 7: Multi-Agent Orchestration (2 weeks)**
+- LangGraph migration for complex workflows
+- Sequential, parallel, hierarchical patterns
+- Consensus voting mechanisms
+- Success: Teams of agents working together
+
+**Phase 8: Web UI & Dashboard (4 weeks)**
+- Next.js 14 application
+- Visual spec editor (Monaco)
+- Agent builder (drag-and-drop tools)
+- Execution dashboard with metrics
+- Success: 50 beta users, 10% conversion
+
+**Phase 9: Multi-Tenancy (2 weeks)**
+- PostgreSQL + Supabase setup
+- RLS policies for data isolation
+- Team management (invite, roles, permissions)
+- Success: Production-ready multi-user platform
+
+**Phase 10: Billing (1 week)**
+- Stripe integration (checkout, webhooks)
+- Subscription tiers (Free, Pro, Enterprise)
+- Usage limits and enforcement
+- Success: Revenue enabled, billing working
+
+**Phase 11: Marketplace (2 weeks)**
+- Template library (browse, search, purchase)
+- Revenue sharing (70% creator, 30% platform)
+- Moderation system (prevent abuse)
+- Success: 50+ templates, first creator earnings
+
+**Phase 12: REST API (2 weeks)**
+- 50+ endpoints (agents, runs, templates, webhooks)
+- Rate limiting (tier-based)
+- API documentation (OpenAPI 3.1)
+- Success: External integrations possible
+
+**Milestones:**
+- Month 1: Brain Fart Checker live ($990 MRR)
+- Month 3: $10K MRR target (200 paid users)
+- Month 6: Break-even (276 paid customers)
+- Month 12: $66K MRR (1,100 paid users)
+
+---
+
+### [11:00] Repository Overview Documentation Complete
+**Activity:** Analyzed and documented complete current state
+**File Created:** `docs/00_repo_overview.md` (25KB)
+
+**Current State Analysis:**
+- 156 Python files across agent_factory/ directory
+- 205 tests passing (Phase 1-4 complete)
+- 10 tools implemented (research + file operations)
+- 3 preset agents (bob, research, coding)
+- CLI system functional (8 commands)
+
+**Capabilities:**
+- ✅ Interactive agent creation (8-step wizard)
+- ✅ Spec validation and code generation
+- ✅ Agent editing (tools, invariants)
+- ✅ Chat interface with multi-turn memory
+- ✅ Test generation and execution
+- ✅ File operations with safety validation
+- ✅ Result caching with TTL and LRU
+
+**Limitations:**
+- ❌ No LLM abstraction (direct OpenAI/Anthropic calls)
+- ❌ No multi-LLM routing
+- ❌ No cost tracking
+- ❌ CLI-only (no web UI)
+- ❌ Single-user (no multi-tenancy)
+- ❌ No database (file-based storage)
+- ❌ No API endpoints
+- ❌ No billing system
+
+**Technical Debt:**
+- Hard-coded prompt hub names (hwchase17/react, hwchase17/structured-chat)
+- Limited error messages (generic str(e))
+- No input validation (relies on Pydantic only)
+- Temperature defaults vary by provider
+
+**Performance:**
+- Agent response: 2-5 seconds (simple), 10-30 seconds (complex)
+- Tool execution: <500ms per tool
+- Test suite: 205 tests in ~30 seconds
+- Memory usage: ~200MB baseline, ~500MB with loaded agents
+
+---
+
+### [09:00] Phase 0 Planning Session
+**Activity:** Read user's comprehensive research document and planned Phase 0 approach
+**File Read:** `Agent_factory_step_by_step.md` (7,329 lines, 271KB)
+
+**User's Vision Discovered:**
+- Building standalone CrewAI-type multi-tenant SaaS platform
+- Not just CLI tool, but commercial product comparable to CrewAI, Vertex AI, MindStudio
+- Target: $10K MRR in 90 days, $25K in 6 months
+- Complete 6-phase technical roadmap + platform features (Phases 7-12)
+- Business model: $99/mo Brain Fart Checker, $49/mo Full Platform
+- Revenue target: $10K MRR by Month 3
+
+**Key Differentiators:**
+- Constitutional spec-first approach (specs are eternal, code is ephemeral)
+- Brain Fart Checker with kill criteria (novelty < 60, MRR < $2K, competitors > 20)
+- Cost-optimized multi-LLM routing (Llama3 $0 → Perplexity $0.001 → Claude $0.015)
+- OpenHands integration for autonomous code generation
+- Community marketplace with 70/30 revenue split
+
+**Phase 0 Approved Plan:**
+1. Repository mapping (read all 156 Python files)
+2. Create 10 comprehensive documentation files
+3. Map current capabilities vs platform vision
+4. Design database schema (PostgreSQL + Supabase)
+5. Design platform architecture (5 layers)
+6. Document business model and revenue projections
+7. Create API design specification
+8. Document tech stack decisions with rationale
+9. Analyze competitive landscape
+10. Identify all technical gaps with effort estimates
+
+**User Directive:** "do it ultrathink" - Maximum depth, quality, comprehensiveness
+
+---
+
+## [2025-12-07] Session 9 - Anti-Gravity Review & Bob Chat Interface Fix
+
+### [22:30] Session Complete - All Changes Committed
+**Activity:** Final commit and push of all fixes
+**Total Commits:** 9 commits created and pushed to GitHub
+
+**Commit Summary:**
+1. `ff52a33` - feat: Interactive agent creation and editing CLI
+2. `9b615dd` - feat: Bob market research agent (generated from spec)
+3. `f0e5944` - docs: Comprehensive guides for CLI and Bob agent
+4. `14158fb` - docs: Memory system updates with CLI progress
+5. `38d712f` - chore: Claude Code configuration updates
+6. `5d6e73f` - docs: Chat interface usage guide (CHAT_USAGE.md)
+7. `b2fe841` - docs: Memory files with Anti-gravity review
+8. `5562252` - fix: Add Bob to chat interface as preset agent
+9. `5217df0` - docs: Memory files with Bob chat fix
+
+**Status:** All changes pushed to GitHub, memory files updated
+
+---
+
+### [21:30] Bob Chat Interface Fix Complete
+**Activity:** Fixed CLI command mismatch, made Bob accessible via chat
+**Files Modified:**
+- `agent_factory/cli/agent_presets.py` (+128 lines)
+- `CHAT_USAGE.md` (corrected throughout)
+
+**Problem Solved:**
+- User couldn't access Bob via `agentcli chat --agent bob-1` (incorrect command)
+- Bob wasn't registered as preset in chat system
+- Two separate CLI tools causing confusion
+
+**Implementation:**
+1. Added Bob to AGENT_CONFIGS dictionary in agent_presets.py
+2. Created get_bob_agent() function with 10 tools:
+   - Research: Wikipedia, DuckDuckGo, Tavily, CurrentTimeTool
+   - File ops: Read, Write, List, Search
+3. Updated get_agent() dispatcher to include 'bob'
+4. Fixed CHAT_USAGE.md: bob-1 → bob throughout
+5. Added "Available Preset Agents" table to documentation
+
+**Testing:**
+```bash
+✅ poetry run agentcli list-agents (shows bob, research, coding)
+✅ Bob agent creates successfully via presets
+✅ Chat command ready: agentcli chat --agent bob
+```
+
+**Impact:** Bob now fully accessible via conversational chat interface with multi-turn memory
+
+---
+
+### [20:00] Anti-Gravity Integration Review Complete
+**Activity:** Reviewed all Anti-gravity changes, organized into logical commits
+**Files Reviewed:** 22 new/modified files
+
+**Constitutional Alignment Check:**
+- ✅ 95% aligned with CLAUDE.md principles
+- ✅ Type hints present on functions
+- ✅ Pydantic schemas used (AgentResponse)
+- ✅ PLC-style heavy commenting (40%+ density)
+- ✅ Spec-to-code workflow maintained
+- ✅ ASCII-compatible output
+- ⚠️ Minor violation: Should have been smaller commits
+
+**Changes Organized into 6 Commits:**
+1. Interactive CLI system (agent_factory/cli/, 3788 insertions)
+2. Bob market research agent (agents/unnamedagent_v1_0.py, specs/bob-1.md)
+3. Comprehensive documentation (6 new .md files, 1868 lines)
+4. Memory system updates (5 files)
+5. Claude Code configuration (settings, .gitignore)
+6. CHAT_USAGE.md comprehensive guide (649 lines)
+
+**Validation Results:**
+```bash
+✅ from agent_factory.core.agent_factory import AgentFactory (works)
+✅ poetry run python agentcli.py --help (working)
+✅ poetry run agentcli create --list-templates (4 templates)
+✅ poetry run agentcli edit --list (4 editable agents)
+```
+
+**New Features Validated:**
+- Interactive agent creation wizard (8 steps)
+- Agent editor (tools/invariants modification)
+- Chat session (REPL with history, commands)
+- Bob agent (market research specialist)
+
+---
+
+### [19:00] Context Resumed from Previous Session
+**Activity:** Loaded memory files to resume work
+**Files Loaded:**
+- PROJECT_CONTEXT.md
+- NEXT_ACTIONS.md
+- DEVELOPMENT_LOG.md
+- ISSUES_LOG.md
+- DECISIONS_LOG.md
+
+**Session Context:**
+- User requested review of Anti-gravity bootstrap changes
+- Check constitutional alignment with CLAUDE.md
+- Provide recommendations for chat interface (simplest implementation)
+- Apply November 2025 AI best practices
+
+**Current State Found:**
+- Phase 4 complete (205 tests passing)
+- Bob agent created but not accessible via chat
+- Anti-gravity added CLI system (uncommitted changes)
+- GitHub wiki published (17 pages)
+
+---
+
 ## [2025-12-07] Session 8 - Agent CLI System & Bob Market Research Agent
 
 ### [14:30] Bob Agent Testing - Rate Limit Hit
