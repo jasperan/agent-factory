@@ -1,0 +1,247 @@
+{
+  "metadata": {
+    "last_updated": "2025-12-08",
+    "total_lessons": 5,
+    "next_id": "LL-006",
+    "version": "1.0"
+  },
+  "lessons": [
+    {
+      "id": "LL-001",
+      "title": "LangChain Memory Systems Are Opaque",
+      "categories": ["LangChain Integration", "Memory Systems"],
+      "severity": "high",
+      "date_discovered": "2025-12-08",
+      "status": "resolved",
+      "problem": "ConversationBufferMemory doesn't communicate with custom chat_history parameters in ReAct agents",
+      "symptoms": [
+        "Agent loses context on follow-up questions",
+        "Context retention: 0%",
+        "Example: 'market is crowded' talks about stock market instead of keto apps"
+      ],
+      "root_cause": "Three disconnected state systems: Session.history (stores correctly), chat_history string (formatted correctly), ConversationBufferMemory (empty, never populated). Agent uses #3 which has no data.",
+      "failed_attempts": [
+        {
+          "approach": "Pass chat_history to agent.invoke()",
+          "reason_failed": "ReAct agents with memory ignore this parameter",
+          "time_wasted_hours": 1.0
+        },
+        {
+          "approach": "Cache agents with ConversationBufferMemory",
+          "reason_failed": "Memory created fresh, never synchronized with Session.history",
+          "time_wasted_hours": 1.5
+        },
+        {
+          "approach": "Update system prompts with context awareness",
+          "reason_failed": "Instructions without data = useless",
+          "time_wasted_hours": 0.5
+        }
+      ],
+      "solution": "Remove ConversationBufferMemory, inject history directly into prompt where LLM can see it",
+      "solution_code": "if chat_history:\n    input_with_context = f\"\"\"PREVIOUS CONVERSATION:\\n{chat_history}\\n\\nCURRENT MESSAGE:\\n{message}\"\"\"",
+      "code_files": [
+        "agent_factory/integrations/telegram/bot.py:202-218",
+        "agent_factory/cli/agent_presets.py"
+      ],
+      "principles": [
+        "Explicit > Implicit",
+        "Visible state is debuggable state"
+      ],
+      "tags": ["langchain", "memory", "context-retention", "telegram-bot", "debugging", "react-agent", "conversationbuffermemory"],
+      "related_lessons": ["LL-002", "LL-003", "LL-005"],
+      "time_saved_future_hours": 3.0,
+      "embedding": null
+    },
+    {
+      "id": "LL-002",
+      "title": "Agent Caching Requires State Initialization",
+      "categories": ["Agent Architecture", "Memory Systems"],
+      "severity": "high",
+      "date_discovered": "2025-12-08",
+      "status": "resolved",
+      "problem": "Caching agent executors doesn't work if memory is never synchronized with conversation history",
+      "symptoms": [
+        "Agent cache works correctly",
+        "Same agent instance reused",
+        "ConversationBufferMemory still empty on second message"
+      ],
+      "root_cause": "Caching stateful objects requires initializing their state. We cached agent with empty memory and never populated it from Session.history.",
+      "failed_attempts": [
+        {
+          "approach": "Cache agents without memory synchronization",
+          "reason_failed": "Cached empty state is still empty state",
+          "time_wasted_hours": 1.5
+        }
+      ],
+      "solution": "Don't use ConversationBufferMemory at all. Use prompt injection instead.",
+      "solution_code": "# Instead of caching agents with memory, inject history into prompt",
+      "code_files": [
+        "agent_factory/memory/session.py:165-207",
+        "agent_factory/integrations/telegram/bot.py:188-195"
+      ],
+      "principles": [
+        "Caching only works with proper initialization",
+        "Stateless is often simpler than stateful caching"
+      ],
+      "tags": ["caching", "state-management", "memory", "session", "agent-lifecycle"],
+      "related_lessons": ["LL-001", "LL-005"],
+      "time_saved_future_hours": 1.5,
+      "embedding": null
+    },
+    {
+      "id": "LL-003",
+      "title": "System Prompts Don't Enforce Behavior Without Data",
+      "categories": ["Prompt Engineering", "Agent Architecture"],
+      "severity": "medium",
+      "date_discovered": "2025-12-08",
+      "status": "resolved",
+      "problem": "Adding context instructions to system prompts doesn't work if LLM never receives the context data",
+      "symptoms": [
+        "System prompt says 'Review chat_history'",
+        "Agent still loses context",
+        "No improvement after prompt changes"
+      ],
+      "root_cause": "Instructions require data to execute. Telling LLM what to do without providing data is like saying 'read the book' without giving the book.",
+      "failed_attempts": [
+        {
+          "approach": "Add CONVERSATION CONTEXT section to system prompts",
+          "reason_failed": "No actual conversation history provided to reference",
+          "time_wasted_hours": 0.5
+        }
+      ],
+      "solution": "Provide both instructions AND data. Put context in user messages, not system prompts.",
+      "solution_code": "input_with_context = f\"\"\"PREVIOUS CONVERSATION:\\n{chat_history}\\n\\nCURRENT MESSAGE:\\n{message}\"\"\"",
+      "code_files": [
+        "agent_factory/cli/agent_presets.py:35-39, 50-53, 65-70",
+        "agent_factory/integrations/telegram/bot.py:203-210"
+      ],
+      "principles": [
+        "Data before instructions",
+        "Show, don't tell"
+      ],
+      "tags": ["prompt-engineering", "system-prompts", "context", "llm", "instructions"],
+      "related_lessons": ["LL-001", "LL-004"],
+      "time_saved_future_hours": 0.5,
+      "embedding": null
+    },
+    {
+      "id": "LL-004",
+      "title": "Test at Integration Points, Not Just Components",
+      "categories": ["Testing & Debugging", "Software Engineering"],
+      "severity": "medium",
+      "date_discovered": "2025-12-08",
+      "status": "resolved",
+      "problem": "Individual components worked but integration was broken. Unit tests passed, real-world usage failed.",
+      "symptoms": [
+        "Session stores history correctly",
+        "Agent has memory attribute",
+        "Agent still has no context in practice"
+      ],
+      "root_cause": "The glue between components was broken. We tested components in isolation but never tested if Session history flows to Agent memory.",
+      "failed_attempts": [
+        {
+          "approach": "Only unit test components in isolation",
+          "reason_failed": "Integration bugs invisible to unit tests",
+          "time_wasted_hours": 3.0
+        }
+      ],
+      "solution": "Write integration tests that test data flow between systems. Test real-world usage patterns.",
+      "solution_code": "def test_agent_sees_session_history():\n    session.add_user_message('keto apps')\n    response = agent.invoke({'input': 'market crowded?'})\n    assert 'keto' in response",
+      "code_files": [
+        "tests/test_telegram.py",
+        "agent_factory/integrations/telegram/bot.py:185-220"
+      ],
+      "principles": [
+        "Test the glue, not just the components",
+        "Integration tests reveal issues unit tests miss"
+      ],
+      "tags": ["testing", "integration-testing", "debugging", "software-engineering", "test-strategy"],
+      "related_lessons": ["LL-001", "LL-002"],
+      "time_saved_future_hours": 2.0,
+      "embedding": null
+    },
+    {
+      "id": "LL-005",
+      "title": "Simpler is More Reliable",
+      "categories": ["Architecture", "Software Engineering"],
+      "severity": "low",
+      "date_discovered": "2025-12-08",
+      "status": "resolved",
+      "problem": "Complex solutions with multiple state systems are harder to debug and more failure-prone",
+      "symptoms": [
+        "Multiple abstraction layers",
+        "Hidden state",
+        "Debugging takes hours",
+        "It should work but doesn't"
+      ],
+      "root_cause": "Complexity creates failure points. 5 state transformations across 3 systems vs 1 transformation with 1 system.",
+      "failed_attempts": [],
+      "solution": "Minimize state management systems. Fewer transformations, explicit state, no hidden abstractions.",
+      "solution_code": "# Simple: Session.history → format → inject into prompt\n# Not: Session → chat_history → ConversationBufferMemory → LangChain → LLM",
+      "code_files": [
+        "agent_factory/cli/agent_presets.py"
+      ],
+      "principles": [
+        "Reduce the number of state management systems",
+        "Explicit is better than implicit",
+        "KISS (Keep It Simple, Stupid)"
+      ],
+      "tags": ["architecture", "simplicity", "software-engineering", "design-patterns", "state-management", "kiss-principle"],
+      "related_lessons": ["LL-001", "LL-002"],
+      "time_saved_future_hours": 1.0,
+      "embedding": null
+    }
+  ],
+  "principles": [
+    {
+      "name": "Explicit > Implicit",
+      "description": "Visible state is debuggable state. If you can print it, you can debug it.",
+      "lessons": ["LL-001", "LL-005"]
+    },
+    {
+      "name": "State Synchronization",
+      "description": "Cached objects need state initialization. Don't cache empty state.",
+      "lessons": ["LL-002"]
+    },
+    {
+      "name": "Data Before Instructions",
+      "description": "Prompts need both instructions and data. Show, don't tell.",
+      "lessons": ["LL-003"]
+    },
+    {
+      "name": "Integration Testing",
+      "description": "Test the glue, not just components. Integration bugs are common.",
+      "lessons": ["LL-004"]
+    },
+    {
+      "name": "Minimize State Systems",
+      "description": "Fewer moving parts = fewer bugs. Reduce complexity.",
+      "lessons": ["LL-005"]
+    }
+  ],
+  "categories": {
+    "LangChain Integration": ["LL-001"],
+    "Memory Systems": ["LL-001", "LL-002"],
+    "Agent Architecture": ["LL-002", "LL-003"],
+    "Prompt Engineering": ["LL-003"],
+    "Testing & Debugging": ["LL-004"],
+    "Software Engineering": ["LL-004", "LL-005"],
+    "Architecture": ["LL-005"]
+  },
+  "tags": {
+    "langchain": ["LL-001"],
+    "memory": ["LL-001", "LL-002"],
+    "context-retention": ["LL-001"],
+    "caching": ["LL-002"],
+    "prompt-engineering": ["LL-003"],
+    "testing": ["LL-004"],
+    "simplicity": ["LL-005"]
+  },
+  "statistics": {
+    "total_time_wasted_hours": 8.0,
+    "total_time_saved_future_hours": 8.0,
+    "average_severity": "medium-high",
+    "most_common_category": "Memory Systems",
+    "most_impactful_principle": "Explicit > Implicit"
+  }
+}

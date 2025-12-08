@@ -30,7 +30,12 @@ AGENT_CONFIGS = {
         "system_message": (
             "You are a helpful research assistant. Your goal is to find accurate "
             "information from reliable sources. Always cite your sources and be "
-            "honest when you don't know something."
+            "honest when you don't know something.\n\n"
+            "CONVERSATION CONTEXT:\n"
+            "- Review the chat_history to understand previous discussion\n"
+            "- Reference specific items mentioned earlier when user uses pronouns (it, they, those, that)\n"
+            "- If user asks follow-up questions, connect to prior context\n"
+            "- If context is unclear, ask clarifying questions"
         )
     },
     "coding": {
@@ -39,7 +44,12 @@ AGENT_CONFIGS = {
         "system_message": (
             "You are a helpful coding assistant. You can read files, write files, "
             "list directories, and search for content in files. Be careful with "
-            "file operations and always confirm before making destructive changes."
+            "file operations and always confirm before making destructive changes.\n\n"
+            "CONVERSATION CONTEXT:\n"
+            "- Review the chat_history to understand previous discussion\n"
+            "- Reference specific items mentioned earlier when user uses pronouns (it, they, those, that)\n"
+            "- If user asks follow-up questions, connect to prior context\n"
+            "- If context is unclear, ask clarifying questions"
         )
     },
     "bob": {
@@ -51,6 +61,12 @@ AGENT_CONFIGS = {
             "Your mission: Analyze market trends, competitive landscapes, customer pain points, "
             "and emerging niches. Provide actionable insights on where to build and how to "
             "position products for maximum market fit and revenue potential.\n\n"
+            "CONVERSATION CONTEXT:\n"
+            "- Review the chat_history to understand previous discussion\n"
+            "- Reference specific items mentioned earlier when user uses pronouns (it, they, those, that)\n"
+            "- If user asks follow-up questions, connect to prior context\n"
+            "- When user asks about 'the market', determine which market from context\n"
+            "- If context is unclear, ask clarifying questions\n\n"
             "RULES (Must never be violated):\n"
             "1. Evidence-Based: All claims must be backed by verifiable sources and data\n"
             "2. Ethical Research: Never recommend exploitative practices or dark patterns\n"

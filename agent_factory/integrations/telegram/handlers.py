@@ -1,0 +1,378 @@
+"""
+Telegram bot handlers for commands, messages, and callbacks.
+
+Handlers:
+- Command handlers: /start, /help, /agent, /reset
+- Message handler: Process user messages with agent
+- Callback handlers: Inline button presses (agent selection, approvals)
+"""
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
+from telegram.constants import ChatAction
+
+from .formatters import ResponseFormatter
+
+
+# =============================================================================
+# Command Handlers
+# =============================================================================
+
+
+async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle /start command.
+
+    Shows welcome message with agent selection keyboard.
+
+    Example:
+        User: /start
+        Bot: Welcome! Choose an agent: [Research] [Coding] [Bob]
+    """
+    chat_id = update.effective_chat.id
+
+    # Access bot instance from context
+    bot_instance = context.bot_data.get("bot_instance")
+    if not bot_instance:
+        await update.message.reply_text("Error: Bot not initialized")
+        return
+
+    # Check user whitelist
+    if not bot_instance._is_user_allowed(chat_id):
+        await update.message.reply_text(
+            "Sorry, this bot is currently in private mode. "
+            "Contact the bot owner for access."
+        )
+        return
+
+    # Create agent selection keyboard
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "[Research] Research Assistant",
+                callback_data="agent_research"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "[Code] Coding Assistant",
+                callback_data="agent_coding"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "[Bob] Market Research Specialist",
+                callback_data="agent_bob"
+            )
+        ]
+    ]
+
+    welcome_text = (
+        "*Welcome to Agent Factory!*\n\n"
+        "I connect you to specialized AI agents for different tasks.\n\n"
+        "*Choose an agent to get started:*"
+    )
+
+    await update.message.reply_text(
+        welcome_text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
+    )
+
+
+async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle /help command.
+
+    Shows available commands and usage instructions.
+
+    Example:
+        User: /help
+        Bot: [Command reference]
+    """
+    help_text = """*Agent Factory Commands*
+
+*Basic Commands:*
+/start - Show agent selection menu
+/help - Show this help message
+/agent - Switch to different agent
+/reset - Clear conversation history
+
+*How to Use:*
+1. Choose an agent with /start or /agent
+2. Send your question or task
+3. The agent will respond using its tools
+
+*Available Agents:*
+- *Research* - Web search, Wikipedia, research tasks
+- *Coding* - File operations, code analysis
+- *Bob* - Market research and opportunity discovery
+
+*Tips:*
+- Be specific in your questions
+- Sessions persist - your history is remembered
+- Use /reset to start fresh
+- Rate limit: 10 messages per minute
+
+*Need more help?*
+Visit: github.com/Mikecranesync/Agent-Factory
+"""
+
+    await update.message.reply_text(help_text, parse_mode="Markdown")
+
+
+async def agent_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle /agent command.
+
+    Shows agent selection keyboard (same as /start but without welcome).
+
+    Example:
+        User: /agent
+        Bot: [Agent selection keyboard]
+    """
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                "[Research] Research Assistant",
+                callback_data="agent_research"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "[Code] Coding Assistant",
+                callback_data="agent_coding"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "[Bob] Market Research Specialist",
+                callback_data="agent_bob"
+            )
+        ]
+    ]
+
+    await update.message.reply_text(
+        "*Choose an agent:*",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
+    )
+
+
+async def reset_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle /reset command.
+
+    Clears conversation history for current chat.
+
+    Example:
+        User: /reset
+        Bot: Session cleared! Starting fresh.
+    """
+    chat_id = update.effective_chat.id
+
+    bot_instance = context.bot_data.get("bot_instance")
+    if bot_instance:
+        bot_instance.session_manager.reset_session(chat_id)
+
+    await update.message.reply_text(
+        "*Session cleared!*\n\n"
+        "Your conversation history has been reset.\n"
+        "Use /agent to choose an agent and start fresh.",
+        parse_mode="Markdown"
+    )
+
+
+# =============================================================================
+# Message Handler
+# =============================================================================
+
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle user text messages.
+
+    Processes message with selected agent and returns response.
+
+    Flow:
+    1. Get chat session
+    2. Check rate limit
+    3. Validate message
+    4. Show typing indicator
+    5. Execute agent
+    6. Format and send response
+
+    Example:
+        User: "What's the weather in Paris?"
+        Bot: [typing...] [agent response]
+    """
+    chat_id = update.effective_chat.id
+    message_text = update.message.text
+
+    bot_instance = context.bot_data.get("bot_instance")
+    if not bot_instance:
+        await update.message.reply_text("Error: Bot not initialized")
+        return
+
+    # Check user whitelist
+    if not bot_instance._is_user_allowed(chat_id):
+        await update.message.reply_text(
+            "Sorry, you don't have access to this bot."
+        )
+        return
+
+    # Check rate limit
+    allowed, wait_time = bot_instance.session_manager.check_rate_limit(
+        chat_id,
+        limit=bot_instance.config.rate_limit
+    )
+
+    if not allowed:
+        await update.message.reply_text(
+            f"Rate limit exceeded. Please wait {wait_time} seconds."
+        )
+        return
+
+    # Validate message length
+    if len(message_text) > bot_instance.config.max_message_length:
+        await update.message.reply_text(
+            f"Message too long (max {bot_instance.config.max_message_length} chars). "
+            "Please shorten your message."
+        )
+        return
+
+    # Show typing indicator
+    if bot_instance.config.typing_indicator:
+        await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+
+    # Get agent type
+    agent_type = bot_instance.session_manager.get_agent_type(chat_id)
+
+    # Execute agent
+    try:
+        response = await bot_instance.execute_agent_message(
+            chat_id,
+            message_text,
+            agent_type
+        )
+
+        # Format and send response
+        chunks = ResponseFormatter.chunk_message(
+            response,
+            max_chunks=bot_instance.config.max_response_chunks
+        )
+
+        for i, chunk in enumerate(chunks):
+            if i > 0 and bot_instance.config.typing_indicator:
+                # Show typing for subsequent chunks
+                await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+
+            await update.message.reply_text(chunk)
+
+    except Exception as e:
+        error_msg = ResponseFormatter.format_error(e)
+        await update.message.reply_text(
+            f"{error_msg}\n\nPlease try rephrasing your question."
+        )
+
+
+# =============================================================================
+# Callback Handlers (Inline Buttons)
+# =============================================================================
+
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle inline button callbacks.
+
+    Handles:
+    - Agent selection buttons (agent_research, agent_coding, agent_bob)
+    - Approval buttons (approve_*, reject_*)
+
+    Example:
+        User clicks: [Research Assistant]
+        Callback data: "agent_research"
+        Bot: Agent switched to Research
+    """
+    query = update.callback_query
+    await query.answer()  # Acknowledge button press
+
+    chat_id = update.effective_chat.id
+    callback_data = query.data
+
+    bot_instance = context.bot_data.get("bot_instance")
+    if not bot_instance:
+        await query.edit_message_text("Error: Bot not initialized")
+        return
+
+    # Handle agent selection
+    if callback_data.startswith("agent_"):
+        agent_type = callback_data.replace("agent_", "")
+
+        # Set agent type
+        bot_instance.session_manager.set_agent_type(chat_id, agent_type)
+
+        # Get agent info
+        agent_info = ResponseFormatter.format_agent_info(agent_type, True)
+
+        await query.edit_message_text(
+            f"*Agent Selected:* {agent_type.title()}\n\n"
+            f"{agent_info}\n\n"
+            "Send me a message to get started!",
+            parse_mode="Markdown"
+        )
+
+    # Handle approval callbacks (Factor 7)
+    elif callback_data.startswith("approve_") or callback_data.startswith("reject_"):
+        action = "approved" if callback_data.startswith("approve_") else "rejected"
+
+        # Get pending approval
+        approval = bot_instance.session_manager.get_pending_approval(chat_id)
+
+        if not approval:
+            await query.edit_message_text("No pending approval found.")
+            return
+
+        # Clear pending approval
+        bot_instance.session_manager.clear_pending_approval(chat_id)
+
+        # Notify user
+        await query.edit_message_text(
+            f"*Action {action}:* {approval['action']}\n\n"
+            "Processing your decision...",
+            parse_mode="Markdown"
+        )
+
+        # TODO: Resume agent execution with approval result
+        # This will be connected to Factor 6 (async task system)
+        # For now, just acknowledge
+
+    else:
+        await query.edit_message_text(f"Unknown action: {callback_data}")
+
+
+async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle errors in handlers.
+
+    Logs error and sends user-friendly message.
+
+    Example:
+        Error occurs in handler
+        Bot: Something went wrong. Please try again.
+    """
+    # Log error (in production, use proper logging)
+    print(f"Error: {context.error}")
+
+    # Try to notify user
+    if update and update.effective_chat:
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=(
+                    "Something went wrong processing your request.\n"
+                    "Please try again or use /reset to start fresh."
+                )
+            )
+        except Exception:
+            pass  # Can't send message, ignore
