@@ -60,6 +60,49 @@ Comment `@claude` on PRs for code review:
 ### Advanced: Label-Based Triggering
 Add a label called `claude` to any issue or PR to have Claude automatically analyze it without needing to comment.
 
+## Task Sizing Guidelines
+
+**IMPORTANT:** Claude sessions have a 30-minute timeout. Break large tasks into smaller pieces.
+
+### ❌ Too Large (Will Timeout)
+```
+@claude start on this
+```
+On an issue that says "Create comprehensive documentation for 18 agents (3-4 weeks)"
+
+### ✅ Right Size (Will Complete)
+```
+@claude create the System Architecture section of the documentation
+```
+```
+@claude document agents #2, #3, and #4 only
+```
+```
+@claude create the Getting Started guide
+```
+
+### Best Practices
+- **Single file changes:** Perfect for Claude
+- **2-5 related files:** Usually completes fine
+- **10+ files or complex refactors:** Break into smaller tasks
+- **Multi-week projects:** Create sub-issues for each component
+
+### How to Break Down Large Tasks
+1. **Create sub-issues** for each major component
+2. **Label priority** (use labels like `claude-ready`)
+3. **Sequential work** - complete one sub-issue before starting the next
+4. **Test between tasks** - verify each piece works before moving on
+
+### Example: Breaking Down Documentation
+Instead of:
+- ❌ "@claude create all documentation (3-4 weeks)"
+
+Do this:
+- ✅ Issue #31.1: "@claude create System Architecture docs"
+- ✅ Issue #31.2: "@claude create API documentation"
+- ✅ Issue #31.3: "@claude create User Guides"
+- ✅ Issue #31.4: "@claude create Operational Runbooks"
+
 ## What Claude Can Do
 
 - ✅ Answer questions about code structure and architecture
