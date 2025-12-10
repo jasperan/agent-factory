@@ -1,470 +1,649 @@
-# Agent Factory 🏭
+# Agent Factory 🏭🤖
 
-> A scalable framework for creating specialized AI agents with dynamic tool assignment
+> **Building the engine that turns knowledge into autonomous content at scale**
 
-Agent Factory is a flexible, production-ready framework built on LangChain that enables you to create specialized AI agents with custom capabilities. Instead of hardcoding tools into agents, Agent Factory allows you to dynamically assign tools based on the agent's role and requirements.
+Agent Factory is not just a framework—it's the **orchestration engine** powering two ambitious platforms:
+1. **PLC Tutor / Industrial Skills Hub** - AI-powered PLC programming education with autonomous YouTube content production
+2. **RIVET** - Industrial maintenance knowledge platform with validated troubleshooting solutions
 
-## 🌟 Features
+**Vision:** Build autonomous agent systems that create, distribute, and monetize educational content 24/7, while building the largest validated knowledge base in industrial automation.
 
-- **Dynamic Agent Creation**: Create agents with custom roles, system prompts, and tool sets
-- **Pluggable Tool System**: Add or remove tools without modifying core code
-- **Multiple LLM Providers**: Support for OpenAI, Anthropic (Claude), and Google (Gemini)
-- **Pre-configured Agents**: Research Agent and Coding Agent ready to use
-- **Tool Registry**: Centralized tool management and discovery
-- **Memory Management**: Built-in conversation memory for multi-turn interactions
-- **LCEL-Based**: Leverages LangChain Expression Language for clean composition
+**Status:** 📍 Week 1 Foundation (Infrastructure setup, voice training, first 10 knowledge atoms)
 
-## 📋 Table of Contents
+---
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Core Concepts](#core-concepts)
-- [Examples](#examples)
-- [Available Tools](#available-tools)
-- [Creating Custom Agents](#creating-custom-agents)
-- [API Reference](#api-reference)
-- [Contributing](#contributing)
-- [License](#license)
+## 🎯 What We're Building
 
-## 🚀 Installation
+### The Triune Vision
+
+```
+┌─────────────────────────────────────────────────────┐
+│          Agent Factory (Orchestration Engine)        │
+│  Multi-agent coordination • Knowledge management     │
+│  Content production • Distribution automation        │
+└─────────────────────────────────────────────────────┘
+                         ↓
+         ┌───────────────┴───────────────┐
+         ↓                               ↓
+┌──────────────────────┐      ┌──────────────────────┐
+│  PLC Tutor           │      │  RIVET               │
+│  (Education-driven)  │      │  (Community-driven)  │
+├──────────────────────┤      ├──────────────────────┤
+│ • YouTube A-to-Z     │      │ • Reddit monitoring  │
+│ • Voice clone 24/7   │      │ • Validated answers  │
+│ • 100+ video series  │      │ • B2B integrations   │
+│ • Courses + certs    │      │ • Premium calls      │
+│ • B2B training       │      │ • CMMS platforms     │
+├──────────────────────┤      ├──────────────────────┤
+│ Year 1: $35K ARR     │      │ Year 1: $80K ARR     │
+│ Year 3: $2.5M ARR    │      │ Year 3: $2.5M ARR    │
+└──────────────────────┘      └──────────────────────┘
+         ↓                               ↓
+         └───────────────┬───────────────┘
+                         ↓
+           ┌─────────────────────────┐
+           │  Data-as-a-Service       │
+           │  (License knowledge)     │
+           └─────────────────────────┘
+                         ↓
+           ┌─────────────────────────┐
+           │  Robot Licensing         │
+           │  (Humanoid robots)       │
+           └─────────────────────────┘
+```
+
+---
+
+## 🚀 Current Focus: PLC Tutor Launch (Week 1-12)
+
+### The YouTube-Wiki Strategy
+
+**Core Insight:** "YouTube IS the knowledge base"
+
+Instead of scraping content then making videos, we **build the knowledge base BY creating original educational content**.
+
+**The Pipeline:**
+```
+YOU learn concept → Research Agent compiles sources
+    ↓
+Scriptwriter Agent drafts teaching script (atom-backed, no hallucination)
+    ↓
+Voice Production Agent generates narration (ElevenLabs voice clone)
+    ↓
+Video Assembly Agent combines audio + visuals + captions
+    ↓
+YouTube Uploader Agent publishes (SEO-optimized)
+    ↓
+Atom Builder Agent extracts knowledge atom from video
+    ↓
+Social Amplifier Agent creates clips for TikTok/Instagram/LinkedIn
+```
+
+### 18 Autonomous Agents
+
+**Executive Team (2):**
+- AI CEO Agent - Strategy, metrics, resource allocation
+- AI Chief of Staff Agent - Project management, issue tracking
+
+**Research & Knowledge Base Team (4):**
+- Research Agent - Web scraping, YouTube transcripts, PDFs
+- Atom Builder Agent - Convert raw data → structured atoms
+- Atom Librarian Agent - Organize atoms, build prerequisite chains
+- Quality Checker Agent - Validate accuracy, safety, citations
+
+**Content Production Team (5):**
+- Master Curriculum Agent - 100+ video roadmap, sequencing
+- Content Strategy Agent - Keyword research, SEO
+- Scriptwriter Agent - Transform atoms → engaging scripts
+- SEO Agent - Optimize titles, descriptions, tags
+- Thumbnail Agent - Generate thumbnails, A/B testing
+
+**Media & Publishing Team (4):**
+- Voice Production Agent - ElevenLabs narration
+- Video Assembly Agent - MoviePy + FFmpeg rendering
+- Publishing Strategy Agent - Optimal timing, scheduling
+- YouTube Uploader Agent - Execute uploads, handle errors
+
+**Engagement & Analytics Team (3):**
+- Community Agent - Respond to comments, moderate
+- Analytics Agent - Track metrics, detect trends
+- Social Amplifier Agent - TikTok/Instagram clips
+
+**See:** [`docs/AGENT_ORGANIZATION.md`](docs/AGENT_ORGANIZATION.md) for complete specifications
+
+---
+
+## 📊 Milestones & Success Metrics
+
+### Week 4 (Public Launch)
+- ✅ 3 videos live on YouTube
+- ✅ Voice clone validated (< 10% robotic artifacts)
+- ✅ CTR > 2%, AVD > 40%
+- ✅ 100+ subscribers
+
+### Week 12 (Autonomous Operations)
+- ✅ 30 videos published
+- ✅ 1,000+ subscribers
+- ✅ $500+ revenue (courses + ads)
+- ✅ Agents 80% autonomous (you review exceptions only)
+- ✅ YouTube Partner Program applied
+
+### Month 12 (Scale Achieved)
+- ✅ 100+ videos published
+- ✅ 20,000+ subscribers
+- ✅ $5,000+/month revenue
+- ✅ 100+ validated knowledge atoms
+- ✅ Agents fully autonomous (99% without human intervention)
+
+**See:** [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md) for week-by-week plan
+
+---
+
+## 📚 Documentation (Strategy Suite)
+
+### Essential Reading (Start Here)
+
+| Document | Purpose | Size |
+|----------|---------|------|
+| **[TRIUNE_STRATEGY.md](docs/TRIUNE_STRATEGY.md)** | Master integration document (RIVET + PLC + Agent Factory) | 32KB |
+| **[YOUTUBE_WIKI_STRATEGY.md](docs/YOUTUBE_WIKI_STRATEGY.md)** | YouTube-first approach, voice clone, monetization | 17KB |
+| **[AGENT_ORGANIZATION.md](docs/AGENT_ORGANIZATION.md)** | All 18 agents with complete specs | 26KB |
+| **[IMPLEMENTATION_ROADMAP.md](docs/IMPLEMENTATION_ROADMAP.md)** | Week-by-week implementation plan (12 weeks) | 22KB |
+| **[CONTENT_ROADMAP_AtoZ.md](plc/content/CONTENT_ROADMAP_AtoZ.md)** | 100+ video topics sequenced (electricity → AI) | 24KB |
+| **[ATOM_SPEC_UNIVERSAL.md](docs/ATOM_SPEC_UNIVERSAL.md)** | Universal knowledge atom schema (IEEE LOM) | 21KB |
+| **[CLAUDE.md](CLAUDE.md)** | AI agent context (how to work with this project) | - |
+| **[TASK.md](TASK.md)** | Current tasks, priorities, progress tracking | - |
+
+### Technical Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [cole_medin_patterns.md](docs/cole_medin_patterns.md) | Production patterns from Archon (13.4k⭐) |
+| [archon_architecture_analysis.md](docs/archon_architecture_analysis.md) | Microservices architecture deep dive |
+| [integration_recommendations.md](docs/integration_recommendations.md) | Prioritized roadmap for Agent Factory |
+| [GIT_WORKTREE_GUIDE.md](docs/GIT_WORKTREE_GUIDE.md) | Multi-agent development workflow |
+| [SECURITY_STANDARDS.md](docs/SECURITY_STANDARDS.md) | Compliance patterns & checklists |
+
+### GitHub Issues
+
+| Issue | Title | Status |
+|-------|-------|--------|
+| [#44](https://github.com/your-username/agent-factory/issues/44) | Week 1 Foundation - System Setup & Voice Training | 🔴 CRITICAL |
+| [#45](https://github.com/your-username/agent-factory/issues/45) | Create First 10 Knowledge Atoms | 🟡 HIGH |
+| [#46](https://github.com/your-username/agent-factory/issues/46) | Implement Core Pydantic Models | ✅ COMPLETED |
+| [#47](https://github.com/your-username/agent-factory/issues/47) | Build Research Agent | 📅 Week 2 |
+| [#48](https://github.com/your-username/agent-factory/issues/48) | Build Scriptwriter Agent | 📅 Week 2 |
+| [#49](https://github.com/your-username/agent-factory/issues/49) | Week 1 Complete Checklist (Master) | 🔴 TRACKING |
+
+---
+
+## 🛠️ Technology Stack
+
+### Core Infrastructure
+- **Python 3.10+** - Primary language
+- **Pydantic v2** - Data validation & schemas
+- **Supabase + pgvector** - Database with vector search
+- **LangChain** - Agent orchestration framework
+- **APScheduler** - Task scheduling (cron-like)
+
+### AI & ML
+- **Claude API (Anthropic)** - Agent intelligence, scripting
+- **OpenAI API** - Embeddings, GPT-4 for specialized tasks
+- **ElevenLabs Pro** - Voice cloning & TTS ($30/mo)
+
+### Media Production
+- **FFmpeg** - Video rendering, clip extraction
+- **MoviePy** - Video assembly, timeline sync
+- **Pydub** - Audio processing
+- **Pillow** - Image processing, thumbnails
+- **OpenAI Whisper** - Caption generation
+
+### Platforms & APIs
+- **YouTube Data API** - Upload, metadata, analytics
+- **TikTok API** - Post videos
+- **Instagram Graph API** - Post reels
+- **Reddit API** - Community engagement
+- **Twitter/X API** - Social distribution
+
+### Development Tools
+- **Poetry** - Dependency management
+- **Pytest** - Testing
+- **Git Worktrees** - Multi-agent development
+
+---
+
+## 📦 Installation & Setup
 
 ### Prerequisites
 
-- Python 3.10 or 3.11
-- Poetry (recommended) or pip
+- **Python 3.10 or 3.11** (required)
+- **Poetry** (recommended) or pip
+- **Git** (for version control)
 
-### Using Poetry (Recommended)
-
-**Note:** This project uses Poetry 2.x. See [POETRY_GUIDE.md](POETRY_GUIDE.md) for details on Poetry 2.x changes.
+### Quick Start
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
+# 1. Clone the repository
+git clone https://github.com/your-username/agent-factory.git
 cd agent-factory
 
-# Install dependencies (Poetry 2.x)
-poetry sync
+# 2. Install dependencies (Poetry 2.x)
+poetry install
 
-# Run commands in the Poetry environment:
-# Option 1: Use 'poetry run' prefix
-poetry run python agent_factory/examples/demo.py
+# 3. Copy environment template
+cp .env.example .env
 
-# Option 2: Activate manually (poetry shell is deprecated in Poetry 2.x)
-# Get the environment path
-poetry env info --path
-# On Unix/Mac: source $(poetry env info --path)/bin/activate
-# On Windows: $(poetry env info --path)\Scripts\activate
+# 4. Add API keys to .env
+# - OPENAI_API_KEY
+# - ANTHROPIC_API_KEY
+# - SUPABASE_URL
+# - SUPABASE_KEY
+# - ELEVENLABS_API_KEY (for voice clone)
+
+# 5. Test installation
+poetry run python -c "from core.models import PLCAtom; print('✓ Installation successful')"
+poetry run python test_models.py  # All 6 tests should pass
 ```
 
-### Using pip
-
-```bash
-# Clone the repository
-git clone <your-repo-url>
-cd agent-factory
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -e .
-```
-
-### Environment Setup
-
-1. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Add your API keys to `.env`:
-   ```env
-   OPENAI_API_KEY=your_openai_api_key_here
-   ```
-
-## 🎯 Quick Start
-
-### Research Agent Example
-
-```python
-from dotenv import load_dotenv
-from agent_factory.core.agent_factory import AgentFactory
-from agent_factory.tools.research_tools import get_research_tools
-
-load_dotenv()
-
-# Create factory
-factory = AgentFactory()
-
-# Get research tools
-tools = get_research_tools(
-    include_wikipedia=True,
-    include_duckduckgo=True
-)
-
-# Create agent
-agent = factory.create_research_agent(
-    tools_list=tools,
-    system_prompt="You are a helpful research assistant."
-)
-
-# Use the agent
-response = agent.invoke({"input": "What is LangChain?"})
-print(response['output'])
-```
-
-### Coding Agent Example
-
-```python
-from agent_factory.tools.coding_tools import get_coding_tools
-
-# Get coding tools
-tools = get_coding_tools(
-    include_read=True,
-    include_write=True,
-    include_list=True,
-    base_dir="."
-)
-
-# Create agent
-agent = factory.create_coding_agent(
-    tools_list=tools,
-    system_prompt="You are a helpful coding assistant."
-)
-
-# Use the agent
-response = agent.invoke({"input": "List all Python files in the current directory"})
-print(response['output'])
-```
-
-### Run the Demo
-
-```bash
-# With Poetry 2.x
-poetry run python agent_factory/examples/demo.py
-
-# Or if you've activated the environment manually
-python agent_factory/examples/demo.py
-```
-
-## 🧠 Core Concepts
-
-### Agent Factory
-
-The `AgentFactory` class is the core of the framework. It provides methods to create agents with different configurations:
-
-```python
-factory = AgentFactory(
-    default_llm_provider="openai",  # or "anthropic", "google"
-    default_model="gpt-4o",
-    default_temperature=0.0,
-    verbose=True
-)
-```
-
-### Tools
-
-Tools are capabilities that agents can use to interact with the world. Agent Factory includes:
-
-**Research Tools:**
-- Wikipedia Search
-- DuckDuckGo Web Search
-- Tavily AI Search (requires API key)
-- Current Time
-
-**Coding Tools:**
-- Read Files
-- Write Files
-- List Directory
-- Search Files
-- Git Status
-
-### Tool Registry
-
-The `ToolRegistry` provides centralized tool management:
-
-```python
-from agent_factory.tools.tool_registry import ToolRegistry
-
-registry = ToolRegistry()
-registry.register("wikipedia", WikipediaSearchTool(), category="research")
-tools = registry.get_by_category("research")
-```
-
-## 📚 Examples
-
-### Custom Agent with Mixed Tools
-
-```python
-from agent_factory.tools.research_tools import WikipediaSearchTool
-from agent_factory.tools.coding_tools import ReadFileTool
-
-# Combine different tool types
-mixed_tools = [
-    WikipediaSearchTool(),
-    ReadFileTool(),
-]
-
-# Create custom agent
-agent = factory.create_agent(
-    role="Hybrid Agent",
-    tools_list=mixed_tools,
-    system_prompt="You are a versatile AI assistant.",
-    agent_type=AgentFactory.AGENT_TYPE_STRUCTURED_CHAT
-)
-```
-
-### Using Different LLM Providers
-
-```python
-# Use Claude (Anthropic)
-agent = factory.create_agent(
-    role="Research Agent",
-    tools_list=tools,
-    llm_provider="anthropic",
-    model="claude-3-opus-20240229"
-)
-
-# Use Gemini (Google)
-agent = factory.create_agent(
-    role="Research Agent",
-    tools_list=tools,
-    llm_provider="google",
-    model="gemini-pro"
-)
-```
-
-### Interactive Chat Mode
-
-```python
-agent = factory.create_research_agent(tools)
-
-while True:
-    user_input = input("You: ")
-    if user_input.lower() == "exit":
-        break
-
-    response = agent.invoke({"input": user_input})
-    print(f"Agent: {response['output']}")
-```
-
-## 🛠️ Available Tools
-
-### Research Tools
-
-| Tool | Description | API Key Required |
-|------|-------------|------------------|
-| `WikipediaSearchTool` | Search Wikipedia articles | No |
-| `DuckDuckGoSearchTool` | Web search via DuckDuckGo | No |
-| `TavilySearchTool` | AI-optimized web search | Yes (TAVILY_API_KEY) |
-| `CurrentTimeTool` | Get current time | No |
-
-### Coding Tools
-
-| Tool | Description | Configuration |
-|------|-------------|---------------|
-| `ReadFileTool` | Read file contents | base_dir |
-| `WriteFileTool` | Write or append to files | base_dir |
-| `ListDirectoryTool` | List directory contents | base_dir |
-| `FileSearchTool` | Search files by pattern | base_dir |
-| `GitStatusTool` | Check Git repository status | - |
-
-## 🎨 Creating Custom Agents
-
-### Method 1: Using Factory Methods
-
-```python
-# Pre-configured research agent
-agent = factory.create_research_agent(tools)
-
-# Pre-configured coding agent
-agent = factory.create_coding_agent(tools)
-```
-
-### Method 2: Using Generic create_agent
-
-```python
-agent = factory.create_agent(
-    role="Data Analyst Agent",
-    tools_list=[tool1, tool2, tool3],
-    system_prompt="You are a data analyst...",
-    agent_type=AgentFactory.AGENT_TYPE_REACT,
-    enable_memory=True,
-    llm_provider="openai",
-    model="gpt-4o",
-    temperature=0.2
-)
-```
-
-### Method 3: Creating Custom Tool
-
-```python
-from typing import Type
-from langchain_core.tools import BaseTool
-from langchain.pydantic_v1 import BaseModel, Field
-
-class MyToolInput(BaseModel):
-    query: str = Field(description="The input query")
-
-class MyCustomTool(BaseTool):
-    name = "my_custom_tool"
-    description = "Description of what this tool does"
-    args_schema: Type[BaseModel] = MyToolInput
-
-    def _run(self, query: str) -> str:
-        # Your tool logic here
-        return f"Processed: {query}"
-
-# Use your custom tool
-tools = [MyCustomTool()]
-agent = factory.create_agent(role="Custom Agent", tools_list=tools)
-```
-
-## 📖 API Reference
-
-### AgentFactory
-
-```python
-class AgentFactory:
-    def __init__(
-        self,
-        default_llm_provider: str = "openai",
-        default_model: str = "gpt-4o",
-        default_temperature: float = 0.0,
-        verbose: bool = True
-    )
-
-    def create_agent(
-        self,
-        role: str,
-        tools_list: List[BaseTool],
-        system_prompt: Optional[str] = None,
-        agent_type: str = "react",
-        enable_memory: bool = True,
-        **kwargs
-    ) -> AgentExecutor
-
-    def create_research_agent(
-        self,
-        tools_list: List[BaseTool],
-        system_prompt: Optional[str] = None,
-        **kwargs
-    ) -> AgentExecutor
-
-    def create_coding_agent(
-        self,
-        tools_list: List[BaseTool],
-        system_prompt: Optional[str] = None,
-        **kwargs
-    ) -> AgentExecutor
-```
-
-### Utility Functions
-
-```python
-# Get pre-configured tool sets
-get_research_tools(
-    include_wikipedia=True,
-    include_duckduckgo=True,
-    include_tavily=False,
-    include_time=True
-) -> List[BaseTool]
-
-get_coding_tools(
-    include_read=True,
-    include_write=True,
-    include_list=True,
-    include_git=True,
-    include_search=True,
-    base_dir="."
-) -> List[BaseTool]
-```
+### Week 1 Setup (Human Tasks)
+
+**See:** [Issue #44](https://github.com/your-username/agent-factory/issues/44) for complete checklist
+
+**Monday-Tuesday (3-4 hours):**
+- [ ] Record 10-15 min voice samples (teaching mode, varied emotion)
+- [ ] Upload to ElevenLabs Professional Voice Cloning
+- [ ] Create Supabase project (enable pgvector extension)
+- [ ] Run schema migrations (`docs/supabase_migrations.sql`)
+- [ ] Test voice clone (generate 30s sample, verify quality < 10% robotic)
+
+**Wednesday-Thursday (4-6 hours):**
+- [ ] Manually create 10 knowledge atoms (5 electrical, 5 PLC basics)
+- [ ] Insert into Supabase `knowledge_atoms` table
+- [ ] Generate embeddings (OpenAI `text-embedding-3-small`)
+- [ ] Test vector search (query "what is voltage" → correct atom returned)
+
+**Friday (2-3 hours):**
+- [x] Implement Core Pydantic Models (`core/models.py`) ✅ COMPLETED
+- [x] Validate all models with test suite ✅ COMPLETED
+
+---
 
 ## 🏗️ Project Structure
 
 ```
-agent_factory/
-├── core/
-│   └── agent_factory.py       # Main factory class
-├── tools/
-│   ├── tool_registry.py       # Tool registration system
-│   ├── research_tools.py      # Research/web tools
-│   └── coding_tools.py        # File system tools
-├── agents/
-│   ├── research_agent.py      # Pre-configured research agent
-│   └── coding_agent.py        # Pre-configured coding agent
-├── examples/
-│   └── demo.py                # Demonstration scripts
-└── config/
-    └── agent_configs.yaml     # Agent configurations
+agent-factory/
+├── core/                          # Core data models
+│   ├── models.py                  # Pydantic schemas (600+ lines) ✅
+│   ├── agent_factory.py           # Main factory class
+│   └── settings_service.py        # Runtime configuration
+├── docs/                          # Strategy & technical docs
+│   ├── TRIUNE_STRATEGY.md         # Master vision (32KB) ✅
+│   ├── YOUTUBE_WIKI_STRATEGY.md   # Content strategy (17KB) ✅
+│   ├── AGENT_ORGANIZATION.md      # 18 agents specs (26KB) ✅
+│   ├── IMPLEMENTATION_ROADMAP.md  # Week-by-week plan (22KB) ✅
+│   ├── ATOM_SPEC_UNIVERSAL.md     # Knowledge atom schema (21KB) ✅
+│   └── *.md                       # Technical documentation
+├── plc/                           # PLC Tutor vertical
+│   ├── content/
+│   │   └── CONTENT_ROADMAP_AtoZ.md  # 100+ videos (24KB) ✅
+│   ├── agents/                    # PLC-specific agents (Week 2+)
+│   └── atoms/                     # Knowledge atoms (Week 1)
+├── agents/                        # Agent implementations (Week 2+)
+│   ├── research/                  # Research & KB agents
+│   ├── content/                   # Content production agents
+│   ├── media/                     # Media & publishing agents
+│   ├── engagement/                # Community & analytics agents
+│   └── executive/                 # AI CEO & Chief of Staff
+├── tests/                         # Test suites
+│   └── test_models.py             # Pydantic model tests ✅
+├── examples/                      # Demo scripts
+├── CLAUDE.md                      # AI agent context ✅
+├── TASK.md                        # Current tasks ✅
+└── README.md                      # This file ✅
 ```
+
+**Legend:**
+- ✅ Completed (Week 0)
+- 📅 Upcoming (Week 1-2)
+- 🔜 Planned (Week 3+)
+
+---
+
+## 🤖 Core Data Models (Pydantic v2)
+
+All data types are defined in [`core/models.py`](core/models.py) using Pydantic v2 with full validation.
+
+### Knowledge Atoms
+
+```python
+from core.models import PLCAtom, RIVETAtom, EducationalLevel
+
+# PLC programming knowledge atom
+plc_atom = PLCAtom(
+    id="plc:ab:timer-on-delay",
+    title="Timer On-Delay (TON) - Allen-Bradley",
+    description="TON timer delays output by preset time when input goes true",
+    domain="plc",
+    vendor="allen_bradley",
+    plc_language="ladder",
+    educational_level=EducationalLevel.INTRO,
+    typical_learning_time_minutes=15,
+    code_snippet="...",  # Ladder logic example
+    prerequisites=["plc:generic:io-basics", "plc:generic:ladder-fundamentals"]
+)
+
+# Industrial maintenance troubleshooting atom
+rivet_atom = RIVETAtom(
+    id="rivet:motor:won-t-start",
+    title="3-Phase Motor Won't Start",
+    equipment_class="ac_induction_motor",
+    symptoms=["Motor hums but doesn't rotate"],
+    root_causes=[...],
+    diagnostic_steps=[...],
+    corrective_actions=[...],
+    safety_level="danger",
+    lockout_tagout_required=True
+)
+```
+
+### Content Production
+
+```python
+from core.models import VideoScript, UploadJob
+
+# Video script generated by Scriptwriter Agent
+script = VideoScript(
+    id="script:ohms-law-video",
+    title="Ohm's Law - The Foundation of Electrical Engineering (#3)",
+    outline=["Hook", "Explanation", "Example", "Recap"],
+    script_text="[enthusiastic] This one equation...",
+    atom_ids=["plc:generic:ohms-law"],
+    duration_minutes=8,
+    keywords=["ohms law", "V=IR", "electrical calculations"]
+)
+
+# YouTube upload job
+upload = UploadJob(
+    channel="industrial_skills_hub",
+    video_script_id="script:ohms-law-video",
+    audio_path="/media/ohms-law-audio.mp3",
+    video_path="/media/ohms-law-video.mp4",
+    thumbnail_path="/media/ohms-law-thumb.jpg",
+    youtube_title="Ohm's Law - Tutorial (#3)",
+    visibility="public",
+    scheduled_time=None  # Publish immediately
+)
+```
+
+### Curriculum Organization
+
+```python
+from core.models import Module, Course
+
+# Module: Collection of related atoms
+module = Module(
+    id="module:electrical-fundamentals",
+    title="Electrical Fundamentals",
+    atom_ids=["plc:generic:voltage", "plc:generic:current", ...],
+    estimated_hours=2.5
+)
+
+# Course: Collection of modules
+course = Course(
+    id="course:intro-to-plc",
+    title="Introduction to PLC Programming",
+    module_ids=["module:electrical-fundamentals", "module:plc-basics"],
+    estimated_hours=10.0,
+    price_usd=49.99
+)
+```
+
+**See:** [`docs/ATOM_SPEC_UNIVERSAL.md`](docs/ATOM_SPEC_UNIVERSAL.md) for complete specification
+
+---
+
+## 🎓 Content Roadmap: 100+ Videos
+
+Complete A-to-Z curriculum from electricity basics to AI-augmented automation.
+
+### Track A: Electrical Fundamentals (Videos 1-20)
+- What is Electricity?
+- Voltage, Current, Resistance
+- Ohm's Law (V=I×R)
+- Electrical Power & Safety
+- Sensors, Actuators, Motors
+
+### Track B: PLC Fundamentals (Videos 21-40)
+- What is a PLC?
+- PLC Scan Cycle
+- Ladder Logic Basics
+- Timers & Counters
+- Your First PLC Program
+
+### Track C: Structured Text & Advanced (Videos 41-60)
+- Introduction to Structured Text
+- HMI Integration
+- Data Logging & Trending
+- Industrial Networks
+
+### Track D: Vendor-Specific (Videos 61-80)
+- Allen-Bradley ControlLogix
+- Siemens S7-1200/1500
+- Studio 5000 & TIA Portal
+
+### Track E: AI & Automation (Videos 81-100)
+- AI for PLC Programming
+- Autonomous PLC Code Generation
+- Predictive Maintenance
+- The Future of Automation
+
+**See:** [`plc/content/CONTENT_ROADMAP_AtoZ.md`](plc/content/CONTENT_ROADMAP_AtoZ.md) for all 100+ topics with keywords, hooks, examples, and quizzes
+
+---
+
+## 💰 Business Model & Monetization
+
+### Multi-Stream Revenue (PLC Tutor)
+
+**Free Tier:**
+- YouTube channel (ads, organic growth)
+- Core lessons (electricity basics, PLC fundamentals)
+- Community engagement
+
+**Paid Tier:**
+- Structured courses ($49-$299): "Electricity Fundamentals to PLC Expert"
+- Premium membership ($29/mo): Interactive AI tutor, personalized exercises
+- Lab kits: Factory I/O project templates, simulation scenarios
+
+**B2B (Later):**
+- Corporate training licenses ($10K-$20K/org)
+- White-label tutor for trade schools, OEMs
+- API access to knowledge base + agents
+
+### Revenue Targets
+
+| Milestone | Subscribers | Revenue/Month | Key Metrics |
+|-----------|-------------|---------------|-------------|
+| Week 12 | 1,000 | $500 | First course sales, YPP application |
+| Month 6 | 5,000 | $2,000 | YouTube Partner active, course bundles |
+| Month 12 | 20,000 | $5,000 | Premium tier, B2B inquiries |
+| Year 3 | 100,000+ | $200,000+ ($2.5M ARR) | Sustainable business, multiple revenue streams |
+
+**See:** [`docs/TRIUNE_STRATEGY.md`](docs/TRIUNE_STRATEGY.md) for complete financial model
+
+---
+
+## 🔐 Security & Compliance
+
+Agent Factory is built with **enterprise-grade security** from inception.
+
+### Security by Design
+
+**Before Writing Code:**
+1. **Input:** Validate + sanitize all user input
+2. **Data:** Encrypt sensitive data + log access
+3. **Access:** Add auth + rate limits
+4. **Output:** Filter PII + validate safety
+5. **Abuse:** Add monitoring + circuit breakers
+
+**Before Marking Complete:**
+- [ ] Security implications documented
+- [ ] Audit logging implemented (who, what, when)
+- [ ] Error messages don't leak sensitive data
+- [ ] Rate limits exist (if user-facing)
+- [ ] Input validation with allow-lists
+
+**Core Principles:**
+- Principle of Least Privilege (default deny, explicit allow)
+- Defense in Depth (multiple security layers)
+- Fail Secure (errors block, not allow)
+- Audit Everything (log all privileged operations)
+- Assume Breach (limit blast radius)
+
+**See:** [`docs/SECURITY_STANDARDS.md`](docs/SECURITY_STANDARDS.md) for complete guidelines
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
+We welcome contributions! Here's how:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### For Contributors
+
+1. **Fork the repository**
+2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Work in a git worktree** (see [`docs/GIT_WORKTREE_GUIDE.md`](docs/GIT_WORKTREE_GUIDE.md))
+4. **Follow security standards** (see [`docs/SECURITY_STANDARDS.md`](docs/SECURITY_STANDARDS.md))
+5. **Write tests** for new features
+6. **Commit with conventional commits** (`feat:`, `fix:`, `docs:`, etc.)
+7. **Push to your branch** (`git push origin feature/amazing-feature`)
+8. **Open a Pull Request**
 
 ### Development Setup
 
 ```bash
 # Install dev dependencies
-poetry install
+poetry install --with dev
 
 # Run tests
-pytest
+poetry run pytest
 
-# Format code
-black agent_factory/
-isort agent_factory/
+# Validate models
+poetry run python test_models.py
 
-# Lint code
-ruff agent_factory/
+# Format code (if configured)
+poetry run black .
+poetry run isort .
 ```
 
-## 📄 License
+### For AI Agents
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-This project incorporates patterns from the [LangChain Crash Course](https://github.com/Mikecranesync/langchain-crash-course), also under MIT License.
-
-## 🙏 Acknowledgments
-
-- Built with [LangChain](https://github.com/langchain-ai/langchain)
-- Inspired by the [LangChain Crash Course](https://github.com/Mikecranesync/langchain-crash-course)
-- Pattern concepts from the Agent Factory prompt methodology
-
-## 🐛 Known Issues
-
-- Git operations require GitPython package
-- Tavily search requires API key (free tier available)
-- Some tools may have platform-specific behavior (Windows vs. Unix)
-
-## 🗺️ Roadmap
-
-- [ ] Add more built-in tools (database, API calls, etc.)
-- [ ] Support for LangGraph multi-agent orchestration
-- [ ] Web UI for agent interaction
-- [ ] Agent templates library
-- [ ] Configuration-driven agent creation (YAML/JSON)
-- [ ] Observability and monitoring integration
-- [ ] Async agent execution
-- [ ] Agent performance metrics
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-username/agent-factory/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/agent-factory/discussions)
-
-## ⭐ Star History
-
-If you find this project useful, please consider giving it a star!
+If you're an AI agent working on this project:
+- **Read [`CLAUDE.md`](CLAUDE.md)** for complete context
+- **Check [`TASK.md`](TASK.md)** before starting work
+- **Use git worktrees** for isolation (required by pre-commit hook)
+- **Follow security checklist** before marking features complete
+- **Update documentation** as you build
 
 ---
 
-Made with ❤️ by the Agent Factory community
+## 📞 Support & Community
+
+- **Issues:** [GitHub Issues](https://github.com/your-username/agent-factory/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/your-username/agent-factory/discussions)
+- **Email:** your-email@example.com
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+This project incorporates patterns from:
+- [LangChain Crash Course](https://github.com/Mikecranesync/langchain-crash-course) (MIT License)
+- [Archon](https://github.com/coleam00/archon) by Cole Medin (13.4k⭐)
+- [context-engineering-intro](https://github.com/coleam00/context-engineering-intro) (11.8k⭐)
+
+---
+
+## 🙏 Acknowledgments
+
+- **LangChain** - Agent orchestration framework
+- **Cole Medin** - Production patterns (Archon, context engineering, settings service)
+- **Anthropic** - Claude API for agent intelligence
+- **OpenAI** - Embeddings & GPT-4
+- **ElevenLabs** - Voice cloning technology
+- **Supabase** - Database & vector search infrastructure
+
+---
+
+## 🗺️ Roadmap
+
+### Phase 1: Foundation (Weeks 1-4) - **IN PROGRESS**
+- [x] Complete strategy documentation (TRIUNE, YOUTUBE_WIKI, AGENT_ORG, ROADMAP, CONTENT)
+- [x] Implement Pydantic models (LearningObject, PLCAtom, RIVETAtom, VideoScript, etc.)
+- [ ] Voice training & ElevenLabs setup (Issue #44)
+- [ ] Create first 10 knowledge atoms (Issue #45)
+- [ ] Public launch: 3 videos live (Week 4)
+
+### Phase 2: Agent Implementation (Weeks 5-8)
+- [ ] Research Agent + Atom Builder (Week 2)
+- [ ] Scriptwriter Agent (Week 2)
+- [ ] Video Production Pipeline (Voice, Assembly, Thumbnail) (Week 3)
+- [ ] Publishing Pipeline (Strategy, Uploader) (Week 3)
+- [ ] Community & Analytics Agents (Week 6)
+- [ ] Executive Agents (AI CEO, Chief of Staff) (Week 7)
+- [ ] Quality Checker + Atom Librarian (Week 7)
+- [ ] All 18 agents operational (Week 8)
+
+### Phase 3: Autonomous Operations (Weeks 9-12)
+- [ ] Agents produce 80% autonomously (Week 9)
+- [ ] 30 videos published, 1K subs, $500 revenue (Week 12)
+- [ ] YouTube Partner Program approved
+- [ ] First B2B inquiry
+
+### Phase 4: Scale (Months 4-12)
+- [ ] 100 videos published
+- [ ] 20K subscribers, $5K/mo revenue
+- [ ] Multi-platform presence (TikTok, Instagram)
+- [ ] Agents fully autonomous (99% without human intervention)
+
+### Phase 5: RIVET Launch (Year 1-2)
+- [ ] Industrial maintenance vertical
+- [ ] Reddit monitoring + validation pipeline
+- [ ] B2B integrations (CMMS platforms)
+
+### Phase 6: DAAS & Robot Licensing (Year 3-5)
+- [ ] License knowledge bases to enterprises
+- [ ] Humanoid robot training datasets
+- [ ] $10-50M ARR target
+
+**See:** [`docs/IMPLEMENTATION_ROADMAP.md`](docs/IMPLEMENTATION_ROADMAP.md) for detailed timeline
+
+---
+
+## ⭐ Star History
+
+If you find this project useful, please consider giving it a star! ⭐
+
+This helps others discover the project and shows your support for autonomous AI systems.
+
+---
+
+## 📊 Project Statistics
+
+| Metric | Value |
+|--------|-------|
+| **Strategy Docs** | 7 documents (142KB total) |
+| **Code Models** | 600+ lines (Pydantic v2) |
+| **Planned Videos** | 100+ (sequenced A-to-Z) |
+| **Planned Agents** | 18 (5 teams) |
+| **GitHub Issues** | 6 (Week 1 ready) |
+| **Implementation Timeline** | 12 weeks to autonomous operations |
+| **Revenue Target (Year 3)** | $5M ARR (both verticals) |
+
+---
+
+Made with ❤️ and 🤖 by humans and AI agents working together
+
+**"The best way to predict the future is to build it autonomously."**
