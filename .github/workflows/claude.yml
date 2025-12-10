@@ -35,5 +35,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true  # Enable full error output for debugging
           # Claude will read CLAUDE.md for project-specific instructions
           # and use the full repository context to understand your codebase
