@@ -26,14 +26,82 @@ from telegram.constants import ChatAction
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+# Store repo path for git operations
+REPO_PATH = str(project_root)
+
 from solve_github_issues import (
-    get_issue,
-    get_issues_by_label,
-    get_all_issues,
     create_task_from_issue,
     check_gh_cli
 )
 from agent_factory.core.agent_factory import AgentFactory
+
+
+# =============================================================================
+# GitHub CLI Functions (with proper cwd)
+# =============================================================================
+
+import subprocess
+import json
+
+def get_issue(issue_number: int) -> Optional[Dict]:
+    """Fetch issue from GitHub with proper repo context."""
+    try:
+        result = subprocess.run(
+            ["gh", "issue", "view", str(issue_number),
+             "--json", "title,body,labels,number,state"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            timeout=10,
+            cwd=REPO_PATH  # Use repo directory
+        )
+        if result.returncode != 0:
+            return None
+        return json.loads(result.stdout)
+    except Exception:
+        return None
+
+
+def get_issues_by_label(label: str) -> list:
+    """Fetch issues by label with proper repo context."""
+    try:
+        result = subprocess.run(
+            ["gh", "issue", "list",
+             "--label", label,
+             "--json", "title,body,labels,number,state"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            timeout=10,
+            cwd=REPO_PATH  # Use repo directory
+        )
+        if result.returncode != 0:
+            return []
+        return json.loads(result.stdout)
+    except Exception:
+        return []
+
+
+def get_all_issues() -> list:
+    """Fetch all open issues with proper repo context."""
+    try:
+        result = subprocess.run(
+            ["gh", "issue", "list",
+             "--json", "title,body,labels,number,state"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            timeout=10,
+            cwd=REPO_PATH  # Use repo directory
+        )
+        if result.returncode != 0:
+            return []
+        return json.loads(result.stdout)
+    except Exception:
+        return []
 
 
 # =============================================================================
@@ -82,7 +150,7 @@ async def solve_issue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     Handle /solve-issue command.
 
     Usage:
-        /solve-issue 52
+        /solveissue 52
 
     Workflow:
         1. Parse issue number from command
@@ -95,7 +163,7 @@ async def solve_issue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         8. Commit if approved
 
     Example:
-        User: /solve-issue 52
+        User: /solveissue 52
         Bot: 🔍 Fetching issue #52...
              📋 Issue: Add logging to auth module
              ⚙️ Solving...
@@ -117,8 +185,8 @@ async def solve_issue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Parse issue number
     if not context.args or len(context.args) < 1:
         await update.message.reply_text(
-            "❌ Usage: /solve-issue <number>\n\n"
-            "Example: /solve-issue 52"
+            "❌ Usage: /solveissue <number>\n\n"
+            "Example: /solveissue 52"
         )
         return
 
@@ -127,7 +195,7 @@ async def solve_issue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     except ValueError:
         await update.message.reply_text(
             f"❌ Invalid issue number: {context.args[0]}\n\n"
-            "Must be a number, e.g., /solve-issue 52"
+            "Must be a number, e.g., /solveissue 52"
         )
         return
 
@@ -189,7 +257,9 @@ async def solve_issue_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     try:
         factory = AgentFactory()
-        worker = factory.create_openhands_agent()
+        worker = factory.create_openhands_agent(
+            model="deepseek-coder:6.7b"
+        )
     except Exception as e:
         await update.message.reply_text(
             f"❌ Failed to create OpenHands worker\n\n"
@@ -283,12 +353,12 @@ async def list_issues_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     Handle /list-issues command.
 
     Usage:
-        /list-issues           # List all open issues
-        /list-issues bug       # List issues with "bug" label
-        /list-issues agent-task
+        /listissues           # List all open issues
+        /listissues bug       # List issues with "bug" label
+        /listissues agent-task
 
     Example:
-        User: /list-issues bug
+        User: /listissues bug
         Bot: 📋 Open issues with label 'bug':
 
              #52 - Authentication fails for special chars
@@ -346,7 +416,7 @@ async def list_issues_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if len(issues) > 20:
         issues_text += f"\n... and {len(issues) - 20} more\n"
 
-    issues_text += f"\n💡 Use `/solve-issue <number>` to solve one"
+    issues_text += f"\n💡 Use `/solveissue <number>` to solve one"
 
     await update.message.reply_text(
         issues_text,
@@ -413,7 +483,7 @@ async def github_approval_callback(update: Update, context: ContextTypes.DEFAULT
         await query.edit_message_text(
             f"❌ *Rejected*\n\n"
             f"Solution for issue #{issue_number} discarded.\n\n"
-            f"You can try again with `/solve-issue {issue_number}`",
+            f"You can try again with `/solveissue {issue_number}`",
             parse_mode="Markdown"
         )
         return
@@ -431,9 +501,10 @@ async def github_approval_callback(update: Update, context: ContextTypes.DEFAULT
     if result.code:
         # Determine filename from issue or result
         filename = f"issue_{issue_number}_solution.py"
+        filepath = Path(REPO_PATH) / filename
 
         try:
-            with open(filename, "w", encoding="utf-8") as f:
+            with open(filepath, "w", encoding="utf-8") as f:
                 f.write(result.code)
         except Exception as e:
             await context.bot.send_message(
@@ -451,7 +522,10 @@ async def github_approval_callback(update: Update, context: ContextTypes.DEFAULT
             subprocess.run(
                 ["git", "add", filename],
                 check=True,
-                capture_output=True
+                capture_output=True,
+                encoding='utf-8',
+                errors='ignore',
+                cwd=REPO_PATH  # Run in repo directory
             )
 
         # Commit with closes #N message
@@ -461,7 +535,10 @@ async def github_approval_callback(update: Update, context: ContextTypes.DEFAULT
             ["git", "commit", "-m", commit_message],
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            cwd=REPO_PATH  # Run in repo directory
         )
 
         await context.bot.send_message(
@@ -474,7 +551,10 @@ async def github_approval_callback(update: Update, context: ContextTypes.DEFAULT
             ["git", "push", "origin", "main"],
             check=True,
             capture_output=True,
-            text=True
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            cwd=REPO_PATH  # Run in repo directory
         )
 
         await context.bot.send_message(

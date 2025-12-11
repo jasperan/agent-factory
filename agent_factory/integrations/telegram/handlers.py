@@ -99,9 +99,9 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /reset - Clear conversation history
 
 *GitHub Automation:*
-/list-issues - List all open issues
-/list-issues <label> - List issues by label
-/solve-issue <number> - Auto-solve issue with FREE Ollama
+/listissues - List all open issues
+/listissues <label> - List issues by label
+/solveissue <number> - Auto-solve issue with FREE Ollama
 
 *How to Use:*
 1. Choose an agent with /start or /agent
@@ -114,8 +114,8 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 - *Bob* - Market research and opportunity discovery
 
 *GitHub Example:*
-/list-issues bug
-/solve-issue 52
+/listissues bug
+/solveissue 52
 [Bot solves, you approve via buttons]
 Issue auto-closes!
 
@@ -257,8 +257,11 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if bot_instance.config.typing_indicator:
         await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
 
-    # Get agent type
+    # Get agent type (auto-select research if not set for conversational mode)
     agent_type = bot_instance.session_manager.get_agent_type(chat_id)
+    if not agent_type:
+        agent_type = "research"  # Default to research agent for immediate chat
+        bot_instance.session_manager.set_agent_type(chat_id, agent_type)
 
     # Execute agent
     try:
