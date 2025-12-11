@@ -27,6 +27,7 @@ from .session_manager import TelegramSessionManager
 from .formatters import ResponseFormatter
 from . import handlers
 from . import github_handlers
+from . import kb_handlers
 
 
 class TelegramBot:
@@ -81,6 +82,7 @@ class TelegramBot:
         """
         # Command handlers
         self.app.add_handler(CommandHandler("start", handlers.start_handler))
+        self.app.add_handler(CommandHandler("menu", handlers.menu_handler))
         self.app.add_handler(CommandHandler("help", handlers.help_handler))
         self.app.add_handler(CommandHandler("agent", handlers.agent_handler))
         self.app.add_handler(CommandHandler("reset", handlers.reset_handler))
@@ -88,6 +90,12 @@ class TelegramBot:
         # GitHub automation commands
         self.app.add_handler(CommandHandler("solveissue", github_handlers.solve_issue_handler))
         self.app.add_handler(CommandHandler("listissues", github_handlers.list_issues_handler))
+
+        # Knowledge Base commands
+        self.app.add_handler(CommandHandler("kb_stats", kb_handlers.kb_stats_handler))
+        self.app.add_handler(CommandHandler("kb_search", kb_handlers.kb_search_handler))
+        self.app.add_handler(CommandHandler("kb_get", kb_handlers.kb_get_handler))
+        self.app.add_handler(CommandHandler("generate_script", kb_handlers.generate_script_handler))
 
         # Callback handler (inline buttons)
         self.app.add_handler(CallbackQueryHandler(self._unified_callback_handler))

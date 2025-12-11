@@ -97,6 +97,7 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 *Basic Commands:*
 /start - Show agent selection menu
+/menu - Interactive help menu
 /help - Show this help message
 /agent - Switch to different agent
 /reset - Clear conversation history
@@ -194,6 +195,49 @@ async def reset_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "*Session cleared!*\n\n"
         "Your conversation history has been reset.\n"
         "Use /agent to choose an agent and start fresh.",
+        parse_mode="Markdown"
+    )
+
+
+async def menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handle /menu command.
+
+    Shows interactive help menu with categories.
+
+    Example:
+        User: /menu
+        Bot: [Interactive menu with buttons]
+    """
+    keyboard = [
+        [
+            InlineKeyboardButton("Commands", callback_data="help_commands"),
+            InlineKeyboardButton("Agents", callback_data="help_agents")
+        ],
+        [
+            InlineKeyboardButton("GitHub", callback_data="help_github"),
+            InlineKeyboardButton("Tips", callback_data="help_tips")
+        ],
+        [
+            InlineKeyboardButton("Status", callback_data="help_status"),
+            InlineKeyboardButton("Quick Start", callback_data="help_quickstart")
+        ]
+    ]
+
+    menu_text = (
+        "*Agent Factory Help Menu*\n\n"
+        "Choose a topic to learn more:\n\n"
+        "- *Commands* - All available commands\n"
+        "- *Agents* - Agent capabilities\n"
+        "- *GitHub* - Auto-solve issues\n"
+        "- *Tips* - Best practices\n"
+        "- *Status* - System metrics\n"
+        "- *Quick Start* - Get started in 30 seconds"
+    )
+
+    await update.message.reply_text(
+        menu_text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
 
@@ -386,8 +430,128 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # This will be connected to Factor 6 (async task system)
         # For now, just acknowledge
 
+    # Handle help menu callbacks
+    elif callback_data.startswith("help_"):
+        await _handle_help_callback(query, callback_data)
+
     else:
         await query.edit_message_text(f"Unknown action: {callback_data}")
+
+
+async def _handle_help_callback(query, callback_data: str):
+    """Handle help menu button callbacks."""
+    back_button = [[InlineKeyboardButton("Back to Menu", callback_data="help_back")]]
+
+    if callback_data == "help_commands":
+        text = """*All Commands*
+
+*Basic:*
+/start - Agent selection
+/menu - Interactive help
+/help - Full command list
+/agent - Switch agent
+/reset - Clear history
+
+*GitHub:*
+/listissues [label] - List issues
+/solveissue <number> - Auto-solve
+
+Use /menu to return."""
+
+    elif callback_data == "help_agents":
+        text = """*Available Agents*
+
+*Research:* Web search, Wikipedia
+*Coding:* File ops, code analysis
+*Bob:* Market research
+
+Choose: /start or /agent"""
+
+    elif callback_data == "help_github":
+        text = """*GitHub Automation*
+
+/listissues - All issues
+/solveissue 52 - Auto-solve
+
+*Flow:*
+1. Bot analyzes issue
+2. Generates solution (FREE)
+3. You approve
+4. Auto-commits & closes
+
+Cost: $0.00 (Ollama)"""
+
+    elif callback_data == "help_tips":
+        text = """*Tips & Tricks*
+
+- Be specific
+- Sessions persist
+- Use /reset for fresh start
+- 10 msg/min limit
+- 4000 char max
+- GitHub: FREE Ollama"""
+
+    elif callback_data == "help_status":
+        text = """*System Status*
+
+*GitHub:*
+- FREE Ollama
+- Auto-solve enabled
+- Human approval required
+
+*Bot:*
+- 3 agents active
+- Sessions persist
+- Rate limiting: ON"""
+
+    elif callback_data == "help_quickstart":
+        text = """*Quick Start*
+
+1. /start
+2. Pick agent
+3. Ask question
+4. Get answer
+
+Examples:
+/listissues bug
+/solveissue 52"""
+
+    elif callback_data == "help_back":
+        keyboard = [
+            [
+                InlineKeyboardButton("Commands", callback_data="help_commands"),
+                InlineKeyboardButton("Agents", callback_data="help_agents")
+            ],
+            [
+                InlineKeyboardButton("GitHub", callback_data="help_github"),
+                InlineKeyboardButton("Tips", callback_data="help_tips")
+            ],
+            [
+                InlineKeyboardButton("Status", callback_data="help_status"),
+                InlineKeyboardButton("Quick Start", callback_data="help_quickstart")
+            ]
+        ]
+        await query.edit_message_text(
+            "*Agent Factory Help Menu*\n\n"
+            "Choose a topic to learn more:\n\n"
+            "- *Commands* - All commands\n"
+            "- *Agents* - Capabilities\n"
+            "- *GitHub* - Auto-solve\n"
+            "- *Tips* - Best practices\n"
+            "- *Status* - Metrics\n"
+            "- *Quick Start* - 30 sec start",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        return
+    else:
+        text = "Unknown help topic."
+
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(back_button),
+        parse_mode="Markdown"
+    )
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
