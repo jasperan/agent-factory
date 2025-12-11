@@ -142,6 +142,31 @@ def truncate_code(code: str, max_length: int = 3500) -> str:
 
 
 # =============================================================================
+# Natural Language Wrappers
+# =============================================================================
+
+async def solve_issue_natural(update: Update, context: ContextTypes.DEFAULT_TYPE, issue_number: int):
+    """
+    Handle natural language GitHub issue solving requests.
+
+    Called when user says things like:
+    - "Solve issue 52"
+    - "Work on issue #47"
+    - "Fix bug 32"
+
+    Args:
+        update: Telegram update
+        context: Telegram context
+        issue_number: Extracted issue number
+    """
+    # Set context.args to match slash command format
+    context.args = [str(issue_number)]
+
+    # Call the regular handler
+    await solve_issue_handler(update, context)
+
+
+# =============================================================================
 # Command Handlers
 # =============================================================================
 

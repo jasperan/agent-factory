@@ -12,6 +12,9 @@ from telegram.ext import ContextTypes
 from telegram.constants import ChatAction
 
 from .formatters import ResponseFormatter
+from .intent_detector import IntentDetector
+from . import kb_handlers
+from . import github_handlers
 
 
 # =============================================================================
@@ -257,6 +260,27 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if bot_instance.config.typing_indicator:
         await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
 
+    # Detect intent from natural language BEFORE routing to agent
+    intent_type, parameter = IntentDetector.classify(message_text)
+
+    # Route based on detected intent
+    if intent_type == "kb_search":
+        # User wants to search knowledge base
+        await kb_handlers.kb_search_natural(update, context, parameter)
+        return
+
+    elif intent_type == "script_gen":
+        # User wants to generate a script
+        await kb_handlers.generate_script_natural(update, context, parameter)
+        return
+
+    elif intent_type == "github_issue":
+        # User wants to solve a GitHub issue
+        issue_number = int(parameter)
+        await github_handlers.solve_issue_natural(update, context, issue_number)
+        return
+
+    # Otherwise, proceed with general chat (existing behavior)
     # Get agent type (auto-select research if not set for conversational mode)
     agent_type = bot_instance.session_manager.get_agent_type(chat_id)
     if not agent_type:
