@@ -51,7 +51,7 @@ import re
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 
 # OpenAI for embeddings
@@ -68,43 +68,41 @@ class KnowledgeAtom:
 
     Based on docs/ATOM_SPEC_UNIVERSAL.md
     """
-    # Core identification
+    # Core identification (REQUIRED)
     atom_id: str  # Format: {manufacturer}:{product}:{topic_slug}
     atom_type: str  # concept, procedure, specification, pattern, fault, reference
 
-    # Content
+    # Content (REQUIRED)
     title: str  # Clear, searchable title (50-100 chars)
     summary: str  # One-sentence summary (100-200 chars)
     content: str  # Full explanation (200-1000 words)
 
-    # Metadata
+    # Metadata (REQUIRED)
     manufacturer: str  # allen_bradley, siemens, mitsubishi, etc.
-    product_family: Optional[str]  # ControlLogix, S7-1200, etc.
-    product_version: Optional[str]  # 21.0, v1.2, etc.
-
-    # Learning metadata
     difficulty: str  # beginner, intermediate, advanced, expert
     prerequisites: List[str]  # List of atom_ids that should be learned first
     related_atoms: List[str]  # Related concepts (not prerequisites)
 
-    # Citations and sources
+    # Citations and sources (REQUIRED)
     source_document: str  # Original PDF filename
     source_pages: List[int]  # Page numbers where content appears
-    source_url: Optional[str]  # URL to original PDF (if available)
-    citations: Optional[List[Dict[str, str]]]  # Perplexity-style citations [{"id": 1, "url": "...", "title": "..."}]
 
-    # Quality and safety
+    # Quality and safety (REQUIRED)
     quality_score: float  # 0.0-1.0 (extraction quality from PDF)
     safety_level: str  # info, caution, warning, danger
-    safety_notes: Optional[str]  # Safety warnings from original document
 
-    # AI/search optimization
+    # AI/search optimization (REQUIRED)
     keywords: List[str]  # Searchable keywords
-    embedding: Optional[List[float]]  # Vector embedding (1536 dims)
-
-    # Timestamps
     created_at: str  # ISO 8601
-    last_validated_at: Optional[str]  # ISO 8601
+
+    # Optional fields (all have defaults)
+    product_family: Optional[str] = None  # ControlLogix, S7-1200, etc.
+    product_version: Optional[str] = None  # 21.0, v1.2, etc.
+    source_url: Optional[str] = None  # URL to original PDF (if available)
+    citations: Optional[List[Dict[str, str]]] = None  # Perplexity-style citations [{"id": 1, "url": "...", "title": "..."}]
+    safety_notes: Optional[str] = None  # Safety warnings from original document
+    embedding: Optional[List[float]] = None  # Vector embedding (1536 dims)
+    last_validated_at: Optional[str] = None  # ISO 8601
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""

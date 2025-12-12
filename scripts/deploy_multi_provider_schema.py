@@ -61,8 +61,13 @@ class SchemaDeployer:
         # Select schema file based on type
         if schema_type == "rivet":
             # RIVET schema (industrial maintenance chatbot)
+            # Worktree is sibling to main Agent Factory directory
+            main_dir = Path(__file__).parent.parent
+            desktop_or_parent = main_dir.parent
+
             rivet_paths = [
-                Path(__file__).parent.parent / "agent-factory-rivet-launch" / "rivet" / "config" / "database_schema.sql",
+                desktop_or_parent / "agent-factory-rivet-launch" / "rivet" / "config" / "database_schema.sql",
+                main_dir / "agent-factory-rivet-launch" / "rivet" / "config" / "database_schema.sql",
                 Path.cwd() / "agent-factory-rivet-launch" / "rivet" / "config" / "database_schema.sql"
             ]
             self.schema_file = None

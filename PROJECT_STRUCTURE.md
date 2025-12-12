@@ -130,11 +130,14 @@ docs/
 │   ├── 00_business_model.md
 │   └── 00_competitive_analysis.md
 ├── database/                    # Database schemas & guides
-│   ├── supabase_complete_schema.sql
-│   ├── supabase_knowledge_schema.sql
-│   ├── setup_vector_search.sql
-│   ├── 00_database_schema.md
-│   └── DATABASE_TOOLS_GUIDE.md
+│   ├── supabase_complete_schema.sql       # Main 7-table schema
+│   ├── supabase_knowledge_schema.sql      # Knowledge atoms table
+│   ├── supabase_memory_schema.sql         # Session memories table
+│   ├── supabase_migrations.sql            # Database migrations
+│   ├── supabase_agent_migrations.sql      # Agent-specific migrations
+│   ├── setup_vector_search.sql            # Vector search setup
+│   ├── 00_database_schema.md              # Schema documentation
+│   └── DATABASE_TOOLS_GUIDE.md            # Database utilities guide
 ├── patterns/                    # Design patterns & best practices
 │   ├── cole_medin_patterns.md
 │   └── 00_gap_analysis.md

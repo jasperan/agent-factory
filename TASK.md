@@ -296,9 +296,9 @@ ELEVENLABS_VOICE_ID=your_voice_id
 - Proves end-to-end pipeline works (PDF → Atoms → Supabase → Search)
 
 **Steps:**
-1. Deploy schema: Open Supabase SQL Editor → Paste `docs/supabase_complete_schema.sql` → RUN
-2. Validate: `poetry run python scripts/validate_supabase_schema.py`
-3. Upload atoms: `poetry run python scripts/upload_atoms_to_supabase.py`
+1. Deploy schema: Open Supabase SQL Editor → Paste `docs/database/supabase_complete_schema.sql` → RUN
+2. Validate: `poetry run python scripts/deployment/verify_supabase_schema.py`
+3. Upload atoms: `poetry run python scripts/knowledge/upload_atoms_to_supabase.py`
 4. Verify: Query Supabase for atom count (should be 2,049)
 
 **Deliverables:**
@@ -308,9 +308,9 @@ ELEVENLABS_VOICE_ID=your_voice_id
 - ✅ Week 2 development UNBLOCKED
 
 **Files Created:**
-- `docs/supabase_complete_schema.sql` - Complete 7-table schema (SINGLE SOURCE OF TRUTH)
-- `scripts/validate_supabase_schema.py` - Schema validation (ASCII-compatible, Windows-safe)
-- `scripts/upload_atoms_to_supabase.py` - Batch uploader (50 atoms/batch, progress tracking)
+- `docs/database/supabase_complete_schema.sql` - Complete 7-table schema (SINGLE SOURCE OF TRUTH)
+- `scripts/deployment/verify_supabase_schema.py` - Schema validation (ASCII-compatible, Windows-safe)
+- `scripts/knowledge/upload_atoms_to_supabase.py` - Batch uploader (50 atoms/batch, progress tracking)
 - `DEPLOY_NOW.md` - Complete deployment guide (step-by-step instructions)
 
 **See:** `DEPLOY_NOW.md` for complete guide
