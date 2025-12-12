@@ -75,12 +75,14 @@ def create_slide_image(text: str, width: int = 1920, height: int = 1080, fontsiz
 
 def create_video_from_images_and_audio(image_paths: list, audio_path: Path, output_path: Path):
     """Create MP4 video from images and audio using ffmpeg"""
-    # Simple approach: create black video with audio, then add slides as overlay
-    # But even simpler: just use single image with audio for MVP
+    from imageio_ffmpeg import get_ffmpeg_exe
 
-    # Use first slide as static image
+    # Get bundled ffmpeg from imageio-ffmpeg
+    ffmpeg_path = get_ffmpeg_exe()
+
+    # Use first slide as static image with audio
     subprocess.run([
-        "ffmpeg", "-y",
+        ffmpeg_path, "-y",
         "-loop", "1",
         "-i", str(image_paths[0]),
         "-i", str(audio_path),
