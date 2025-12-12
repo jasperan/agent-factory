@@ -7,10 +7,15 @@ Orchestrates all components:
 - Agent execution
 - Handler registration
 - Bot lifecycle
+- Health check HTTP server
+- Graceful shutdown
 """
 
 import asyncio
+import os
+import signal
 from typing import Optional
+from aiohttp import web
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -28,6 +33,7 @@ from .formatters import ResponseFormatter
 from . import handlers
 from . import github_handlers
 from . import kb_handlers
+from . import fieldeye_handlers
 
 
 class TelegramBot:
@@ -70,12 +76,20 @@ class TelegramBot:
         # Register handlers
         self._setup_handlers()
 
+        # Health check server
+        self.health_app = None
+        self.health_runner = None
+        self.start_time = None
+
+        # Shutdown flag
+        self._shutdown = False
+
     def _setup_handlers(self):
         """
         Register all command, message, and callback handlers.
 
         Handlers are processed in order:
-        1. Command handlers (/start, /help, /agent, /reset, /solve-issue, /list-issues)
+        1. Command handlers (/start, /help, /agent, /reset, /solve-issue, /list-issues, /kb_*, /fieldeye_*)
         2. Callback handlers (button presses)
         3. Message handler (text messages)
         4. Error handler (global error handling)
@@ -96,6 +110,12 @@ class TelegramBot:
         self.app.add_handler(CommandHandler("kb_search", kb_handlers.kb_search_handler))
         self.app.add_handler(CommandHandler("kb_get", kb_handlers.kb_get_handler))
         self.app.add_handler(CommandHandler("generate_script", kb_handlers.generate_script_handler))
+
+        # Field Eye commands
+        self.app.add_handler(CommandHandler("fieldeye_upload", fieldeye_handlers.fieldeye_upload_handler))
+        self.app.add_handler(CommandHandler("fieldeye_stats", fieldeye_handlers.fieldeye_stats_handler))
+        self.app.add_handler(CommandHandler("fieldeye_defects", fieldeye_handlers.fieldeye_defects_handler))
+        self.app.add_handler(CommandHandler("fieldeye_sessions", fieldeye_handlers.fieldeye_sessions_handler))
 
         # Callback handler (inline buttons)
         self.app.add_handler(CallbackQueryHandler(self._unified_callback_handler))
@@ -392,12 +412,62 @@ Please respond to the current message, referencing the previous conversation whe
             except Exception:
                 pass  # Silent fail - don't break bot if logging fails
 
+    async def _health_check_handler(self, request):
+        """
+        HTTP health check endpoint.
+
+        Returns JSON with bot status, PID, uptime.
+
+        Response:
+            {'status': 'running', 'pid': 12345, 'uptime_seconds': 3600}
+        """
+        import time
+        uptime = time.time() - self.start_time if self.start_time else 0
+
+        return web.json_response({
+            'status': 'running',
+            'pid': os.getpid(),
+            'uptime_seconds': uptime,
+            'version': '1.0.0'
+        })
+
+    async def _start_health_server(self):
+        """Start health check HTTP server on localhost:9876."""
+        self.health_app = web.Application()
+        self.health_app.router.add_get('/health', self._health_check_handler)
+
+        self.health_runner = web.AppRunner(self.health_app)
+        await self.health_runner.setup()
+
+        site = web.TCPSite(self.health_runner, 'localhost', 9876)
+        await site.start()
+
+        print("[OK] Health check endpoint: http://localhost:9876/health")
+
+    async def _stop_health_server(self):
+        """Stop health check HTTP server."""
+        if self.health_runner:
+            await self.health_runner.cleanup()
+
+    def _setup_signal_handlers(self):
+        """
+        Setup graceful shutdown on SIGTERM/SIGINT.
+
+        Ensures bot stops cleanly and releases lock file.
+        """
+        def signal_handler(signum, frame):
+            print(f"\n\n[WARNING] Received signal {signum}")
+            self._shutdown = True
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
     async def run(self):
         """
-        Start bot in polling mode.
+        Start bot in polling mode with health check and graceful shutdown.
 
         Polls Telegram servers for updates.
-        Runs until interrupted (Ctrl+C).
+        Runs until interrupted (Ctrl+C) or SIGTERM.
 
         Example:
             >>> await bot.run()
@@ -405,6 +475,9 @@ Please respond to the current message, referencing the previous conversation whe
             Bot is running (polling mode)
             Press Ctrl+C to stop
         """
+        import time
+        self.start_time = time.time()
+
         print("=" * 60)
         print("Starting Agent Factory Telegram Bot")
         print("=" * 60)
@@ -414,7 +487,15 @@ Please respond to the current message, referencing the previous conversation whe
         print(f"  - Session TTL: {self.config.session_ttl_hours} hours")
         print(f"  - PII filtering: {self.config.enable_pii_filtering}")
         print(f"  - User whitelist: {len(self.config.allowed_users) if self.config.allowed_users else 'None (all users)'}")
+        print(f"  - PID: {os.getpid()}")
         print("=" * 60)
+
+        # Setup signal handlers for graceful shutdown
+        self._setup_signal_handlers()
+
+        # Start health check server
+        await self._start_health_server()
+
         print("Bot is running (polling mode)")
         print("Press Ctrl+C to stop")
         print("=" * 60)
@@ -427,7 +508,7 @@ Please respond to the current message, referencing the previous conversation whe
         # Run forever until interrupted
         try:
             # Keep alive
-            while True:
+            while not self._shutdown:
                 await asyncio.sleep(1)
 
                 # Periodic cleanup of expired sessions
@@ -439,14 +520,20 @@ Please respond to the current message, referencing the previous conversation whe
                         print(f"Cleaned {cleaned} expired sessions")
 
         except KeyboardInterrupt:
-            print("\nShutting down bot...")
+            print("\n\n[WARNING] Keyboard interrupt")
 
         finally:
-            # Cleanup
+            print("\nShutting down bot...")
+
+            # Stop health server
+            await self._stop_health_server()
+
+            # Cleanup Telegram bot
             await self.app.updater.stop()
             await self.app.stop()
             await self.app.shutdown()
-            print("Bot stopped")
+
+            print("[OK] Bot stopped cleanly")
 
     def get_stats(self) -> dict:
         """
