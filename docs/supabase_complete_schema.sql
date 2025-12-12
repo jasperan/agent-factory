@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS knowledge_atoms (
     source_document TEXT NOT NULL,
     source_pages INTEGER[] NOT NULL,
     source_url TEXT,
+    citations JSONB DEFAULT '[]'::jsonb,  -- Perplexity-style: [{"id": 1, "url": "...", "title": "..."}]
 
     -- Quality and safety
     quality_score FLOAT DEFAULT 1.0 CHECK (quality_score >= 0.0 AND quality_score <= 1.0),

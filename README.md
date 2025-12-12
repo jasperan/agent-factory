@@ -291,6 +291,33 @@ Social Amplifier Agent creates clips for TikTok/Instagram/LinkedIn
 
 ---
 
+## 📖 User Guides
+
+**Complete setup and deployment guides** → See [`Guides for Users/`](Guides%20for%20Users/)
+
+### Quick Start
+- **[QUICKSTART.md](Guides%20for%20Users/QUICKSTART.md)** - First-time setup (15 minutes)
+- **[QUICK_START_24_7.md](Guides%20for%20Users/QUICK_START_24_7.md)** - 24/7 autonomous operations
+
+### Deployment
+- **[PRODUCTION_DEPLOYMENT.md](Guides%20for%20Users/PRODUCTION_DEPLOYMENT.md)** - Cloud deployment (Railway, Supabase)
+- **[BOT_DEPLOYMENT_GUIDE.md](Guides%20for%20Users/BOT_DEPLOYMENT_GUIDE.md)** - Telegram bot deployment
+- **[TELEGRAM_AUTO_START_GUIDE.md](Guides%20for%20Users/TELEGRAM_AUTO_START_GUIDE.md)** - Windows auto-start
+- **[TELEGRAM_BOT_100_PERCENT_RELIABLE.md](Guides%20for%20Users/TELEGRAM_BOT_100_PERCENT_RELIABLE.md)** - 24/7 reliability
+
+### Integration
+- **[TELEGRAM_KB_INTEGRATION.md](Guides%20for%20Users/TELEGRAM_KB_INTEGRATION.md)** - Knowledge base integration
+- **[CLAUDEUPDATE_APPLIED.md](Guides%20for%20Users/CLAUDEUPDATE_APPLIED.md)** - Perplexity citation format
+
+### Development
+- **[POETRY_GUIDE.md](Guides%20for%20Users/POETRY_GUIDE.md)** - Dependency management
+- **[OLLAMA_SETUP_COMPLETE.md](Guides%20for%20Users/OLLAMA_SETUP_COMPLETE.md)** - FREE local LLMs (saves $200-500/month)
+- **[AGENT_EDITING_GUIDE.md](Guides%20for%20Users/AGENT_EDITING_GUIDE.md)** - Create and modify agents
+
+**All guides:** See [`Guides for Users/README.md`](Guides%20for%20Users/README.md) for complete index
+
+---
+
 ## 🤖 GitHub Issue Automation (NEW!)
 
 **Automatically solve GitHub issues with FREE local LLMs**
