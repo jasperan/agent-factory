@@ -275,19 +275,84 @@ class ScriptwriterAgent:
         return sections
 
     def _format_atom_content(self, atom: Dict[str, Any]) -> str:
-        """Format atom content for narration"""
-        content = atom.get('content', atom.get('summary', ''))
+        """
+        Format atom content for TEACHING narration (not data dumps).
 
-        # Clean up content for narration
-        # Remove excessive newlines
-        content = ' '.join(content.split())
+        Handles different atom types intelligently:
+        - concept: Explain the idea in plain language
+        - procedure: Walk through steps conversationally
+        - specification: Explain what the specs mean, not raw tables
+        - pattern: Show when/why to use it
+        - fault: Explain symptoms and fixes
+        """
+        atom_type = atom.get('atom_type', 'concept')
+        title = atom.get('title', '')
+        summary = atom.get('summary', '')
+        content = atom.get('content', '')
 
-        # Limit length for video (max 200 words per section)
-        words = content.split()
-        if len(words) > 200:
-            content = ' '.join(words[:200]) + '...'
+        # STRATEGY: Use summary as teaching content, NOT raw content
+        # Raw content often has tables/specs that don't narrate well
 
-        return content
+        if atom_type == 'concept':
+            # Explain the concept clearly
+            narration = summary if summary else content
+
+        elif atom_type == 'procedure':
+            # Extract steps and make them conversational
+            if 'step' in content.lower():
+                # Parse step-by-step format
+                lines = content.split('\n')
+                steps = [l.strip() for l in lines if l.strip() and ('step' in l.lower() or l[0].isdigit())]
+                if steps:
+                    narration = "Here's how to do it. "
+                    for i, step in enumerate(steps[:6], 1):  # Max 6 steps for video
+                        # Clean step text (remove "Step 1:", just keep action)
+                        step_text = step.split(':', 1)[-1].strip() if ':' in step else step
+                        narration += f"Step {i}: {step_text}. [pause] "
+                else:
+                    narration = summary if summary else content
+            else:
+                narration = summary if summary else content
+
+        elif atom_type == 'specification':
+            # CRITICAL: Don't read raw tables! Explain what they mean
+            if summary:
+                narration = f"{summary} Check the documentation for full specifications."
+            else:
+                # If no summary, create a generic explanation
+                narration = f"This covers the specifications for {title}. The documentation includes detailed tables with all the technical parameters you'll need."
+
+        elif atom_type == 'pattern':
+            # Explain the pattern and when to use it
+            narration = summary if summary else content
+            if 'when' not in narration.lower() and 'use' not in narration.lower():
+                narration += " Use this pattern when you need to implement similar functionality in your projects."
+
+        elif atom_type == 'fault':
+            # Explain problem and solution
+            narration = summary if summary else content
+
+        else:
+            # Default: Use summary if available, otherwise clean content
+            narration = summary if summary else content
+
+        # Clean up for narration
+        narration = ' '.join(narration.split())  # Remove excess whitespace
+
+        # Remove markdown tables (they don't narrate well)
+        if '|' in narration and '---' in narration:
+            # This is a markdown table, skip it
+            narration = f"{title}. See the documentation for the full reference table."
+
+        # Limit length (max 150 words per section for pacing)
+        words = narration.split()
+        if len(words) > 150:
+            narration = ' '.join(words[:150])
+            # Add natural ending
+            if not narration.endswith('.'):
+                narration = narration.rsplit('.', 1)[0] + '.'
+
+        return narration
 
     def _generate_summary(self, topic: str, atom: Dict[str, Any]) -> str:
         """Generate recap/summary"""
