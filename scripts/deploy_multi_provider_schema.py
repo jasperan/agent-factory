@@ -83,11 +83,23 @@ class SchemaDeployer:
                 )
         else:
             # Main Agent Factory schema (knowledge base + memory)
-            self.schema_file = Path(__file__).parent.parent / "docs" / "supabase_complete_schema.sql"
+            # Try multiple paths (docs/ and docs/database/)
+            schema_paths = [
+                Path(__file__).parent.parent / "docs" / "database" / "supabase_complete_schema.sql",
+                Path(__file__).parent.parent / "docs" / "supabase_complete_schema.sql"
+            ]
+            self.schema_file = None
+            for path in schema_paths:
+                if path.exists():
+                    self.schema_file = path
+                    break
 
             # Validate schema file exists
-            if not self.schema_file.exists():
-                raise FileNotFoundError(f"Schema file not found: {self.schema_file}")
+            if not self.schema_file:
+                raise FileNotFoundError(
+                    f"Schema file not found. Tried:\n" +
+                    "\n".join(f"  - {p}" for p in schema_paths)
+                )
 
         print(f"[OK] Using schema: {self.schema_file}")
 

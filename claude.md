@@ -578,6 +578,16 @@ poetry run pytest
 
 # 6. Orchestrator check (Phase 1 specific)
 poetry run python -c "from agent_factory.core.orchestrator import AgentOrchestrator; print('OK')"
+
+# 7. Database Manager - Multi-provider PostgreSQL (Dec 2025)
+poetry run python -c "from agent_factory.core.database_manager import DatabaseManager; db = DatabaseManager(); print('Providers:', list(db.providers.keys()))"
+poetry run python -c "from agent_factory.core.database_manager import DatabaseManager; db = DatabaseManager(); print(db.health_check_all())"
+
+# 8. PostgreSQL Memory Storage (Dec 2025)
+poetry run python -c "from agent_factory.memory.storage import PostgresMemoryStorage; storage = PostgresMemoryStorage(); print('OK')"
+
+# 9. Database Failover Tests (Dec 2025)
+poetry run pytest tests/test_database_failover.py -v
 ```
 
 ---
