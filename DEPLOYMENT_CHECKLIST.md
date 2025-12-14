@@ -112,7 +112,24 @@
 
 ## Monitoring Setup (Phase 4)
 
-### UptimeRobot
+### Automated Setup (Recommended)
+
+- [ ] **Run setup script**
+  - [ ] `python scripts/deployment/setup_uptimerobot.py --service-url <URL>`
+  - [ ] Followed interactive prompts
+  - [ ] Account created (if new)
+  - [ ] Monitor configured
+  - [ ] Alert contact added
+
+- [ ] **Run verification script**
+  - [ ] `python scripts/deployment/verify_monitoring.py --service-url <URL>`
+  - [ ] All checks passed:
+    - [ ] Health endpoint reachability (5 checks)
+    - [ ] UptimeRobot monitor status: Up
+    - [ ] Alert contacts configured
+    - [ ] Monitoring interval: 5 minutes
+
+### Manual Setup (Alternative)
 
 - [ ] **Account created**
   - [ ] https://uptimerobot.com
@@ -129,14 +146,14 @@
   - [ ] Webhook configured
   - [ ] Test alert sent and received
 
-- [ ] **Heartbeat monitor**
+- [ ] **Heartbeat monitor** (Optional)
   - [ ] Monitor type: Heartbeat
   - [ ] Name: KB Builder Cron
   - [ ] Interval: 1440 minutes (24 hours)
   - [ ] Alert threshold: 30 hours
   - [ ] Heartbeat URL copied
 
-- [ ] **Heartbeat integrated**
+- [ ] **Heartbeat integrated** (Optional)
   - [ ] Added to `scripts/automation/scheduler_kb_daily.py`
   - [ ] Committed and pushed
   - [ ] Redeployed to Render

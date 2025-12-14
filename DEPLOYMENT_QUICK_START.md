@@ -257,14 +257,38 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 
 ## STEP 5: Set Up UptimeRobot Monitoring (20 minutes)
 
-### 5.1 Create Account
+### 5.1 Automated Setup (Recommended)
+
+**Run the setup helper script:**
+
+```bash
+python scripts/deployment/setup_uptimerobot.py --service-url https://agent-factory-telegram-bot.onrender.com
+```
+
+This script will guide you through:
+- Account creation
+- Monitor configuration
+- Alert setup
+- Verification
+
+**Optional: If you have UptimeRobot API key:**
+
+```bash
+python scripts/deployment/setup_uptimerobot.py --service-url <URL> --api-key <YOUR_API_KEY>
+```
+
+### 5.2 Manual Setup (Alternative)
+
+If you prefer manual configuration:
+
+#### A. Create Account
 
 1. Go to: https://uptimerobot.com/signUp
 2. **Sign up** (free - no credit card)
 3. **Verify email**
 4. **Log in** to dashboard
 
-### 5.2 Add Bot Health Monitor
+#### B. Add Bot Health Monitor
 
 1. Click **"Add New Monitor"**
 2. Fill in:
@@ -279,7 +303,7 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 
 3. Click **"Create Monitor"**
 
-### 5.3 Add Telegram Alert
+#### C. Add Telegram Alert
 
 1. Go to **"My Settings"** → **"Alert Contacts"**
 2. Click **"Add Alert Contact"**
@@ -293,7 +317,7 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 
 5. Click **"Create Alert Contact"**
 
-### 5.4 Test Alert
+#### D. Test Alert
 
 1. **Pause** monitor temporarily
 2. Wait 10 minutes
@@ -301,7 +325,25 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 4. **Unpause** monitor
 5. Should receive "bot is up" notification
 
-**If alerts work, STEP 5 is COMPLETE! ✅**
+### 5.3 Verify Monitoring
+
+**Run verification script:**
+
+```bash
+python scripts/deployment/verify_monitoring.py --service-url https://agent-factory-telegram-bot.onrender.com
+```
+
+**Expected output:**
+```
+PASS: All 5 health checks passed
+PASS: Monitor is active and reporting 'Up'
+PASS: 1 alert contact(s) configured
+PASS: Optimal interval (5 min)
+
+SUCCESS: All monitoring checks passed
+```
+
+**If all checks pass, STEP 5 is COMPLETE! ✅**
 
 ---
 
