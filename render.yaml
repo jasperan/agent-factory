@@ -1,0 +1,107 @@
+# Render Blueprint - Agent Factory Telegram Bot
+# Infrastructure as Code for automated deployment
+#
+# Deploy: Push to main branch OR click "New Blueprint Instance" in Render dashboard
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ============================================================================
+  # Main Telegram Bot Service (24/7 Web Service)
+  # ============================================================================
+  - type: web
+    name: agent-factory-telegram-bot
+    env: python
+    region: virginia
+    plan: free
+    branch: main
+
+    # Build Configuration
+    buildCommand: poetry install --no-dev --no-interaction --no-ansi
+
+    # Start Configuration
+    # Uses telegram module with __main__.py entry point
+    startCommand: poetry run python -m agent_factory.integrations.telegram
+
+    # Health Check
+    # Bot exposes /health endpoint on port 9876
+    healthCheckPath: /health
+
+    # Auto-deploy on git push to main
+    autoDeploy: true
+
+    # Environment Variables
+    # These are configured via Render dashboard or API
+    # DO NOT put secrets here - use Render's secret management
+    envVars:
+      # Python Configuration
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"
+      - key: LOG_LEVEL
+        value: INFO
+
+      # Database Configuration
+      - key: DATABASE_PROVIDER
+        value: neon
+
+      # LLM Configuration
+      - key: DEFAULT_LLM_PROVIDER
+        value: openai
+      - key: DEFAULT_MODEL
+        value: gpt-4o
+
+      # Voice Configuration
+      - key: VOICE_MODE
+        value: edge
+      - key: EDGE_VOICE
+        value: en-US-GuyNeural
+
+      # Secrets (configure in Render dashboard)
+      # - TELEGRAM_BOT_TOKEN
+      # - TELEGRAM_ADMIN_CHAT_ID
+      # - AUTHORIZED_TELEGRAM_USERS
+      # - NEON_DB_URL
+      # - OPENAI_API_KEY
+      # - ANTHROPIC_API_KEY
+      # - SUPABASE_URL (optional)
+      # - SUPABASE_SERVICE_ROLE_KEY (optional)
+      # - GOOGLE_API_KEY (optional)
+      # - FIRECRAWL_API_KEY (optional)
+      # - TAVILY_API_KEY (optional)
+
+# ============================================================================
+# Future Services (Currently Disabled)
+# ============================================================================
+
+# Uncomment when ready to deploy cron jobs:
+
+# - type: cron
+#   name: agent-factory-kb-automation
+#   env: python
+#   region: virginia
+#   plan: free
+#   branch: main
+#   schedule: "0 2 * * *"  # 2 AM UTC daily
+#   buildCommand: poetry install --no-dev --no-interaction --no-ansi
+#   startCommand: poetry run python scripts/automation/scheduler_kb_daily.py
+#   envVars:
+#     - fromService:
+#         type: web
+#         name: agent-factory-telegram-bot
+#         envVarKey: NEON_DB_URL
+
+# - type: cron
+#   name: agent-factory-health-monitor
+#   env: python
+#   region: virginia
+#   plan: free
+#   branch: main
+#   schedule: "*/15 * * * *"  # Every 15 minutes
+#   buildCommand: poetry install --no-dev --no-interaction --no-ansi
+#   startCommand: poetry run python scripts/automation/health_monitor.py
+#   envVars:
+#     - fromService:
+#         type: web
+#         name: agent-factory-telegram-bot
+#         envVarKey: TELEGRAM_BOT_TOKEN
