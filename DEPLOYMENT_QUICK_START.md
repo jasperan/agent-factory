@@ -347,6 +347,53 @@ SUCCESS: All monitoring checks passed
 
 ---
 
+## STEP 6: Run Full Validation (15 minutes)
+
+### 6.1 Automated Validation Suite
+
+**Run comprehensive validation:**
+
+```bash
+python scripts/deployment/run_full_validation.py --service-url https://agent-factory-telegram-bot.onrender.com
+```
+
+This validates:
+- Environment variables
+- Health endpoint stability (10 consecutive checks)
+- Webhook configuration
+- Database connection and knowledge base
+- Monitoring status (if UptimeRobot API key provided)
+
+**Expected output:**
+```
+VALIDATION SUMMARY
+==========================================
+Total Checks:    15
+Passed:          15
+Failed:          0
+Warnings:        0
+Readiness Score: 100.0%
+
+STATUS: DEPLOYMENT READY
+
+All critical systems validated successfully!
+The deployment is production-ready.
+```
+
+### 6.2 Generate Deployment Report
+
+**Create documentation:**
+
+```bash
+python scripts/deployment/generate_deployment_report.py --service-url https://agent-factory-telegram-bot.onrender.com
+```
+
+**Output:** `DEPLOYMENT_REPORT.md` with complete deployment details
+
+**If validation passes, STEP 6 is COMPLETE! ✅**
+
+---
+
 ## VERIFICATION CHECKLIST
 
 Before calling it complete, verify ALL of these:
