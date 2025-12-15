@@ -17,7 +17,78 @@
 
 ---
 
-## Recently Completed (Dec 9-10)
+## Recently Completed (Dec 9-15)
+
+### ✅ RIVET Pro Telegram VPS Integration (COMPLETE)
+**Completed:** 2025-12-15
+**Impact:** Live knowledge base queries from 72.60.175.144 VPS (1,964 atoms), multi-stage search with citations
+
+**Deliverables:**
+- `agent_factory/rivet_pro/vps_kb_client.py` (422 lines) - VPS KB Factory client
+  - Keyword search across title/summary/content/keywords
+  - Equipment-specific filtering (type + manufacturer)
+  - Semantic search with pgvector embeddings (cosine similarity)
+  - Connection pooling (psycopg2.pool, 1-5 connections)
+  - Health check with 1-minute caching
+  - Automatic fallback on errors
+- `agent_factory/integrations/telegram/rivet_pro_handlers.py` (910 lines) - Updated handlers
+  - Replaced mock KB with real VPS queries
+  - Multi-stage search: semantic → equipment → keyword
+  - Enhanced answer generation with detailed citations
+  - Added `/vps_status` health monitoring command
+- `tests/test_vps_integration.py` (270 lines) - Test suite (6 tests)
+  - Health check, basic query, equipment search, semantic search, no results, VPS down fallback
+
+**Architecture:**
+```
+Telegram Bot
+    |
+    v
+RIVET Pro Handlers (rivet_pro_handlers.py)
+    |
+    v
+VPS KB Client (vps_kb_client.py)
+    |
+    v
+VPS KB Factory (72.60.175.144)
+    |
+    +-- PostgreSQL 16 + pgvector
+    +-- 1,964 knowledge atoms
+    +-- Ollama (nomic-embed-text)
+```
+
+**Features:**
+- **Multi-Stage Fallback:** Semantic search → Equipment filter → Keyword search
+- **Detailed Citations:** Source document + page numbers in every answer
+- **Structured Responses:** Symptoms → Causes → Fixes → Steps format
+- **Health Monitoring:** `/vps_status` command shows DB status, atom count, response time
+- **Connection Pooling:** Reuses PostgreSQL connections for performance
+- **Graceful Degradation:** Returns empty results if VPS down (no errors)
+
+**Validation:**
+```bash
+# VPS KB Client
+cd agent-factory-rivet-telegram
+poetry run python -c "from agent_factory.rivet_pro.vps_kb_client import VPSKBClient; print('OK')"
+
+# Test suite (requires VPS_KB_PASSWORD in .env)
+poetry run python tests/test_vps_integration.py
+```
+
+**Configuration Required:**
+```bash
+# Add to .env
+VPS_KB_HOST=72.60.175.144
+VPS_KB_PORT=5432
+VPS_KB_USER=rivet
+VPS_KB_PASSWORD=<password>
+VPS_KB_DATABASE=rivet
+VPS_OLLAMA_URL=http://72.60.175.144:11434
+```
+
+**Impact:** RIVET Pro can now answer real industrial maintenance questions with validated knowledge atoms, full citations, and health monitoring. Ready for production deployment.
+
+---
 
 ### ✅ Atom Builder from PDF (COMPLETE KNOWLEDGE PIPELINE!)
 **Completed:** 2025-12-10
