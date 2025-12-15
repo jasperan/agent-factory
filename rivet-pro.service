@@ -1,0 +1,47 @@
+[Unit]
+Description=RIVET Pro Telegram Bot - Industrial Maintenance AI Assistant
+Documentation=https://github.com/Mikecranesync/Agent-Factory
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Working directory
+WorkingDirectory=/root/Agent-Factory
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+
+# Start command - use Poetry to run bot
+ExecStart=/root/.local/bin/poetry run python telegram_bot.py
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Logging
+StandardOutput=append:/root/Agent-Factory/logs/bot.log
+StandardError=append:/root/Agent-Factory/logs/bot-error.log
+SyslogIdentifier=rivet-pro
+
+# Security hardening (optional - uncomment if needed)
+# NoNewPrivileges=true
+# PrivateTmp=true
+# ProtectSystem=strict
+# ProtectHome=true
+# ReadWritePaths=/root/Agent-Factory/logs
+# ReadWritePaths=/root/Agent-Factory/data
+
+[Install]
+WantedBy=multi-user.target
