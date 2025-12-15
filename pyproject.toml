@@ -9,7 +9,7 @@ keywords = ["langchain", "agents", "ai", "llm", "automation"]
 package-mode = false  # Poetry 2.x: This is a framework/application, not a library package
 
 [tool.poetry.dependencies]
-python = ">=3.11.0,<3.13"
+python = ">=3.11.0,<3.14"
 
 # Core LangChain dependencies
 langchain = "^0.2.1"
@@ -69,6 +69,11 @@ aiohttp = "^3.9.0"  # HTTP server for health check endpoint
 psycopg2-binary = "^2.9.11"
 psycopg = {extras = ["binary"], version = "^3.3.2"}
 psycopg-pool = "^3.3.0"
+
+# YouTube upload integration
+google-api-python-client = "^2.100.0"
+google-auth-oauthlib = "^1.1.0"
+google-auth-httplib2 = "^0.2.0"
 
 [tool.poetry.group.dev.dependencies]
 # Development tools
