@@ -47,6 +47,9 @@ jobs:
         ssh root@72.60.175.144 << 'EOF'
           set -e
 
+          # Set PATH for Poetry
+          export PATH="/root/.local/bin:$PATH"
+
           # Navigate to project
           cd /root/Agent-Factory
 
