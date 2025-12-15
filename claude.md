@@ -648,6 +648,21 @@ VPS_KB_PASSWORD=rivet_factory_2025!
 VPS_KB_DATABASE=rivet
 ```
 
+**KB Ingestion Scripts:**
+```powershell
+# Push industrial PDFs to VPS (from PowerShell)
+.\push_urls_to_vps.ps1
+
+# Monitor ingestion progress
+ssh root@72.60.175.144 "docker logs infra_rivet-worker_1 --tail 50"
+```
+
+**Source Files:**
+- `scripts/kb_seed_urls.py` - 17 curated industrial PDF URLs (Rockwell, Siemens, Mitsubishi, Omron, Schneider)
+- `scripts/push_urls_to_vps.py` - Python push script
+- `scripts/monitor_vps_ingestion.py` - Python monitor script
+- `push_urls_to_vps.ps1` - PowerShell push script (Windows)
+
 ---
 
 ## Red Flags - Stop and Report
