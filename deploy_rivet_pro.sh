@@ -167,7 +167,7 @@ install_dependencies() {
     cd "$SCRIPT_DIR"
 
     # Install dependencies without dev packages
-    if poetry install --no-dev --no-interaction --no-ansi; then
+    if poetry install --only main --no-interaction --no-ansi; then
         print_success "Dependencies installed"
     else
         print_error "Failed to install dependencies"
