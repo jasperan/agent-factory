@@ -16,7 +16,8 @@ services:
     branch: main
 
     # Build Configuration
-    buildCommand: poetry install --no-dev --no-interaction --no-ansi
+    # Poetry 2.x uses --only main instead of --no-dev
+    buildCommand: poetry install --only main --no-interaction --no-ansi
 
     # Start Configuration
     # Startup script deploys database schema then starts bot
@@ -83,7 +84,7 @@ services:
 #   plan: free
 #   branch: main
 #   schedule: "0 2 * * *"  # 2 AM UTC daily
-#   buildCommand: poetry install --no-dev --no-interaction --no-ansi
+#   buildCommand: poetry install --only main --no-interaction --no-ansi
 #   startCommand: poetry run python scripts/automation/scheduler_kb_daily.py
 #   envVars:
 #     - fromService:
@@ -98,7 +99,7 @@ services:
 #   plan: free
 #   branch: main
 #   schedule: "*/15 * * * *"  # Every 15 minutes
-#   buildCommand: poetry install --no-dev --no-interaction --no-ansi
+#   buildCommand: poetry install --only main --no-interaction --no-ansi
 #   startCommand: poetry run python scripts/automation/health_monitor.py
 #   envVars:
 #     - fromService:
