@@ -63,7 +63,7 @@ python-telegram-bot = "^22.5"
 supabase = "^2.25.0"
 edge-tts = "^7.2.3"
 # moviepy removed - not imported, caused numpy build issues on Render
-numpy = ">=1.24.0,<2.0"  # Explicitly pin for Python 3.12 compatibility (used by field_eye)
+# numpy removed - only needed for field_eye which gracefully degrades if unavailable
 pillow = "11.0.0"
 filelock = "^3.13.0"  # Cross-platform process lock to prevent duplicate bot instances
 aiohttp = "^3.9.0"  # HTTP server for health check endpoint
