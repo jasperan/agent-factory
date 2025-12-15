@@ -94,6 +94,81 @@ class ThumbnailAgent:
         # TODO: Implement in subclass or concrete agent
         raise NotImplementedError("Agent must implement _process()")
 
+    def generate_thumbnails(self, video_id: str, topic: str, num_variants: int = 3) -> list[str]:
+        """
+        Generate thumbnail variants for a video.
+
+        Args:
+            video_id: Unique video identifier
+            topic: Video topic (for text overlay)
+            num_variants: Number of thumbnail variants to generate (default: 3)
+
+        Returns:
+            List of paths to generated thumbnail files
+        """
+        from pathlib import Path
+        from PIL import Image, ImageDraw, ImageFont
+        import textwrap
+
+        # Create output directory
+        output_dir = Path("data/thumbnails")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        thumbnail_paths = []
+
+        # Color schemes for variants
+        color_schemes = [
+            {"bg": "#1a1a2e", "accent": "#16213e", "text": "#ffffff"},  # Dark blue
+            {"bg": "#0f3460", "accent": "#16213e", "text": "#ffffff"},  # Navy
+            {"bg": "#533483", "accent": "#7209b7", "text": "#ffffff"},  # Purple
+        ]
+
+        for i in range(num_variants):
+            scheme = color_schemes[i % len(color_schemes)]
+
+            # Create image (1280x720 - YouTube standard)
+            img = Image.new('RGB', (1280, 720), color=scheme["bg"])
+            draw = ImageDraw.Draw(img)
+
+            # Add text (topic title)
+            # Use default font since we can't rely on system fonts being available
+            try:
+                # Try to use a system font if available
+                font_large = ImageFont.truetype("arial.ttf", 80)
+                font_small = ImageFont.truetype("arial.ttf", 40)
+            except:
+                # Fall back to default font
+                font_large = ImageFont.load_default()
+                font_small = ImageFont.load_default()
+
+            # Wrap text to fit thumbnail
+            wrapped_title = textwrap.fill(topic, width=20)
+
+            # Draw title
+            bbox = draw.textbbox((0, 0), wrapped_title, font=font_large)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            x = (1280 - text_width) // 2
+            y = (720 - text_height) // 2 - 100
+
+            # Add shadow
+            draw.text((x+4, y+4), wrapped_title, font=font_large, fill="#000000", align="center")
+            # Add main text
+            draw.text((x, y), wrapped_title, font=font_large, fill=scheme["text"], align="center")
+
+            # Add variant label
+            variant_label = f"Variant {i+1}"
+            draw.text((20, 20), variant_label, font=font_small, fill=scheme["text"])
+
+            # Save thumbnail
+            output_path = output_dir / f"{video_id}_thumbnail_v{i+1}.png"
+            img.save(output_path, "PNG")
+            thumbnail_paths.append(str(output_path))
+
+            logger.info(f"Generated thumbnail variant {i+1}: {output_path}")
+
+        return thumbnail_paths
+
     def _update_status(self, status: str, error_message: Optional[str] = None):
         """Update agent status in database"""
         try:

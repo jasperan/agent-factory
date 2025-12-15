@@ -1,0 +1,37 @@
+{
+  "started_at": "2025-12-15T18:27:29.687426",
+  "steps": {
+    "kb_query": {
+      "success": true,
+      "atom_count": 5
+    },
+    "script_generation": {
+      "success": true,
+      "word_count": 262
+    },
+    "quality_review": {
+      "success": true,
+      "score": 7.1,
+      "decision": "flag_for_review"
+    },
+    "voice_production": {
+      "success": true,
+      "audio_path": "data\\audio\\e2e_test_20251215_182742.mp3"
+    },
+    "video_assembly": {
+      "success": true,
+      "video_path": "data\\videos\\e2e_test_20251215_182756.mp4"
+    },
+    "thumbnail_generation": {
+      "success": true,
+      "variant_count": 3
+    },
+    "seo_optimization": {
+      "success": true,
+      "title": "PLC Motor Control Basics - Complete Tutorial"
+    }
+  },
+  "completed_at": "2025-12-15T18:28:36.197424",
+  "total_steps": 7,
+  "successful_steps": 7
+}
