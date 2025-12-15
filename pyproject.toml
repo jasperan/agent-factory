@@ -20,7 +20,7 @@ langchain-google-genai = "^1.0.5"
 langchainhub = "^0.1.18"
 
 # LLM & Embeddings
-tiktoken = "^0.7.0"
+# tiktoken removed - not used, causes Rust compilation issues on Render
 
 # Web search and research tools
 wikipedia = "^1.4.0"
