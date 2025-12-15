@@ -71,8 +71,16 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     welcome_text = (
-        "*Welcome to Agent Factory!*\n\n"
-        "I connect you to specialized AI agents for different tasks.\n\n"
+        "*Welcome to Agent Factory!* 🤖\n\n"
+        "Your AI assistant for industrial maintenance and troubleshooting.\n\n"
+        "💡 *What I can help with:*\n"
+        "• HVAC troubleshooting\n"
+        "• Equipment diagnostics\n"
+        "• Repair procedures\n"
+        "• Technical documentation\n\n"
+        "🎯 *Beta Testing - FREE Access*\n"
+        "Help me improve! Use the bot, tell me what works (or doesn't).\n"
+        "Your feedback shapes the product.\n\n"
         "*Choose an agent to get started:*"
     )
 
