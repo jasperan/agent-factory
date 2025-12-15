@@ -1,0 +1,97 @@
+name: Deploy RIVET Pro to VPS
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'agent_factory/**'
+      - 'telegram_bot.py'
+      - 'deploy_rivet_pro.sh'
+      - 'rivet-pro.service'
+      - '.github/workflows/deploy-vps.yml'
+
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even if no changes'
+        required: false
+        default: 'false'
+
+jobs:
+  deploy:
+    name: Deploy to Hostinger VPS
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+    - name: Add VPS to known hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H 72.60.175.144 >> ~/.ssh/known_hosts
+
+    - name: Copy .env file to VPS
+      run: |
+        echo "${{ secrets.VPS_ENV_FILE }}" > .env.production
+        scp .env.production root@72.60.175.144:/root/Agent-Factory/.env
+        rm .env.production
+
+    - name: Deploy to VPS
+      run: |
+        ssh root@72.60.175.144 << 'EOF'
+          set -e
+
+          # Navigate to project
+          cd /root/Agent-Factory
+
+          # Pull latest code
+          git fetch origin
+          git reset --hard origin/main
+
+          # Make deployment script executable
+          chmod +x deploy_rivet_pro.sh
+
+          # Run deployment
+          ./deploy_rivet_pro.sh
+
+          # Wait for health check
+          sleep 5
+
+          # Verify bot is running
+          curl -f http://localhost:9876/health || exit 1
+        EOF
+
+    - name: Verify deployment
+      run: |
+        ssh root@72.60.175.144 << 'EOF'
+          # Check bot status
+          curl -s http://localhost:9876/health | python3 -m json.tool
+
+          # Check systemd service (if enabled)
+          if systemctl is-enabled rivet-pro.service 2>/dev/null; then
+            systemctl status rivet-pro.service --no-pager
+          fi
+
+          # Show recent logs
+          tail -n 20 /root/Agent-Factory/logs/bot.log
+        EOF
+
+    - name: Send Telegram notification (on success)
+      if: success()
+      run: |
+        curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_ADMIN_CHAT_ID }} \
+          -d text="✅ RIVET Pro deployed successfully to VPS!%0A%0ACommit: ${{ github.sha }}%0AAuthor: ${{ github.actor }}%0AHealth: http://72.60.175.144:9876/health"
+
+    - name: Send Telegram notification (on failure)
+      if: failure()
+      run: |
+        curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_ADMIN_CHAT_ID }} \
+          -d text="❌ RIVET Pro deployment FAILED!%0A%0ACommit: ${{ github.sha }}%0AAuthor: ${{ github.actor }}%0A%0ACheck GitHub Actions for details."
