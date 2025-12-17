@@ -1,1 +1,1 @@
-"""RIVET Pro tests package"""
+"""Tests for RIVET Pro"""
