@@ -1,11 +1,103 @@
 # Active Tasks - Agent Factory
 
-**Last Updated:** 2025-12-16
-**Status:** RIVET Pro Phase 1 COMPLETE ✅ + KB Ingestion Chain Ready
+**Last Updated:** 2025-12-17 (Auto-synced from Backlog.md)
+**Sync Status:** ✅ Automatic sync enabled
 
 ---
 
-## CURRENT FOCUS: RIVET Pro Multi-Agent Backend (NEW - PRIMARY) 🚀
+<!-- BACKLOG_SYNC:CURRENT:BEGIN -->
+## Current Task
+
+### task-4: BUILD: RIVET Pro Phase 4 - Orchestrator
+
+**Priority:** High
+
+View task details: `backlog task view task-4`
+
+---
+
+### task-5: BUILD: RIVET Pro Phase 5 - Research Pipeline
+
+**Priority:** Medium
+
+View task details: `backlog task view task-5`
+
+<!-- BACKLOG_SYNC:CURRENT:END -->
+
+<!-- BACKLOG_SYNC:BACKLOG:BEGIN -->
+## Backlog
+
+### High Priority
+
+**task-High.1:** AI Dev Control Loop Dashboard
+- View task details: `backlog task view task-High.1`
+
+**task-9:** BUILD: PLC Tutor Multi-Agent Orchestration
+- View task details: `backlog task view task-9`
+
+**task-10:** BUILD: YouTube Automation Pipeline
+- View task details: `backlog task view task-10`
+
+**task-23:** BUILD: AI Dev Control Loop Dashboard
+- View task details: `backlog task view task-23`
+
+**task-23.1:** BUILD: Fork and vendor Backlog.md (AI Dev Loop 1/6)
+- View task details: `backlog task view task-23.1`
+
+**task-23.2:** BUILD: Headless Claude runner (AI Dev Loop 3/6)
+- View task details: `backlog task view task-23.2`
+
+**task-23.3:** BUILD: Define AI Dev Loop architecture (AI Dev Loop 2/6)
+- View task details: `backlog task view task-23.3`
+
+**task-23.5:** BUILD: Safety & observability (AI Dev Loop 6/6)
+- View task details: `backlog task view task-23.5`
+
+### Medium Priority
+
+**task-6:** BUILD: RIVET Pro Phase 6 - Logging
+
+**task-7:** BUILD: RIVET Pro Phase 7 - API/Webhooks
+
+**task-11:** BUILD: Voice Clone Setup (ElevenLabs)
+
+**task-12:** BUILD: A-to-Z Curriculum Roadmap
+
+**task-13:** BUILD: Hybrid Search Implementation
+
+**task-14:** FIX: pgvector Extension for Local PostgreSQL 18
+
+**task-15:** FIX: Telegram Admin Panel Real Data Integration
+
+**task-16:** FIX: pytest Slow Execution Investigation
+
+**task-19:** TEST: Ingestion Chain Tests
+
+**task-21:** TEST: Autonomous System Tests
+
+**task-23.4:** BUILD: Simple dashboard (React/Telegram) (AI Dev Loop 5/6)
+
+**task-1:** AUDIT: Inventory Agent Factory repo
+
+**task-22:** AI Dev Control Loop Dashboard
+
+### Low Priority
+
+**task-8:** BUILD: RIVET Pro Phase 8 - Vision/OCR
+
+**task-17:** CLEANUP: Update PROJECT_STRUCTURE.md
+
+**task-18:** CLEANUP: Audit Architecture Docs for Accuracy
+
+**task-20:** TEST: Agent Integration Tests
+
+<!-- BACKLOG_SYNC:BACKLOG:END -->
+
+---
+
+## Project Context & History
+
+### CURRENT FOCUS: RIVET Pro Multi-Agent Backend (NEW - PRIMARY) 🚀
 
 **Status:** Phase 1/8 Complete ✅
 **Progress:** 12.5% (30 min invested, ~8-10 hrs remaining)
