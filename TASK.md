@@ -65,6 +65,12 @@ No manual tasks requiring user execution.
 
 **task-scaffold-logging:** BUILD: Structured Logging & Session History
 
+**task-scaffold-backlog-sync:** BUILD: Backlog Status Sync (PR to Backlog.md)
+
+**task-scaffold-documentation:** BUILD: SCAFFOLD User Documentation
+
+**task-scaffold-logging:** BUILD: Structured Logging & Session History
+
 **task-scaffold-validate-seo-rankings:** VALIDATE: SEO Rankings (organic page 1 results)
 
 **task-scaffold-validate-twitter-api:** VALIDATE: Twitter API Integration (post 24 threads)

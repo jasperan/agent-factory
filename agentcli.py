@@ -60,6 +60,7 @@ from agent_factory.cli.crew_creator import CrewCreator
 from agent_factory.core.crew_spec import load_crew_spec, list_crew_specs, CrewSpec
 from agent_factory.core.crew import Crew, ProcessType, VotingStrategy
 from agent_factory.core.agent_factory import AgentFactory
+from agent_factory.scaffold import WorktreeManager, WorktreeExistsError, WorktreeNotFoundError, WorktreeLimitError
 
 
 # ========================================================================
@@ -97,6 +98,9 @@ class AgentCLI:
         self.spec_parser = SpecParser()
         self.code_generator = CodeGenerator()
         self.eval_generator = EvalGenerator()
+
+        # Initialize WorktreeManager
+        self.worktree_manager = WorktreeManager(repo_root=Path.cwd(), max_concurrent=5)
 
     def build(self, spec_name: str, output_dir: Optional[str] = None) -> int:
         """
@@ -678,7 +682,7 @@ class AgentCLI:
 
         WHAT THIS DOES:
             1. Validates name
-            2. Creates worktree in parent directory
+            2. Creates worktree in parent directory using WorktreeManager
             3. Creates new branch
             4. Reports success with instructions
 
@@ -699,66 +703,63 @@ class AgentCLI:
 
         # Clean name (lowercase, hyphens)
         clean_name = name.lower().replace(" ", "-").replace("_", "-")
-        worktree_path = f"../agent-factory-{clean_name}"
-        branch_name = clean_name
 
         print(f"\n[1/3] Checking if worktree already exists...")
 
-        # Check if worktree exists
-        result = subprocess.run(
-            ["git", "worktree", "list"],
-            capture_output=True,
-            text=True
-        )
+        try:
+            # Use WorktreeManager to create worktree
+            worktree_path = self.worktree_manager.create_worktree(
+                task_id=clean_name,
+                creator="agentcli"
+            )
 
-        if worktree_path in result.stdout or clean_name in result.stdout:
+            print(f"  [OK] Name available")
+            print(f"\n[2/3] Creating worktree with new branch...")
+
+            # Get metadata to display info
+            metadata = self.worktree_manager.get_worktree(clean_name)
+            print(f"  Path: {worktree_path}")
+            print(f"  Branch: {metadata.branch_name}")
+            print(f"  [OK] Worktree created successfully")
+
+            # Success message
+            print(f"\n[3/3] Setup complete!")
+            print(f"\n{'='*72}")
+            print("WORKTREE READY")
+            print(f"{'='*72}")
+            print(f"\nWorktree: {worktree_path}")
+            print(f"Branch: {metadata.branch_name}")
+            print(f"\nNext steps:")
+            print(f"  1. cd {worktree_path}")
+            print(f"  2. Start coding!")
+            print(f"  3. git add . && git commit -m \"Your message\"")
+            print(f"  4. git push -u origin {metadata.branch_name}")
+            print(f"\nWhen done:")
+            print(f"  agentcli worktree-remove {clean_name}")
+
+            return 0
+
+        except WorktreeExistsError:
             print(f"  [ERROR] Worktree already exists!")
             print(f"\n  List worktrees with: agentcli worktree-list")
             return 1
 
-        print(f"  [OK] Name available")
-
-        # Create worktree
-        print(f"\n[2/3] Creating worktree with new branch...")
-        print(f"  Path: {worktree_path}")
-        print(f"  Branch: {branch_name}")
-
-        result = subprocess.run(
-            ["git", "worktree", "add", worktree_path, "-b", branch_name],
-            capture_output=True,
-            text=True
-        )
-
-        if result.returncode != 0:
-            print(f"\n[ERROR] Failed to create worktree:")
-            print(result.stderr)
+        except WorktreeLimitError as e:
+            print(f"  [ERROR] {str(e)}")
+            print(f"\n  List worktrees with: agentcli worktree-list")
             return 1
 
-        print(f"  [OK] Worktree created successfully")
-
-        # Success message
-        print(f"\n[3/3] Setup complete!")
-        print(f"\n{'='*72}")
-        print("WORKTREE READY")
-        print(f"{'='*72}")
-        print(f"\nWorktree: {worktree_path}")
-        print(f"Branch: {branch_name}")
-        print(f"\nNext steps:")
-        print(f"  1. cd {worktree_path}")
-        print(f"  2. Start coding!")
-        print(f"  3. git add . && git commit -m \"Your message\"")
-        print(f"  4. git push -u origin {branch_name}")
-        print(f"\nWhen done:")
-        print(f"  agentcli worktree-remove {clean_name}")
-
-        return 0
+        except Exception as e:
+            print(f"\n[ERROR] Failed to create worktree:")
+            print(f"  {str(e)}")
+            return 1
 
     def worktree_list(self) -> int:
         """
         PURPOSE: List all git worktrees
 
         WHAT THIS DOES:
-            Show all active worktrees with paths and branches
+            Show all active worktrees with paths and branches using WorktreeManager
 
         OUTPUTS:
             int: Always 0
@@ -767,6 +768,10 @@ class AgentCLI:
         print("GIT WORKTREES")
         print("=" * 72)
 
+        # Get worktrees from WorktreeManager
+        worktrees = self.worktree_manager.list_worktrees()
+
+        # Also show git worktree list for main directory
         result = subprocess.run(
             ["git", "worktree", "list"],
             capture_output=True,
@@ -778,29 +783,37 @@ class AgentCLI:
             print(result.stderr)
             return 1
 
-        # Parse and display
+        # Parse git worktree list to find main directory
         lines = result.stdout.strip().split("\n")
-
-        print(f"\n  Found {len(lines)} worktree(s):\n")
-
+        main_dir = None
         for line in lines:
             parts = line.split()
             if len(parts) >= 2:
                 path = parts[0]
-                commit = parts[1]
-                branch = parts[2] if len(parts) >= 3 else "(detached)"
+                if ".git" not in path or path.endswith("Agent Factory"):
+                    main_dir = path
+                    break
 
-                # Clean up display
-                branch = branch.strip("[]")
+        # Display main directory
+        print(f"\n  Found {len(worktrees) + 1} worktree(s):\n")
 
-                # Mark main directory
-                is_main = ".git" not in path or path.endswith("Agent Factory")
-                marker = "[MAIN]" if is_main else "[WORK]"
+        if main_dir:
+            print(f"  [MAIN] {Path(main_dir).name}")
+            print(f"        Branch: main")
+            print(f"        Path: {main_dir}")
+            print()
 
-                print(f"  {marker} {Path(path).name}")
-                print(f"        Branch: {branch}")
-                print(f"        Path: {path}")
-                print()
+        # Display tracked worktrees
+        for wt in worktrees:
+            status_marker = f"[{wt.status.upper()}]"
+            print(f"  {status_marker} {Path(wt.worktree_path).name}")
+            print(f"        Branch: {wt.branch_name}")
+            print(f"        Path: {wt.worktree_path}")
+            print(f"        Created: {wt.created_at}")
+            print(f"        Creator: {wt.creator}")
+            if wt.pr_url:
+                print(f"        PR: {wt.pr_url}")
+            print()
 
         print(f"Create new worktree with: agentcli worktree-create <name>")
         print(f"Remove worktree with: agentcli worktree-remove <name>")
@@ -812,7 +825,7 @@ class AgentCLI:
         PURPOSE: Remove git worktree
 
         WHAT THIS DOES:
-            1. Find worktree by name
+            1. Find worktree by name using WorktreeManager
             2. Remove worktree and clean up
             3. Report success
 
@@ -828,62 +841,44 @@ class AgentCLI:
 
         # Clean name
         clean_name = name.lower().replace(" ", "-").replace("_", "-")
-        worktree_path = f"../agent-factory-{clean_name}"
 
         print(f"\n[1/2] Checking if worktree exists...")
 
-        # Check if worktree exists
-        result = subprocess.run(
-            ["git", "worktree", "list"],
-            capture_output=True,
-            text=True
-        )
+        try:
+            # Get metadata before removal
+            metadata = self.worktree_manager.get_worktree(clean_name)
 
-        if worktree_path not in result.stdout and clean_name not in result.stdout:
+            if metadata is None:
+                raise WorktreeNotFoundError(f"Worktree '{clean_name}' not found")
+
+            print(f"  [OK] Found worktree")
+
+            # Remove worktree
+            print(f"\n[2/2] Removing worktree...")
+
+            # Note: cleanup_worktree will try with --force if needed
+            # and will also delete the branch by default
+            self.worktree_manager.cleanup_worktree(clean_name, force=True, delete_branch=True)
+
+            print(f"  [OK] Worktree removed")
+
+            print(f"\n{'='*72}")
+            print("WORKTREE REMOVED")
+            print(f"{'='*72}")
+            print(f"\nRemoved: {metadata.worktree_path}")
+            print(f"Branch: {metadata.branch_name} (deleted)")
+
+            return 0
+
+        except WorktreeNotFoundError:
             print(f"  [ERROR] Worktree not found!")
             print(f"\n  List worktrees with: agentcli worktree-list")
             return 1
 
-        print(f"  [OK] Found worktree")
-
-        # Remove worktree
-        print(f"\n[2/2] Removing worktree...")
-
-        result = subprocess.run(
-            ["git", "worktree", "remove", worktree_path],
-            capture_output=True,
-            text=True
-        )
-
-        if result.returncode != 0:
-            # Try with --force if there are uncommitted changes
-            print(f"  [WARNING] Worktree has uncommitted changes")
-            print(f"  [ACTION] Forcing removal...")
-
-            result = subprocess.run(
-                ["git", "worktree", "remove", worktree_path, "--force"],
-                capture_output=True,
-                text=True
-            )
-
-            if result.returncode != 0:
-                print(f"\n[ERROR] Failed to remove worktree:")
-                print(result.stderr)
-                return 1
-
-        print(f"  [OK] Worktree removed")
-
-        # Prune
-        subprocess.run(["git", "worktree", "prune"], capture_output=True)
-
-        print(f"\n{'='*72}")
-        print("WORKTREE REMOVED")
-        print(f"{'='*72}")
-        print(f"\nRemoved: {worktree_path}")
-        print(f"\nNote: Branch '{clean_name}' still exists in git")
-        print(f"      Delete it with: git branch -d {clean_name}")
-
-        return 0
+        except Exception as e:
+            print(f"\n[ERROR] Failed to remove worktree:")
+            print(f"  {str(e)}")
+            return 1
 
     def worktree_status(self) -> int:
         """
