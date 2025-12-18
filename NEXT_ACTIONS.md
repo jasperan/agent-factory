@@ -6,6 +6,220 @@ Priority-ordered tasks for Agent Factory.
 
 ## CRITICAL
 
+### ✅ COMPLETE: User Actions Feature (All 4 Phases)
+**Status:** COMPLETE
+**Priority:** HIGH (Core feature implemented)
+**Completed:** 2025-12-17 19:40
+
+**What Was Built:**
+
+**Phase 1 (commit 3bf6a9b):**
+1. ✅ Installed Backlog CLI v1.28.0 via npm
+2. ✅ Extended sync script with User Actions section (390 lines)
+3. ✅ Added USER_ACTIONS sync zone to TASK.md
+4. ✅ Created task-24 EPIC + 4 subtasks
+5. ✅ Tested sync script (dry-run + full sync successful)
+
+**Phase 2 (commit 172d695):**
+6. ✅ Added "Special Labels → user-action" subsection to backlog/README.md
+7. ✅ Updated CLAUDE.md Rule 0 to reference User Actions section
+8. ✅ Documented when to use user-action label with examples
+
+**Phase 3 (commit 172d695):**
+9. ✅ Created tests/test_user_actions_sync.py with 5 unit tests
+10. ✅ All tests passing (pytest + standalone execution)
+
+**Phase 4 (commit 172d695):**
+11. ✅ Created scripts/backlog/migrate_user_actions.py
+12. ✅ Migration script supports --dry-run and interactive confirmation
+13. ✅ Identified 7 candidate tasks for user-action label
+
+**Final Stats:**
+- Total: 725 lines added across 7 files
+- All 4 subtasks completed (task-24.1 through task-24.4)
+- task-24 EPIC marked Done
+- Zero schema changes (backward compatible)
+- ASCII-only output (Windows compatible)
+
+**All Acceptance Criteria Met:**
+- ✅ backlog/README.md documents user-action label
+- ✅ CLAUDE.md Rule 0 mentions User Actions section
+- ✅ 5 unit tests passing
+- ✅ Migration script created and tested
+- ✅ All task-24 subtasks marked Done
+- ✅ task-24 EPIC marked Done
+
+---
+
+### ✅ COMPLETE: Backlog Setup Implementation - Phase 3 (TASK.md Sync)
+**Status:** COMPLETE (needs CLI to test)
+**Priority:** HIGH (Core automation)
+**Time Estimate:** 2-3 hours
+
+**What to Build:**
+1. `scripts/backlog/sync_tasks.py` - Core sync engine (~300 lines)
+   - Reads all Backlog tasks (uses Backlog.md MCP tools)
+   - Identifies "Current Task" (first task with status "In Progress")
+   - Generates "Backlog" section (all "To Do" tasks, prioritized)
+   - Preserves TASK.md structure (intro text, manual sections)
+   - Updates only sync zones (marked with comments)
+   - Supports flags: `--dry-run`, `--force`, `--section=current|backlog`
+
+2. Add sync zone comments to TASK.md:
+   ```markdown
+   <!-- BACKLOG_SYNC:CURRENT:BEGIN -->
+   ## Current Task
+   [Auto-generated content]
+   <!-- BACKLOG_SYNC:CURRENT:END -->
+
+   <!-- BACKLOG_SYNC:BACKLOG:BEGIN -->
+   ## Backlog
+   [Auto-generated content]
+   <!-- BACKLOG_SYNC:BACKLOG:END -->
+   ```
+
+**Acceptance Criteria:**
+- [ ] Sync script reads Backlog tasks correctly via MCP
+- [ ] TASK.md "Current Task" updated from "In Progress" tasks
+- [ ] TASK.md "Backlog" updated from "To Do" tasks (prioritized)
+- [ ] Manual sections preserved (intro text, notes)
+- [ ] --dry-run flag shows preview without writing
+- [ ] Script uses PyYAML for parsing
+
+**Commands:**
+```bash
+# Dry run
+poetry run python scripts/backlog/sync_tasks.py --dry-run
+
+# Full sync
+poetry run python scripts/backlog/sync_tasks.py
+
+# Sync only current task section
+poetry run python scripts/backlog/sync_tasks.py --section current
+```
+
+---
+
+## HIGH
+
+### Phase 6: Integration & Git Hooks
+**Status:** PENDING (depends on Phase 3)
+**Priority:** HIGH
+**Time Estimate:** 1 hour
+
+**What to Build:**
+1. `scripts/backlog/install_git_hooks.py` - Git hook installer
+2. Update memory system integration (link Backlog tasks to PROJECT_CONTEXT.md)
+3. Add CLI usage examples to backlog/README.md
+
+---
+
+## MEDIUM
+
+### Phase 2: Task Templates
+**Status:** PENDING (optional, can skip for now)
+**Priority:** MEDIUM
+**Time Estimate:** 1 hour
+
+**What to Build:**
+1. 5 task templates in `backlog/templates/` (BUILD, FIX, TEST, CLEANUP, AUDIT)
+2. `scripts/backlog/create_task_from_template.py` - Interactive CLI wizard
+
+---
+
+## CRITICAL
+
+### ✅ COMPLETED: Backlog Setup Implementation - Phase 1
+**Status:** COMPLETE
+**Completed:** 2025-12-17 20:30
+
+**What Was Built:**
+1. ✅ `backlog/README.md` - Complete workflow guide (600+ lines)
+2. ✅ `backlog/decisions/TEMPLATE.md` - Decision documentation template
+3. ✅ `CLAUDE.md` Rule 0 updated - Backlog.md integration
+
+**Documentation Delivered:**
+- When to use Backlog.md vs TASK.md
+- Task lifecycle (To Do → In Progress → Done → Archived)
+- YAML frontmatter reference
+- Task creation methods (MCP, CLI, manual)
+- Parent-child relationships
+- Labels, priorities, dependencies
+- MCP tool usage examples
+- Best practices and FAQ
+
+**Next Phase:** Phase 3 - TASK.md Sync (core automation)
+
+---
+
+## CRITICAL
+
+### ✅ COMPLETED: RIVET Pro Phase 3 - SME Agents
+**Status:** COMPLETE
+**Completed:** 2025-12-17 17:45
+
+**What Was Built:**
+1. ✅ BaseSMEAgent abstract class (240 lines) - Shared RAG integration
+2. ✅ GenericPLCAgent (120 lines) - IEC 61131-3 fallback
+3. ✅ SiemensAgent (165 lines) - SIMATIC PLCs, SINAMICS drives, TIA Portal
+4. ✅ RockwellAgent (165 lines) - ControlLogix/CompactLogix, PowerFlex, Studio 5000
+5. ✅ SafetyAgent (190 lines) - IEC 61508/61511, SIL ratings, E-stop circuits
+6. ✅ AgentRouter (157 lines) - Priority-based routing (Safety → Vendor → Generic)
+7. ✅ ResponseFormatter (175 lines) - Citations, safety warnings, action lists
+8. ✅ Package exports and documentation
+
+**Total:** 1,325 lines across 8 files
+
+**Git Workflow:**
+- Created worktree: `../agent-factory-rivet-phase3` on branch `rivet-pro/phase3-sme-agents`
+- Committed with detailed message
+- Created PR #61: https://github.com/Mikecranesync/Agent-Factory/pull/61
+- Cleaned up worktree and branch
+
+**Backlog Tasks Completed:**
+- task-3.1: Siemens Agent (DONE)
+- task-3.2: Rockwell Agent (DONE)
+- task-3.3: Generic PLC Agent (DONE)
+- task-3.4: Safety Agent (DONE)
+- task-3.5: RAG Integration (DONE)
+- task-3.6: Testing & Validation (DONE)
+- task-3: EPIC - RIVET Pro Phase 3 (DONE)
+
+**Next Phase:** Phase 4 - Orchestrator (1.5 hours)
+
+---
+
+## CRITICAL
+
+### ✅ COMPLETED: Backlog Task Creation from STATUS.md Audit
+**Status:** COMPLETE
+**Completed:** 2025-12-17 15:30
+
+**What Was Done:**
+1. ✅ Comprehensive repository audit (STATUS.md - 500+ lines)
+2. ✅ Detailed implementation plan created
+3. ✅ 21 Backlog tasks created with acceptance criteria
+4. ✅ All tasks organized by type (BUILD/FIX/CLEANUP/TEST)
+5. ✅ Priority assignments completed
+6. ✅ Source line references added
+
+**Tasks Created:**
+- BUILD: 11 tasks (RIVET Pro Phases 3-8, PLC Tutor, YouTube automation)
+- FIX: 3 tasks (pgvector, Telegram admin data, pytest)
+- CLEANUP: 2 tasks (documentation updates)
+- TEST: 5 tasks (comprehensive test coverage)
+
+**Total Estimated Effort:** 70-90 hours
+
+**All Tasks Available:**
+- View in `backlog/tasks/` directory
+- Use `backlog task list` to see all tasks
+- Use `backlog task view <id>` for details
+
+---
+
+## CRITICAL
+
 ### ✅ COMPLETED: Autonomous Claude System
 **Status:** COMPLETE - Ready for testing
 **Completed:** 2025-12-17 08:00
