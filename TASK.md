@@ -8,14 +8,6 @@
 <!-- BACKLOG_SYNC:CURRENT:BEGIN -->
 ## Current Task
 
-### task-4: BUILD: RIVET Pro Phase 4 - Orchestrator
-
-**Priority:** High
-
-View task details: `backlog task view task-4`
-
----
-
 ### task-5: BUILD: RIVET Pro Phase 5 - Research Pipeline
 
 **Priority:** Medium
@@ -23,6 +15,13 @@ View task details: `backlog task view task-4`
 View task details: `backlog task view task-5`
 
 <!-- BACKLOG_SYNC:CURRENT:END -->
+
+<!-- BACKLOG_SYNC:USER_ACTIONS:BEGIN -->
+## User Actions
+
+No manual tasks requiring user execution.
+
+<!-- BACKLOG_SYNC:USER_ACTIONS:END -->
 
 <!-- BACKLOG_SYNC:BACKLOG:BEGIN -->
 ## Backlog
@@ -41,17 +40,17 @@ View task details: `backlog task view task-5`
 **task-23:** BUILD: AI Dev Control Loop Dashboard
 - View task details: `backlog task view task-23`
 
-**task-23.1:** BUILD: Fork and vendor Backlog.md (AI Dev Loop 1/6)
-- View task details: `backlog task view task-23.1`
-
 **task-23.2:** BUILD: Headless Claude runner (AI Dev Loop 3/6)
 - View task details: `backlog task view task-23.2`
 
-**task-23.3:** BUILD: Define AI Dev Loop architecture (AI Dev Loop 2/6)
-- View task details: `backlog task view task-23.3`
-
 **task-23.5:** BUILD: Safety & observability (AI Dev Loop 6/6)
 - View task details: `backlog task view task-23.5`
+
+**task-24:** BUILD: User Actions Feature
+- View task details: `backlog task view task-24`
+
+**task-24.2:** BUILD: Update documentation (README.md, CLAUDE.md)
+- View task details: `backlog task view task-24.2`
 
 ### Medium Priority
 
@@ -77,6 +76,8 @@ View task details: `backlog task view task-5`
 
 **task-23.4:** BUILD: Simple dashboard (React/Telegram) (AI Dev Loop 5/6)
 
+**task-24.3:** BUILD: Add validation tests for user actions
+
 **task-1:** AUDIT: Inventory Agent Factory repo
 
 **task-22:** AI Dev Control Loop Dashboard
@@ -90,6 +91,8 @@ View task details: `backlog task view task-5`
 **task-18:** CLEANUP: Audit Architecture Docs for Accuracy
 
 **task-20:** TEST: Agent Integration Tests
+
+**task-24.4:** BUILD: Create migration script for existing tasks
 
 <!-- BACKLOG_SYNC:BACKLOG:END -->
 

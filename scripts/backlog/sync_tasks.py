@@ -24,6 +24,8 @@ from datetime import datetime
 # Sync zone markers
 CURRENT_BEGIN = "<!-- BACKLOG_SYNC:CURRENT:BEGIN -->"
 CURRENT_END = "<!-- BACKLOG_SYNC:CURRENT:END -->"
+USER_ACTIONS_BEGIN = "<!-- BACKLOG_SYNC:USER_ACTIONS:BEGIN -->"
+USER_ACTIONS_END = "<!-- BACKLOG_SYNC:USER_ACTIONS:END -->"
 BACKLOG_BEGIN = "<!-- BACKLOG_SYNC:BACKLOG:BEGIN -->"
 BACKLOG_END = "<!-- BACKLOG_SYNC:BACKLOG:END -->"
 
@@ -88,6 +90,120 @@ def get_backlog_tasks_cli(status: str) -> List[Dict]:
     except subprocess.TimeoutExpired:
         print("ERROR: backlog CLI timed out")
         return []
+
+
+def get_task_details(task_id: str) -> Dict:
+    """
+    Query full task metadata including labels using backlog task view.
+
+    Parses file content to extract YAML frontmatter and acceptance criteria.
+
+    Args:
+        task_id: Task identifier (e.g., "task-14")
+
+    Returns:
+        Dict with full task metadata (id, title, priority, labels, acceptance_criteria, etc.)
+    """
+    try:
+        # Read task file directly from backlog/tasks/ directory
+        repo_root = Path(__file__).parent.parent.parent
+        task_files = list((repo_root / "backlog" / "tasks").glob(f"{task_id} - *.md"))
+
+        if not task_files:
+            print(f"Warning: Task file not found for {task_id}")
+            return {}
+
+        task_file = task_files[0]
+        content = task_file.read_text(encoding='utf-8')
+
+        # Extract YAML frontmatter between --- markers
+        yaml_match = re.search(r'^---\s*\n(.*?)\n---', content, re.DOTALL | re.MULTILINE)
+        if not yaml_match:
+            return {"id": task_id}
+
+        yaml_content = yaml_match.group(1)
+
+        # Parse YAML (simple key-value + list parsing)
+        task_data = {"id": task_id}
+        current_key = None
+        current_list = []
+
+        for line in yaml_content.split('\n'):
+            line_stripped = line.strip()
+
+            # Key-value line
+            if ':' in line and not line.startswith('  ') and not line.startswith('-'):
+                # Save previous list if exists
+                if current_key and current_list:
+                    task_data[current_key] = current_list
+                    current_list = []
+                    current_key = None
+
+                key, value = line.split(':', 1)
+                key = key.strip()
+                value = value.strip().strip("'\"")
+
+                if value:
+                    task_data[key] = value
+                else:
+                    current_key = key  # List follows
+
+            # List item
+            elif line_stripped.startswith('- '):
+                item = line_stripped[2:].strip()
+                current_list.append(item)
+
+        # Finalize last list
+        if current_key and current_list:
+            task_data[current_key] = current_list
+
+        # Extract acceptance criteria from markdown content
+        ac_match = re.search(r'<!-- AC:BEGIN -->(.*?)<!-- AC:END -->', content, re.DOTALL)
+        if ac_match:
+            ac_text = ac_match.group(1)
+            # Parse checkbox lines: - [ ] #1 Description
+            ac_lines = re.findall(r'- \[ \] #(\d+) (.+)', ac_text)
+            task_data['acceptance_criteria'] = [text for num, text in ac_lines]
+
+        # Extract description
+        desc_match = re.search(r'<!-- SECTION:DESCRIPTION:BEGIN -->(.*?)<!-- SECTION:DESCRIPTION:END -->', content, re.DOTALL)
+        if desc_match:
+            task_data['description'] = desc_match.group(1).strip()
+
+        return task_data
+
+    except Exception as e:
+        print(f"Warning: Error reading task {task_id}: {e}")
+        return {"id": task_id}
+
+
+def get_user_action_tasks() -> List[Dict]:
+    """
+    Query all To Do tasks with 'user-action' label.
+
+    Returns:
+        List of user action task dicts with full metadata
+    """
+    # Get all To Do tasks (lightweight query)
+    all_tasks = get_backlog_tasks_cli(status="To Do")
+
+    # Filter by fetching details for each task
+    user_actions = []
+
+    for task in all_tasks:
+        task_id = task.get("id")
+        if not task_id:
+            continue
+
+        # Fetch full details (includes labels)
+        details = get_task_details(task_id)
+
+        # Check for user-action label
+        labels = details.get("labels", [])
+        if isinstance(labels, list) and "user-action" in labels:
+            user_actions.append(details)
+
+    return user_actions
 
 
 def format_current_task_section(tasks: List[Dict]) -> str:
@@ -197,6 +313,105 @@ def format_backlog_section(tasks: List[Dict]) -> str:
     return "".join(sections)
 
 
+def _format_user_action_task(task: Dict) -> str:
+    """
+    Format a single user action task with inline acceptance criteria.
+
+    Args:
+        task: Task dict with metadata
+
+    Returns:
+        Formatted markdown for one user action task
+    """
+    task_id = task.get("id", "unknown")
+    title = task.get("title", "Untitled")
+    description = task.get("description", "")
+    ac_criteria = task.get("acceptance_criteria", [])
+
+    # Extract time estimate from description (if present)
+    # Pattern: **Estimated Time:** 15-30 minutes or Estimated Time: 15 minutes
+    time_estimate = None
+    time_patterns = [
+        r'\*\*Estimated Time:\*\*\s*([^\n]+)',
+        r'Estimated Time:\s*([^\n]+)'
+    ]
+    for pattern in time_patterns:
+        time_match = re.search(pattern, description, re.IGNORECASE)
+        if time_match:
+            time_estimate = time_match.group(1).strip()
+            break
+
+    # Build output
+    output = []
+    output.append(f"**[ACTION REQUIRED] {task_id}:** {title}\n")
+
+    # Show time estimate if available
+    if time_estimate:
+        output.append(f"- **Estimated Time:** {time_estimate}\n")
+
+    # Show first 200 chars of description
+    desc_short = description[:200] + "..." if len(description) > 200 else description
+    desc_short = desc_short.replace("\n", " ").strip()
+    if desc_short and desc_short != f"View task details: `backlog task view {task_id}`":
+        output.append(f"- {desc_short}\n")
+
+    # Show acceptance criteria (max 3)
+    if ac_criteria:
+        output.append("- **Acceptance Criteria:**\n")
+        for ac in ac_criteria[:3]:
+            output.append(f"  - [ ] {ac}\n")
+        if len(ac_criteria) > 3:
+            output.append(f"  - ...and {len(ac_criteria) - 3} more\n")
+
+    output.append(f"\n**View details:** `backlog task view {task_id}`\n\n")
+    output.append("---\n\n")
+
+    return "".join(output)
+
+
+def format_user_actions_section(tasks: List[Dict]) -> str:
+    """
+    Format 'User Actions' section from user-action labeled tasks.
+
+    Args:
+        tasks: List of user action task dicts
+
+    Returns:
+        Formatted markdown section grouped by priority
+    """
+    if not tasks:
+        return "## User Actions\n\nNo manual tasks requiring user execution.\n\n"
+
+    # Group by priority
+    high = [t for t in tasks if t.get("priority") == "high"]
+    medium = [t for t in tasks if t.get("priority") == "medium"]
+    low = [t for t in tasks if t.get("priority") == "low"]
+
+    # Sort by created_date (oldest first)
+    for group in [high, medium, low]:
+        group.sort(key=lambda t: t.get("created_date", ""))
+
+    sections = ["## User Actions\n\n"]
+    sections.append("**Manual tasks requiring human execution:**\n\n")
+
+    if high:
+        sections.append("### High Priority\n\n")
+        for task in high:
+            sections.append(_format_user_action_task(task))
+
+    if medium:
+        sections.append("### Medium Priority\n\n")
+        for task in medium:
+            sections.append(_format_user_action_task(task))
+
+    if low:
+        sections.append("### Low Priority\n\n")
+        for task in low:
+            sections.append(_format_user_action_task(task))
+
+    return "".join(sections)
+
+
 def replace_section(content: str, begin_marker: str, end_marker: str, new_content: str) -> str:
     """
     Replace content between markers, preserving markers.
@@ -255,6 +470,15 @@ def sync_task_md(
 
         current_section = format_current_task_section(current_tasks)
         content = replace_section(content, CURRENT_BEGIN, CURRENT_END, current_section)
+
+    # NEW: User Actions section
+    if section in (None, 'user_actions'):
+        print("Querying Backlog for 'User Action' tasks...")
+        user_action_tasks = get_user_action_tasks()
+        print(f"Found {len(user_action_tasks)} User Action task(s)")
+
+        user_actions_section = format_user_actions_section(user_action_tasks)
+        content = replace_section(content, USER_ACTIONS_BEGIN, USER_ACTIONS_END, user_actions_section)
 
     if section in (None, 'backlog'):
         print("Querying Backlog for 'To Do' tasks...")
@@ -330,8 +554,8 @@ Examples:
     )
     parser.add_argument(
         "--section",
-        choices=['current', 'backlog'],
-        help="Sync only one section (current or backlog)"
+        choices=['current', 'user_actions', 'backlog'],
+        help="Sync only one section (current, user_actions, or backlog)"
     )
 
     args = parser.parse_args()
