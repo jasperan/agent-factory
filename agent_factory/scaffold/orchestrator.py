@@ -176,7 +176,52 @@ class ScaffoldOrchestrator:
 
         except Exception as e:
             self.logger.error(f"Critical error in orchestrator: {e}", exc_info=True)
-            raise ScaffoldOrchestratorError(f"Orchestration failed: {e}")
+            raise ScaffoldOrchestratorError(f"Orchestration failed: {e}") from e
+
+    def _handle_task_failure(
+        self,
+        task_id: str,
+        error: str,
+        cost: float = 0.0,
+        worktree_path: Optional[str] = None
+    ) -> bool:
+        """
+        Handle task execution failure with cleanup.
+
+        Args:
+            task_id: Task identifier
+            error: Error message
+            cost: Execution cost (USD)
+            worktree_path: Worktree path (if any)
+
+        Returns:
+            False (failure indicator)
+        """
+        self.logger.error(f"Task execution failed: {error}")
+
+        # Process failure
+        self.result_processor.process_failure(
+            task_id=task_id,
+            error=error,
+            cost=cost,
+            dry_run=self.dry_run
+        )
+
+        # Record in SafetyMonitor
+        self.session_mgr.record_task_failure(
+            task_id=task_id,
+            error=error,
+            cost=cost
+        )
+
+        # Cleanup worktree (force)
+        if worktree_path:
+            try:
+                self.session_mgr.cleanup_worktree(task_id, force=True)
+            except Exception as cleanup_err:
+                self.logger.error(f"Cleanup failed: {cleanup_err}")
+
+        return False
 
     def _execute_task_with_recovery(self, task: Dict) -> bool:
         """Execute task with error handling and recovery.
@@ -209,7 +254,7 @@ class ScaffoldOrchestrator:
 
             # Process result
             if result["success"]:
-                self.logger.info(f"Task execution succeeded")
+                self.logger.info("Task execution succeeded")
 
                 # Process success
                 pr_url = self.result_processor.process_success(
@@ -233,35 +278,23 @@ class ScaffoldOrchestrator:
 
                 return True
             else:
-                # Execution failed
-                raise TaskExecutionError(result.get("output", "Unknown error"))
+                # Execution failed - handle directly
+                return self._handle_task_failure(
+                    task_id=task_id,
+                    error=result.get("output", "Unknown error"),
+                    cost=0.0,
+                    worktree_path=worktree_path
+                )
 
         except TaskExecutionError as e:
-            self.logger.error(f"Task execution failed: {e}")
-
-            # Process failure
-            self.result_processor.process_failure(
+            # Handle exceptions from handler.execute()
+            return self._handle_task_failure(
                 task_id=task_id,
                 error=str(e),
                 cost=0.0,
-                dry_run=self.dry_run
+                worktree_path=worktree_path
             )
 
-            # Record in SafetyMonitor
-            self.session_mgr.record_task_failure(
-                task_id=task_id,
-                error=str(e),
-                cost=0.0
-            )
-
-            # Cleanup worktree (force)
-            if worktree_path:
-                try:
-                    self.session_mgr.cleanup_worktree(task_id, force=True)
-                except Exception as cleanup_err:
-                    self.logger.error(f"Cleanup failed: {cleanup_err}")
-
-            return False
 
         except Exception as e:
             self.logger.error(f"Unexpected error executing task {task_id}: {e}", exc_info=True)
@@ -318,7 +351,8 @@ class ScaffoldOrchestrator:
         # Add safety stats if available
         try:
             summary["safety_stats"] = self.session_mgr.safety.get_stats()
-        except:
+        except Exception:
+            # Safety stats are optional - continue without them
             pass
 
         return summary

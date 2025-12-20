@@ -37,8 +37,8 @@ class ResponseCache:
         # Create deterministic hash
         content = {
             "messages": messages,
-            "model": config.model,
-            "temperature": config.temperature,
+            "model": getattr(config, 'model', 'unknown'),
+            "temperature": getattr(config, 'temperature', 0.0),
         }
         hash_input = json.dumps(content, sort_keys=True)
         return hashlib.sha256(hash_input.encode()).hexdigest()

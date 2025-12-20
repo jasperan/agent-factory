@@ -7,7 +7,7 @@ intelligent cost-optimized routing within LangChain agents.
 Part of Phase 2: Cost-Optimized Model Routing
 """
 
-from typing import Any, Dict, List, Optional, Iterator
+from typing import Any, Dict, List, Optional, Iterator, ClassVar
 import os
 
 try:
@@ -38,6 +38,19 @@ class RoutedChatModel(BaseChatModel):
         >>> response = model.invoke([HumanMessage(content="Hello!")])
         >>> print(f"Model used: {model.last_model_used}")
     """
+
+    # Model provider mapping (regex patterns)
+    MODEL_PROVIDER_MAP: ClassVar[Dict[str, LLMProvider]] = {
+        r"^gpt-": LLMProvider.OPENAI,
+        r"^o1-": LLMProvider.OPENAI,
+        r"^o3-": LLMProvider.OPENAI,
+        r"^o1mini": LLMProvider.OPENAI,
+        r"^text-": LLMProvider.OPENAI,
+        r"^claude-": LLMProvider.ANTHROPIC,
+        r"^claude-opus-": LLMProvider.ANTHROPIC,
+        r"^claude-sonnet-": LLMProvider.ANTHROPIC,
+        r"^gemini-": LLMProvider.GOOGLE,
+    }
 
     capability: ModelCapability = ModelCapability.MODERATE
     exclude_local: bool = False
@@ -103,6 +116,31 @@ class RoutedChatModel(BaseChatModel):
 
         return litellm_messages
 
+    def _infer_provider_from_model(self, model_name: str) -> LLMProvider:
+        """
+        Infer provider from model name using regex mapping.
+
+        Args:
+            model_name: Model identifier (e.g., "gpt-4o", "o1-mini", "claude-opus-4")
+
+        Returns:
+            LLMProvider enum value
+
+        Raises:
+            ValueError: If model provider cannot be determined
+        """
+        import re
+        model_lower = model_name.lower()
+
+        for pattern, provider in self.MODEL_PROVIDER_MAP.items():
+            if re.match(pattern, model_lower):
+                return provider
+
+        raise ValueError(
+            f"Unknown model provider for '{model_name}'. "
+            f"Supported prefixes: gpt-, o1-, o3-, text-, claude-, gemini-"
+        )
+
     def _select_model(self) -> LLMConfig:
         """
         Select appropriate model based on capability and constraints.
@@ -112,16 +150,8 @@ class RoutedChatModel(BaseChatModel):
         """
         # If explicit model specified, use it directly
         if self.explicit_model:
-            # Infer provider from model name
-            if self.explicit_model.startswith("gpt"):
-                provider = LLMProvider.OPENAI
-            elif self.explicit_model.startswith("claude"):
-                provider = LLMProvider.ANTHROPIC
-            elif self.explicit_model.startswith("gemini"):
-                provider = LLMProvider.GOOGLE
-            else:
-                # Default to OpenAI
-                provider = LLMProvider.OPENAI
+            # Infer provider using regex mapping
+            provider = self._infer_provider_from_model(self.explicit_model)
 
             return LLMConfig(
                 provider=provider,

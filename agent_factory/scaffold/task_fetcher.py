@@ -63,7 +63,7 @@ class TaskFetcher:
             logger.debug("Using cached tasks")
             filtered = self._cache
             if labels:
-                filtered = [t for t in filtered if any(l in t.get("labels", []) for l in labels)]
+                filtered = [t for t in filtered if any(label in t.get("labels", []) for label in labels)]
             return filtered[:max_tasks]
 
         try:
@@ -93,7 +93,7 @@ class TaskFetcher:
             return tasks[:max_tasks]
 
         except Exception as e:
-            logger.error(f"Error fetching tasks: {e}")
+            logger.exception(f"Error fetching tasks: {e}")
             return []
 
     def _priority_score(self, task: Dict) -> float:

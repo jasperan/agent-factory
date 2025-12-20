@@ -176,8 +176,8 @@ class BacklogParser:
             return task_specs
 
         except Exception as e:
-            logger.error(f"Error listing tasks: {e}")
-            raise BacklogParserError(f"Failed to list tasks: {e}")
+            logger.exception(f"Error listing tasks: {e}")
+            raise BacklogParserError(f"Failed to list tasks: {e}") from e
 
     def get_task(self, task_id: str) -> TaskSpec:
         """Get task details by ID.
@@ -208,8 +208,8 @@ class BacklogParser:
             return task_spec
 
         except Exception as e:
-            logger.error(f"Error getting task {task_id}: {e}")
-            raise BacklogParserError(f"Failed to get task {task_id}: {e}")
+            logger.exception(f"Error getting task {task_id}: {e}")
+            raise BacklogParserError(f"Failed to get task {task_id}: {e}") from e
 
     def update_status(
         self,
@@ -252,8 +252,8 @@ class BacklogParser:
             return True
 
         except Exception as e:
-            logger.error(f"Error updating status for {task_id}: {e}")
-            raise BacklogParserError(f"Failed to update status: {e}")
+            logger.exception(f"Error updating status for {task_id}: {e}")
+            raise BacklogParserError(f"Failed to update status: {e}") from e
 
     def add_notes(
         self,
@@ -299,8 +299,8 @@ class BacklogParser:
             return True
 
         except Exception as e:
-            logger.error(f"Error adding notes to {task_id}: {e}")
-            raise BacklogParserError(f"Failed to add notes: {e}")
+            logger.exception(f"Error adding notes to {task_id}: {e}")
+            raise BacklogParserError(f"Failed to add notes: {e}") from e
 
     def _check_mcp_available(self) -> bool:
         """Check if MCP backlog tools are available.

@@ -21,7 +21,9 @@ from agent_factory.scaffold.models import SessionState
 # Import SafetyMonitor from scripts (absolute import)
 import sys
 project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+project_root_str = str(project_root)
+if project_root_str not in sys.path:
+    sys.path.insert(0, project_root_str)
 from scripts.autonomous.safety_monitor import SafetyMonitor
 
 logger = logging.getLogger(__name__)
@@ -203,7 +205,7 @@ class SessionManager:
             logger.debug(f"Worktree cleaned up: {task_id}")
 
         except Exception as e:
-            logger.error(f"Failed to cleanup worktree {task_id}: {e}")
+            logger.exception(f"Failed to cleanup worktree {task_id}: {e}")
             # Continue anyway - don't block on cleanup failures
 
     def check_can_continue(self) -> Tuple[bool, Optional[str]]:
@@ -316,7 +318,7 @@ class SessionManager:
             logger.debug(f"Session state saved: {session_file}")
 
         except Exception as e:
-            logger.error(f"Failed to save session state: {e}")
+            logger.exception(f"Failed to save session state: {e}")
             # Don't raise - continue execution
 
     def list_sessions(self) -> list:

@@ -10,7 +10,6 @@ Features:
 
 import logging
 from typing import Dict, Optional
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +124,9 @@ class ResultProcessor:
                 import sys
                 from pathlib import Path
                 project_root = Path(__file__).parent.parent.parent
-                sys.path.insert(0, str(project_root))
+                project_root_str = str(project_root)
+                if project_root_str not in sys.path:
+                    sys.path.insert(0, project_root_str)
                 from scripts.autonomous.pr_creator import PRCreator
                 self._pr_creator = PRCreator()
 
@@ -148,7 +149,7 @@ class ResultProcessor:
             return None
 
         except Exception as e:
-            logger.error(f"Failed to create PR for {task_id}: {e}")
+            logger.exception(f"Failed to create PR for {task_id}: {e}")
             # Continue anyway - don't block on PR failures
             return None
 
@@ -182,7 +183,7 @@ class ResultProcessor:
             logger.warning("MCP backlog tools not available - skipping Backlog update")
 
         except Exception as e:
-            logger.error(f"Failed to update Backlog.md for {task_id}: {e}")
+            logger.exception(f"Failed to update Backlog.md for {task_id}: {e}")
             # Continue anyway - don't block on Backlog failures
 
     def _format_success_notes(

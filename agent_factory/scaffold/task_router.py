@@ -107,7 +107,16 @@ class ClaudeCodeHandler:
         Raises:
             TaskExecutionError: If execution fails critically
         """
-        prompt = self._build_prompt(task)
+        # Use ContextAssembler for rich context (with fallback to minimal prompt)
+        try:
+            from agent_factory.scaffold.context_assembler import ContextAssembler
+            assembler = ContextAssembler(repo_root=Path.cwd())
+            prompt = assembler.assemble_context(task, worktree_path)
+            logger.info(f"Using rich context ({len(prompt)} chars)")
+        except Exception as e:
+            # Fallback to minimal prompt if assembly fails
+            logger.warning(f"Context assembly failed, using minimal prompt: {e}")
+            prompt = self._build_prompt(task)
 
         logger.info(f"Executing task {task['id']} via Claude Code CLI")
         logger.debug(f"Worktree: {worktree_path}")
@@ -153,11 +162,11 @@ class ClaudeCodeHandler:
 
         except FileNotFoundError:
             logger.error("Claude Code CLI not found - is it installed?")
-            raise TaskExecutionError("Claude Code CLI not found in PATH")
+            raise TaskExecutionError("Claude Code CLI not found in PATH") from None
 
         except Exception as e:
             logger.error(f"Unexpected error executing task: {e}")
-            raise TaskExecutionError(f"Execution error: {e}")
+            raise TaskExecutionError(f"Execution error: {e}") from e
 
     def _build_prompt(self, task: Dict) -> str:
         """Build prompt from task specification.
