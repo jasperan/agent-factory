@@ -7,9 +7,9 @@ perform Git operations, and analyze code.
 
 import os
 from pathlib import Path
-from typing import Type
+from typing import ClassVar, Type
 from langchain_core.tools import BaseTool
-from langchain.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 
 
 # =============================================================================
@@ -24,8 +24,8 @@ class ReadFileInput(BaseModel):
 class ReadFileTool(BaseTool):
     """Tool for reading file contents."""
 
-    name = "read_file"
-    description = (
+    name: ClassVar[str] = "read_file"
+    description: ClassVar[str] = (
         "Useful for reading the contents of a file. "
         "Input should be a file path (relative or absolute). "
         "Returns the contents of the file."
@@ -76,8 +76,8 @@ class WriteFileInput(BaseModel):
 class WriteFileTool(BaseTool):
     """Tool for writing content to files."""
 
-    name = "write_file"
-    description = (
+    name: ClassVar[str] = "write_file"
+    description: ClassVar[str] = (
         "Useful for writing or appending content to a file. "
         "Input should include file_path and content. "
         "Use mode='w' to overwrite or mode='a' to append."
@@ -126,8 +126,8 @@ class ListDirectoryInput(BaseModel):
 class ListDirectoryTool(BaseTool):
     """Tool for listing directory contents."""
 
-    name = "list_directory"
-    description = (
+    name: ClassVar[str] = "list_directory"
+    description: ClassVar[str] = (
         "Useful for listing files and subdirectories in a directory. "
         "Input should be a directory path. Returns a list of files and folders."
     )
@@ -179,8 +179,8 @@ class GitStatusInput(BaseModel):
 class GitStatusTool(BaseTool):
     """Tool for checking Git repository status."""
 
-    name = "git_status"
-    description = (
+    name: ClassVar[str] = "git_status"
+    description: ClassVar[str] = (
         "Useful for checking the status of a Git repository. "
         "Shows modified files, untracked files, and current branch. "
         "Input should be the repository path (optional)."
@@ -251,8 +251,8 @@ class FileSearchInput(BaseModel):
 class FileSearchTool(BaseTool):
     """Tool for searching files by name pattern."""
 
-    name = "search_files"
-    description = (
+    name: ClassVar[str] = "search_files"
+    description: ClassVar[str] = (
         "Useful for finding files by name pattern. "
         "Supports wildcards like *.py or test_*. "
         "Input should include the pattern and optionally the directory."

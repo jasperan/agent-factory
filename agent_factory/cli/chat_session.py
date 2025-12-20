@@ -15,7 +15,7 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 from rich.table import Table
 
-from langchain.agents import AgentExecutor
+from agent_factory.compat.langchain_shim import AgentExecutor
 from agent_factory.core.agent_factory import AgentFactory
 
 

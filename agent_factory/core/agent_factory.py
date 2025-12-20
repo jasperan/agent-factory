@@ -9,8 +9,26 @@ Based on patterns from: https://github.com/Mikecranesync/langchain-crash-course
 
 from typing import List, Dict, Optional, Any, Union, Type
 import langchainhub as hub
-from langchain.agents import AgentExecutor, create_react_agent, create_structured_chat_agent
-from langchain.memory import ConversationBufferMemory
+from agent_factory.compat.langchain_shim import AgentExecutor, create_react_agent, create_structured_chat_agent
+# ConversationBufferMemory moved to langchain_community in 1.2.0
+try:
+    from langchain.memory import ConversationBufferMemory
+except ImportError:
+    from langchain_community.chat_message_histories import ChatMessageHistory
+    # Create a simple memory replacement
+    class ConversationBufferMemory:
+        """Minimal ConversationBufferMemory replacement for compatibility."""
+        def __init__(self, memory_key="chat_history", return_messages=True, **kwargs):
+            self.memory_key = memory_key
+            self.return_messages = return_messages
+            self.chat_memory = ChatMessageHistory()
+
+        def load_memory_variables(self, inputs):
+            return {self.memory_key: self.chat_memory.messages}
+
+        def save_context(self, inputs, outputs):
+            self.chat_memory.add_user_message(str(inputs))
+            self.chat_memory.add_ai_message(str(outputs))
 from langchain_core.tools import BaseTool
 from langchain_core.messages import SystemMessage
 from langchain_openai import ChatOpenAI
@@ -18,7 +36,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel
 
-from .orchestrator import AgentOrchestrator
+from .orchestrator import RivetOrchestrator
 from .callbacks import EventBus, create_default_event_bus
 from ..workers.openhands_worker import OpenHandsWorker, create_openhands_worker
 
@@ -410,7 +428,7 @@ class AgentFactory:
         self,
         event_bus: Optional[EventBus] = None,
         verbose: Optional[bool] = None
-    ) -> AgentOrchestrator:
+    ) -> RivetOrchestrator:
         """
         Create an orchestrator for multi-agent routing.
 

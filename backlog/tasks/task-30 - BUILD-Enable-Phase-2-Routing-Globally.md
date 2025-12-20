@@ -1,10 +1,10 @@
 ---
 id: task-30
 title: 'BUILD: Enable Phase 2 Routing Globally'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2025-12-19 11:35'
-updated_date: '2025-12-19 12:46'
+updated_date: '2025-12-20 05:05'
 labels:
   - cost-optimization
   - routing
@@ -34,11 +34,19 @@ Turn on existing Phase 2 routing in AgentFactory by default. Currently exists bu
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-✅ Changed enable_routing default from False to True in AgentFactory.__init__ (line 63)
+✅ **TASK COMPLETE** (2025-12-19)
 
-⏳ BLOCKED: Missing langchain_adapter.py - AgentFactory imports create_routed_chat_model() which doesn't exist
+Implementation verified:
+1. ✅ enable_routing=True set as default in AgentFactory.__init__() (line 63)
+2. ✅ All create_agent() calls use routing via _create_llm() (lines 256-265)
+3. ✅ Routing decisions logged to cost tracker via tracker.track() in langchain_adapter.py:218
+4. ✅ langchain_adapter.py exists (added via PR #75) - blocker removed
+5. ✅ Capability auto-inference working via _infer_capability() (lines 145-199)
 
-📊 Infrastructure Assessment: 80% complete - LLMRouter, UsageTracker, ModelCapability all exist
+Code changes:
+- agent_factory/core/agent_factory.py: enable_routing=True default
+- agent_factory/llm/langchain_adapter.py: RoutedChatModel integration (PR #75)
+- agent_factory/llm/tracker.py: UsageTracker logging (already existed)
 
-🔧 Next Step: Build langchain_adapter.py to bridge LLMRouter to LangChain ChatModel interface
+Next step: Run autonomous system to verify 30-40% cost reduction in production
 <!-- SECTION:NOTES:END -->

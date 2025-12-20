@@ -6,9 +6,9 @@ access Wikipedia, and gather information from various sources.
 """
 
 import os
-from typing import Type, Optional
+from typing import ClassVar, Type, Optional
 from langchain_core.tools import BaseTool
-from langchain.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 
 
 # =============================================================================
@@ -23,8 +23,8 @@ class WikipediaSearchInput(BaseModel):
 class WikipediaSearchTool(BaseTool):
     """Tool for searching Wikipedia articles."""
 
-    name = "wikipedia_search"
-    description = (
+    name: ClassVar[str] = "wikipedia_search"
+    description: ClassVar[str] = (
         "Useful for when you need to look up factual information on Wikipedia. "
         "Input should be a search query string. Returns a summary of the Wikipedia article."
     )
@@ -63,8 +63,8 @@ class DuckDuckGoSearchInput(BaseModel):
 class DuckDuckGoSearchTool(BaseTool):
     """Tool for searching the web using DuckDuckGo (no API key required)."""
 
-    name = "duckduckgo_search"
-    description = (
+    name: ClassVar[str] = "duckduckgo_search"
+    description: ClassVar[str] = (
         "Useful for searching the web for current information. "
         "Input should be a search query. Returns search results from DuckDuckGo."
     )
@@ -105,8 +105,8 @@ class TavilySearchInput(BaseModel):
 class TavilySearchTool(BaseTool):
     """Tool for AI-optimized web search using Tavily (requires API key)."""
 
-    name = "tavily_search"
-    description = (
+    name: ClassVar[str] = "tavily_search"
+    description: ClassVar[str] = (
         "Useful for AI-optimized web search with high-quality results. "
         "Input should be a search query. Returns comprehensive search results."
     )
@@ -158,8 +158,8 @@ class CurrentTimeInput(BaseModel):
 class CurrentTimeTool(BaseTool):
     """Tool for getting the current time."""
 
-    name = "current_time"
-    description = "Useful for when you need to know the current time. Returns the current time."
+    name: ClassVar[str] = "current_time"
+    description: ClassVar[str] = "Useful for when you need to know the current time. Returns the current time."
     args_schema: Type[BaseModel] = CurrentTimeInput
 
     def _run(self, format: str = "%I:%M %p") -> str:

@@ -7,7 +7,7 @@ Provides ready-to-use agents with common tool configurations:
 """
 
 from typing import Dict, Any
-from langchain.agents import AgentExecutor
+from agent_factory.compat.langchain_shim import AgentExecutor
 
 from agent_factory.core.agent_factory import AgentFactory
 from agent_factory.tools.research_tools import get_research_tools
