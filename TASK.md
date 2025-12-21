@@ -8,11 +8,11 @@
 <!-- BACKLOG_SYNC:CURRENT:BEGIN -->
 ## Current Task
 
-### task-30: BUILD: Enable Phase 2 Routing Globally
+### task-scaffold-documentation: BUILD: SCAFFOLD User Documentation
 
-**Priority:** High
+**Priority:** Medium
 
-View task details: `backlog task view task-30`
+View task details: `backlog task view task-scaffold-documentation`
 
 ---
 
@@ -21,6 +21,14 @@ View task details: `backlog task view task-30`
 **Priority:** Medium
 
 View task details: `backlog task view task-5`
+
+---
+
+### task-scaffold-master: EPIC: SCAFFOLD Platform Build (Strategic Priority #1)
+
+**Priority:** Medium
+
+View task details: `backlog task view task-scaffold-master`
 
 <!-- BACKLOG_SYNC:CURRENT:END -->
 
@@ -35,15 +43,6 @@ No manual tasks requiring user execution.
 ## Backlog
 
 ### High Priority
-
-**task-scaffold-context-assembler:** BUILD: Context Assembler (CLAUDE.md + Repo Snapshot)
-- View task details: `backlog task view task-scaffold-context-assembler`
-
-**task-scaffold-git-worktree-manager:** BUILD: Git Worktree Manager
-- View task details: `backlog task view task-scaffold-git-worktree-manager`
-
-**task-scaffold-pr-creation:** BUILD: PR Creation & Auto-Approval Request
-- View task details: `backlog task view task-scaffold-pr-creation`
 
 **task-scaffold-validate-knowledge-base:** VALIDATE: Blog Post Generation (24 posts from transcripts)
 - View task details: `backlog task view task-scaffold-validate-knowledge-base`
@@ -133,10 +132,6 @@ No manual tasks requiring user execution.
 
 **task-scaffold-backlog-sync:** BUILD: Backlog Status Sync (PR to Backlog.md)
 
-**task-scaffold-documentation:** BUILD: SCAFFOLD User Documentation
-
-**task-scaffold-logging:** BUILD: Structured Logging & Session History
-
 **task-scaffold-validate-seo-rankings:** VALIDATE: SEO Rankings (organic page 1 results)
 
 **task-scaffold-validate-twitter-api:** VALIDATE: Twitter API Integration (post 24 threads)
@@ -162,16 +157,6 @@ No manual tasks requiring user execution.
 **task-21:** TEST: Autonomous System Tests
 
 **task-23.4:** BUILD: Simple dashboard (React/Telegram) (AI Dev Loop 5/6)
-
-**task-scaffold-backlog-parser:** BUILD: Backlog Parser with MCP Integration
-
-**task-scaffold-claude-integration:** BUILD: Claude Code CLI Integration
-
-**task-scaffold-cost-tracking:** BUILD: Cost & Time Tracking (Safety Monitor)
-
-**task-scaffold-master:** EPIC: SCAFFOLD Platform Build (Strategic Priority #1)
-
-**task-scaffold-orchestrator:** BUILD: Headless Orchestrator Skeleton
 
 **task-scaffold-safety-rails:** BUILD: Safety Rails & Circuit Breakers
 

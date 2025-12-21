@@ -225,3 +225,55 @@ class ExecutionResult:
             duration_sec=data.get("duration_sec", 0.0),
             cost_usd=data.get("cost_usd", 0.0)
         )
+
+
+@dataclass
+class PRResult:
+    """Result of PR creation operation.
+
+    Contains detailed information about the created pull request,
+    including success status, URL, number, branch, commits pushed,
+    and any errors encountered.
+
+    Attributes:
+        success: Whether PR creation completed successfully
+        pr_url: GitHub PR URL (e.g., "https://github.com/org/repo/pull/42")
+        pr_number: PR number (e.g., 42)
+        branch: Branch name (e.g., "autonomous/task-123")
+        error: Error message if PR creation failed
+        commits_pushed: List of commit SHAs pushed to remote
+    """
+    success: bool
+    pr_url: Optional[str]
+    pr_number: Optional[int]
+    branch: str
+    error: Optional[str] = None
+    commits_pushed: List[str] = None
+
+    def __post_init__(self):
+        """Initialize mutable defaults."""
+        if self.commits_pushed is None:
+            self.commits_pushed = []
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "success": self.success,
+            "pr_url": self.pr_url,
+            "pr_number": self.pr_number,
+            "branch": self.branch,
+            "error": self.error,
+            "commits_pushed": self.commits_pushed
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PRResult":
+        """Create from dictionary (JSON deserialization)."""
+        return cls(
+            success=data["success"],
+            pr_url=data.get("pr_url"),
+            pr_number=data.get("pr_number"),
+            branch=data["branch"],
+            error=data.get("error"),
+            commits_pushed=data.get("commits_pushed", [])
+        )
