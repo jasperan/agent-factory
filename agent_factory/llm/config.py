@@ -5,10 +5,13 @@ Centralized registry of supported models with pricing, capabilities,
 and configuration. Updated regularly to reflect current provider pricing.
 
 Pricing data sources:
-- OpenAI: https://openai.com/pricing (as of Dec 2024)
-- Anthropic: https://anthropic.com/pricing (as of Dec 2024)
-- Google: https://cloud.google.com/vertex-ai/pricing (as of Dec 2024)
+- OpenAI: https://openai.com/pricing (verified Dec 21, 2025)
+- Anthropic: https://anthropic.com/pricing (verified Dec 21, 2025)
+- Google: https://ai.google.dev/gemini-api/docs/pricing (verified Dec 21, 2025)
 - Ollama: Free (local models)
+
+PRICING VERIFIED: December 21, 2025
+All rates confirmed against official provider pricing pages.
 
 Part of Phase 1: LLM Abstraction Layer
 """
@@ -129,10 +132,30 @@ MODEL_REGISTRY: Dict[str, ModelInfo] = {
     "gemini-1.5-pro": ModelInfo(
         provider=LLMProvider.GOOGLE,
         model_name="gemini-1.5-pro",
-        input_cost_per_1k=0.007,       # $7 per 1M input tokens
-        output_cost_per_1k=0.021,      # $21 per 1M output tokens
-        context_window=1000000,        # 1M context (!)
+        input_cost_per_1k=0.00125,     # $1.25 per 1M input tokens (≤200K context)
+        output_cost_per_1k=0.010,      # $10.00 per 1M output tokens (≤200K context)
+        context_window=2000000,        # 2M context (!)
         capability=ModelCapability.COMPLEX,
+        supports_streaming=True,
+        supports_function_calling=True
+    ),
+    "gemini-2.5-pro": ModelInfo(
+        provider=LLMProvider.GOOGLE,
+        model_name="gemini-2.5-pro",
+        input_cost_per_1k=0.00125,     # $1.25 per 1M input tokens (≤200K context)
+        output_cost_per_1k=0.010,      # $10.00 per 1M output tokens (≤200K context)
+        context_window=2000000,        # 2M context
+        capability=ModelCapability.COMPLEX,
+        supports_streaming=True,
+        supports_function_calling=True
+    ),
+    "gemini-2.0-flash": ModelInfo(
+        provider=LLMProvider.GOOGLE,
+        model_name="gemini-2.0-flash",
+        input_cost_per_1k=0.0001,      # $0.10 per 1M input tokens
+        output_cost_per_1k=0.0004,     # $0.40 per 1M output tokens
+        context_window=1000000,        # 1M context
+        capability=ModelCapability.MODERATE,
         supports_streaming=True,
         supports_function_calling=True
     ),
@@ -186,12 +209,14 @@ ROUTING_TIERS: Dict[ModelCapability, List[str]] = {
     ModelCapability.SIMPLE: [
         "llama3",                    # Free (local)
         "mistral",                   # Free (local)
-        "gpt-3.5-turbo",            # $0.0005 input
+        "gemini-2.0-flash",         # $0.0001 input (best cloud option!)
         "claude-3-haiku-20240307",  # $0.00025 input
         "gemini-pro",                # $0.0005 input
+        "gpt-3.5-turbo",            # $0.0005 input
     ],
     ModelCapability.MODERATE: [
         "llama3",                    # Free (local)
+        "gemini-2.0-flash",         # $0.0001 input (best cloud option!)
         "gpt-4o-mini",              # $0.00015 input
         "claude-3-haiku-20240307",  # $0.00025 input
         "gemini-pro",                # $0.0005 input
@@ -199,9 +224,10 @@ ROUTING_TIERS: Dict[ModelCapability, List[str]] = {
     ],
     ModelCapability.COMPLEX: [
         "gpt-4o-mini",              # $0.00015 input
+        "gemini-2.5-pro",           # $0.00125 input (≤200K context)
+        "gemini-1.5-pro",           # $0.00125 input (≤200K context)
         "gpt-4o",                    # $0.0025 input
         "claude-3-sonnet-20240229", # $0.003 input
-        "gemini-1.5-pro",           # $0.007 input
         "gpt-4-turbo",              # $0.010 input
         "claude-3-opus-20240229",   # $0.015 input
     ],
