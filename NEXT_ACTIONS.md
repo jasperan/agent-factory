@@ -6,6 +6,99 @@ Priority-ordered tasks for Agent Factory.
 
 ## CRITICAL
 
+### TELEGRAM BOT - TWO-MESSAGE PATTERN DEPLOYMENT (IMMEDIATE)
+- [x] Implement two-message pattern (clean user + admin debug) ✓
+- [x] Remove route/confidence footer from user messages ✓
+- [x] Add _send_admin_debug_message() helper function ✓
+- [ ] Push changes to GitHub - NEXT
+- [ ] Deploy to VPS: `ssh vps "cd /root/Agent-Factory && git pull origin main && systemctl restart orchestrator-bot"`
+- [ ] Test admin debug messages (send query, verify admin chat 8445149012 receives trace)
+- [ ] Verify clean user messages (no route/confidence footer)
+
+### CI/CD INFRASTRUCTURE - DECISION REQUIRED (HIGH PRIORITY)
+- [x] Audit VPS infrastructure and GitHub Actions workflows ✓
+- [x] Document findings in SYSTEM_MANIFEST.md ✓
+- [ ] **DECISION NEEDED:** Fix GitHub Actions OR disable automated deploys?
+  - Option A: Update deploy-vps.yml to deploy orchestrator_bot.py (not telegram_bot.py)
+  - Option B: Delete/disable deploy-vps.yml (continue manual deploys)
+- [ ] **DECISION NEEDED:** Delete legacy files?
+  - Remove: telegram_bot.py, rivet-pro.service, deploy_rivet_pro.sh
+  - All unused, confuse GitHub Actions workflow
+- [ ] Check autonomous Claude workflow status: Review GitHub Actions logs for 2am UTC runs
+- [ ] Verify all GitHub Actions secrets are configured (VPS_SSH_KEY, VPS_ENV_FILE, etc.)
+
+### TELEGRAM BOT - GROQ FALLBACK TESTING & MONITORING
+- [x] Create standalone RivetCEO bot (orchestrator_bot.py) ✓
+- [x] Fix Markdown parsing errors (ResponseFormatter escaping) ✓
+- [x] Fix search_docs() function signature (RivetIntent creation) ✓
+- [x] Fix EquipmentType.GENERIC enum error (changed to UNKNOWN) ✓
+- [x] Configure passwordless SSH to VPS ✓
+- [x] Deploy to VPS 72.60.175.144 ✓
+- [x] Start 24/7 bot service with systemd ✓
+- [x] Add Groq LLM fallback for Routes C & D ✓
+- [x] Deploy Groq integration to VPS ✓
+- [ ] User testing with no-KB-coverage queries (Routes C/D) - NEXT
+  - Test: "My hydraulic pump makes grinding noises"
+  - Test: "Troubleshoot conveyor belt slipping"
+  - Test: "Help?" (unclear intent)
+- [ ] Monitor Groq response quality: `ssh vps "journalctl -u orchestrator-bot -f | grep 'LLM response'"`
+- [ ] Verify 3-tier fallback chain (Groq → GPT-3.5 → hardcoded)
+- [ ] Monitor Groq rate limits (30 req/min, 6K req/day)
+- [ ] Document Groq deployment checklist
+
+### WEEK 1 DOCUMENTATION TASKS (5 remaining)
+- [ ] Update PROJECT_STRUCTURE.md with "Strategic Priority" column (15 min)
+- [ ] Add "Revenue Architecture" section to docs/architecture/00_architecture_platform.md (30 min)
+- [ ] Create docs/monetization/ directory with pricing/GTM/revenue docs (45 min)
+- [ ] Create scripts/monetization/ directory with revenue calculators (30 min)
+- [ ] Create agent_factory/knowledge/ module structure (30 min)
+
+### KNOWLEDGE ATOM COMPLETION
+- [ ] Generate embeddings for 52 atoms (task-86.7 acceptance criteria #3) (1 hour)
+- [ ] Upload atoms to database (acceptance criteria #4) (30 min)
+- [ ] Test semantic search (acceptance criteria #5-6) (30 min)
+
+## HIGH
+
+### EXTERNAL REPO EXTRACTION (Week 2-4 Strategic Plan)
+- [ ] Create EPIC: Knowledge Extraction from Anthropic Archon (Week 2)
+- [ ] Create EPIC: Knowledge Extraction from LangChain (Week 3)
+- [ ] Create EPIC: Knowledge Extraction from LangGraph (Week 3)
+- [ ] Create EPIC: Knowledge Extraction from AutoGPT (Week 4)
+
+### SCAFFOLD VALIDATION TASKS
+- [ ] task-scaffold-validate-knowledge-base (blog post validation - blocked by knowledge base)
+- [ ] task-scaffold-validate-scraper-clips (video extraction)
+- [ ] task-scaffold-validate-scraper-metadata (metadata extraction)
+- [ ] task-scaffold-validate-youtube-api (YouTube API integration)
+
+## COMPLETED TODAY (2025-12-22)
+
+### SCAFFOLD VALIDATION
+- [x] task-scaffold-validate-parser-scale - Parser Scale Validation (2 hours)
+  - Status: DONE ✓
+  - Results: 140 tasks parsed, 2.137s, 0.34 MB, 5/5 criteria passed
+  - Files: scripts/validate_parser_scale.py, scripts/validate_parser_scale_direct.py
+
+### KNOWLEDGE ATOM GENERATION
+- [x] task-86.7 - Generate 50-70 Knowledge Atoms (Phase 2.1-2.3 complete) (4 hours)
+  - Status: 52/50-70 atoms complete (acceptance criteria #1 ✓)
+  - Files: data/atoms-core-repos.json (52 atoms, 100% validated)
+  - Next: Generate embeddings (criteria #3)
+
+### DOCUMENTATION
+- [x] PRODUCTS.md creation (30 min)
+  - Status: COMPLETE ✓
+  - Content: 274 lines, revenue strategy, pricing, targets
+
+- [x] CLAUDE.md priority markers (30 min)
+  - Status: COMPLETE ✓
+  - Changes: SCAFFOLD #1, Infrastructure Foundation, RIVET/PLC deferred
+
+---
+
+## CRITICAL (Previous Work)
+
 ### ✅ COMPLETE: User Actions Feature (All 4 Phases)
 **Status:** COMPLETE
 **Priority:** HIGH (Core feature implemented)

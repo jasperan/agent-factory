@@ -4,6 +4,503 @@ Chronological record of development activities.
 
 ---
 
+## [2025-12-22] Two-Message Pattern + CI/CD Investigation
+
+### [Session 2] GitHub Actions mismatch discovered, SYSTEM_MANIFEST.md created
+
+**Session Summary:**
+Implemented two-message pattern for Telegram bot (clean user response + admin debug trace). Investigated GitHub Actions deployment failures and discovered workflow deploys outdated bot code. Created SYSTEM_MANIFEST.md documenting complete CI/CD infrastructure.
+
+**1. Completed DECISIONS_LOG.md Update (From Previous Session)**
+- File: `DECISIONS_LOG.md` (lines 1011-1082)
+- Added: Groq LLM fallback decision documentation
+- Documented: 3-tier fallback chain (Groq → GPT-3.5 → hardcoded)
+- Documented: Cost analysis, safety guardrails, monitoring strategy
+- Documented: Alternatives considered and rationale for each decision
+- Commit: N/A (part of /content-clear command from previous session)
+
+**2. Two-Message Pattern Implementation**
+- Feature: Split bot responses into two separate Telegram messages
+  - Message 1 (User): Clean response with NO debug info (route/confidence removed from footer)
+  - Message 2 (Admin): Debug trace sent only to admin chat ID 8445149012
+
+**Changes Made:**
+
+File: `agent_factory/integrations/telegram/orchestrator_bot.py`
+
+Change 1 - Remove debug footer from user message (lines 103-105):
+- Deleted: Route and confidence footer from user-facing responses
+- Before: `response += f"\n\n_Route: {route} | Confidence: {conf:.0%}_"`
+- After: Comment placeholder directing to admin message function
+- Impact: Users see clean responses without technical metadata
+
+Change 2 - Add admin message call (line 126):
+- Added: `await _send_admin_debug_message(context, result)`
+- Location: After user message successfully sent, before else block
+- Purpose: Send debug trace to admin immediately after user response
+
+Change 3 - Add helper function (lines 177-202):
+```python
+async def _send_admin_debug_message(
+    context: ContextTypes.DEFAULT_TYPE,
+    result
+) -> None:
+    """Send debug trace to admin chat."""
+    admin_chat_id = 8445149012
+
+    route = result.route_taken.value if result.route_taken else "unknown"
+    confidence = result.confidence or 0.0
+
+    debug_message = f"""```
+TRACE
+Route: {route}
+Confidence: {confidence:.0%}
+```"""
+
+    try:
+        await context.bot.send_message(
+            chat_id=admin_chat_id,
+            text=debug_message,
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Failed to send admin debug message: {e}")
+```
+
+**Example Output:**
+
+User receives (Message 1):
+```
+Here's how to troubleshoot your Allen-Bradley PLC:
+
+**Steps:**
+1. Check power supply
+2. Verify wiring
+3. Reset fault
+
+**Sources:**
+- https://example.com/manual
+```
+
+Admin receives (Message 2):
+```
+TRACE
+Route: A
+Confidence: 85%
+```
+
+**Testing:**
+- ✅ Import successful (no syntax errors)
+- ⏳ Awaiting production deployment and testing
+
+**Commit:** fd1724c "feat: Split bot responses into two messages - clean user response + admin debug trace"
+
+**3. GitHub Actions Investigation**
+
+**Problem Reported:** GitHub Actions deployment failures for "RIVET Pro" but bot running fine on systemd
+
+**Investigation Commands:**
+```bash
+ssh root@72.60.175.144 "ls -la /root/"
+ssh root@72.60.175.144 "ls -la /root/Agent-Factory/.github/workflows/"
+ssh root@72.60.175.144 "cd /root/Agent-Factory && git log --oneline -5"
+ssh root@72.60.175.144 "find /root /opt -name '.git' -type d"
+ssh root@72.60.175.144 "systemctl list-units --type=service | grep -E 'rivet|orchestrator'"
+```
+
+**Findings:**
+
+VPS Infrastructure:
+- Server: 72.60.175.144 (Hostinger VPS)
+- Projects: /root/Agent-Factory/ (only git repo), /root/n8n/ (separate)
+- Git repos: Only 1 found at /root/Agent-Factory/.git
+
+GitHub Workflows Found (3):
+1. `.github/workflows/deploy-vps.yml` - Deploy RIVET Pro to VPS ❌ FAILING
+2. `.github/workflows/claude-autonomous.yml` - Autonomous issue solver (2am UTC daily)
+3. `.github/workflows/claude.yml` - Not reviewed
+
+Active Systemd Services:
+- `orchestrator-bot.service` - RUNNING (Rivet Orchestrator Telegram Bot)
+- `monarx-agent.service` - RUNNING (Security Scanner)
+- `qemu-guest-agent.service` - RUNNING (QEMU Guest Agent)
+
+**Root Cause - GitHub Actions Deploy Mismatch:**
+
+GitHub Actions workflow deploys OUTDATED bot setup:
+- Deploys: `telegram_bot.py` (old bot, exists but unused)
+- Service: `rivet-pro.service` (old service file, not active)
+- Script: `deploy_rivet_pro.sh` (old deployment script)
+
+Actual production bot uses DIFFERENT setup:
+- Running: `agent_factory/integrations/telegram/orchestrator_bot.py`
+- Service: `/etc/systemd/system/orchestrator-bot.service` (active)
+- Deployment: Manual git pull + systemctl restart
+
+**Why GitHub Actions Fails:**
+1. Workflow checks for `telegram_bot.py` process (doesn't run)
+2. Workflow verifies `rivet-pro.service` status (not enabled/active)
+3. Should check `orchestrator-bot.service` instead
+
+**Conclusion:**
+- ✅ Production bot is NOT connected to GitHub Actions (runs via manual deployment)
+- ❌ GitHub Actions failures do NOT affect production (@RivetCeo_bot working fine)
+- ⚠️ Workflow is outdated and references legacy files
+
+**4. SYSTEM_MANIFEST.md Created**
+
+File: `SYSTEM_MANIFEST.md` (new file, 359 lines)
+
+**Contents:**
+1. CRITICAL FINDING: GitHub Actions vs Manual Deployment Mismatch
+   - Documents the disconnect between automated and manual deploys
+   - Explains why GitHub Actions fails but production bot works
+
+2. VPS Infrastructure
+   - Server details, projects, git repos
+   - Complete directory structure
+
+3. Production Bot Deployment (Current Working Setup)
+   - Bot file: orchestrator_bot.py
+   - Service: orchestrator-bot.service
+   - Service definition (full systemd unit file)
+   - Deployment method: Manual git pull + systemctl restart
+   - Bot username: @RivetCeo_bot
+   - Admin chat ID: 8445149012
+
+4. Old Bot Setup (Legacy - Not Running)
+   - telegram_bot.py (exists but unused)
+   - rivet-pro.service (exists but not active)
+   - deploy_rivet_pro.sh (old deployment script)
+
+5. GitHub Actions Workflows
+   - deploy-vps.yml: Full analysis, what it does, why it fails
+   - claude-autonomous.yml: Autonomous issue solver specs
+   - Required secrets documented
+
+6. Active Systemd Services
+   - Service list and management commands
+
+7. VPS Deployment Files
+   - Contents of /root/Agent-Factory/deploy/vps/
+
+8. Recent Commits (Last 5)
+   - All recent commits focus on orchestrator_bot.py improvements
+
+9. Recommendations
+   - Option A: Update workflow to deploy new bot
+   - Option B: Disable workflow (simpler, manual deployment works)
+   - Option C: Clean up legacy files
+
+10. Environment Variables
+    - Required vars documented
+    - .env management strategy
+
+**Commit:** 353e90a "docs: Add SYSTEM_MANIFEST.md documenting CI/CD pipelines and VPS deployment"
+
+**Outstanding Questions:**
+1. Fix deploy-vps.yml workflow or disable it?
+2. Delete legacy files (telegram_bot.py, rivet-pro.service, deploy_rivet_pro.sh)?
+3. Is autonomous Claude workflow active? (Check GitHub Actions logs)
+4. Are all GitHub Actions secrets configured?
+
+**Impact:**
+- User now understands CI/CD infrastructure completely
+- Documented disconnect between GitHub Actions and production
+- Clear path forward for fixing or disabling automated deploys
+
+---
+
+## [2025-12-22] Groq LLM Fallback Integration - Routes C & D Enhancement
+
+### [17:45] Groq fallback deployed to VPS, bot generating intelligent responses for zero-KB-coverage queries
+
+**Session Summary:**
+Integrated Groq Llama 3.1 70B as free LLM fallback for Routes C (no KB coverage) and D (unclear intent). Bot now provides helpful answers instead of "check back in 24-48 hours" messages. All changes deployed to production VPS.
+
+**Changes Made:**
+
+**1. LLM System - Added Groq Provider**
+- File: `agent_factory/llm/types.py` (line 31)
+- Added: `GROQ = "groq"` to LLMProvider enum
+- Purpose: Enable Groq as first-class LLM provider
+
+**2. LLM Config - Registered Groq Models**
+- File: `agent_factory/llm/config.py` (lines 195-215, 225, 243, 249)
+- Added models:
+  - `llama-3.1-70b-versatile`: COMPLEX capability, 131K context, free
+  - `llama-3.1-8b-instant`: MODERATE capability, 131K context, free
+- Updated DEFAULT_MODELS: `LLMProvider.GROQ: "llama-3.1-70b-versatile"`
+- Updated ROUTING_TIERS:
+  - COMPLEX tier: Added llama-3.1-70b-versatile as first (free) option
+  - MODERATE tier: Added llama-3.1-8b-instant after gemini-2.0-flash
+
+**3. Orchestrator - Implemented LLM Fallback Logic**
+- File: `agent_factory/core/orchestrator.py`
+- Added imports (lines 22-26):
+  ```python
+  from agent_factory.llm.router import LLMRouter
+  from agent_factory.llm.types import LLMConfig, LLMProvider, LLMResponse
+  import logging
+  logger = logging.getLogger(__name__)
+  ```
+- Initialized LLMRouter in __init__ (lines 54-60):
+  - max_retries=3, retry_delay=1.0
+  - enable_fallback=True (Groq → GPT-3.5 → hardcoded)
+- Added `_generate_llm_response()` method (lines 374-472):
+  - Builds system prompts with safety guardrails
+  - Calls LLMRouter with Groq primary, GPT-3.5 fallback
+  - Returns (response_text, confidence_score) tuple
+  - Handles all exceptions with hardcoded fallback
+- Updated `_route_c_no_kb()` (lines 297-333):
+  - Calls _generate_llm_response() instead of returning hardcoded message
+  - Sets confidence=0.5 for Groq, 0.6 for GPT-3.5 fallback
+  - Adds trace["llm_fallback"] = true for analytics
+- Updated `_route_d_unclear()` (lines 335-370):
+  - Calls _generate_llm_response() for clarification questions
+  - Sets confidence=0.3 (lower because asking questions, not answering)
+  - Adds trace["llm_generated"] flag
+
+**4. Dependencies - Installed Groq Package**
+- File: `pyproject.toml`
+- Added: `groq = "^1.0.0"`
+- Installed locally via `poetry add groq`
+- Installed on VPS via `/root/.local/bin/poetry install`
+
+**5. Environment - Added Groq API Key**
+- File: `.env` (local + VPS)
+- Added: `GROQ_API_KEY=gsk_***` (redacted for security)
+- VPS also needed ORCHESTRATOR_BOT_TOKEN re-added after git pull
+
+**Deployment Steps:**
+1. Local: Installed groq, added GROQ_API_KEY to .env
+2. Local: Modified 3 files (types.py, config.py, orchestrator.py)
+3. Local: Tested imports, committed changes (commit: ac36b77)
+4. VPS: Pulled changes, installed groq package
+5. VPS: Added GROQ_API_KEY + ORCHESTRATOR_BOT_TOKEN to .env
+6. VPS: Restarted orchestrator-bot service
+7. Verified: Bot started successfully with LLMRouter initialized
+
+**Testing Results:**
+- ✅ Bot started without errors
+- ✅ Database connected (1,964 atoms)
+- ✅ Orchestrator initialized with RAG layer + LLMRouter
+- ✅ Polling active (HTTP 200 OK)
+- ⏳ Awaiting user testing for Route C/D responses
+
+**System Prompts (Safety Guardrails):**
+
+Route C (No KB Coverage):
+- "You are RivetCEO, an industrial maintenance AI assistant"
+- "Do NOT hallucinate specific model numbers or part codes"
+- "Do NOT provide unsafe electrical advice without LOTO warnings"
+- "If uncertain, say 'I recommend consulting manufacturer documentation'"
+- "Keep response under 300 words"
+
+Route D (Unclear Intent):
+- "Help them clarify by asking specific questions"
+- "Ask about: equipment (vendor, model), symptoms/error codes, what they've tried"
+- "Keep response under 150 words"
+
+**Cost Impact:**
+- Groq free tier: 6,000 requests/day, 30 requests/minute
+- Expected usage: 25-250 Groq calls/day (Routes C+D ≈ 25% of queries)
+- Fallback cost: GPT-3.5-turbo ~$0.001/call if Groq fails
+- Total: Near-zero cost impact
+
+**Commit:** ac36b77 "feat: Add Groq LLM fallback for Routes C & D"
+
+---
+
+## [2025-12-22] RivetCEO Telegram Bot - Production Deployment Complete
+
+### [13:30] Bot deployed to VPS with full RAG integration (1,964 atoms)
+
+**Session Summary:**
+Deployed RivetCEO Telegram bot to production VPS with complete fix for 3 sequential errors. Bot now operational 24/7 with full knowledge base integration.
+
+**Three Sequential Fixes Applied:**
+
+**Fix #1 - Markdown Escaping (Commit: 63385b3)**
+- Issue: "Can't parse entities: can't find end of the entity starting at byte offset 492"
+- Root cause: Special characters in responses (`_`, `|`, `%`) conflicting with Telegram Markdown
+- Solution: Added ResponseFormatter import and escape_markdown() call before sending
+- Files: agent_factory/integrations/telegram/orchestrator_bot.py (lines 27, 109)
+- Result: All parse errors eliminated
+
+**Fix #2 - RAG Layer Initialization (Commit: 63385b3)**
+- Issue: Bot returning "no information" for all queries (Route C, 0% confidence)
+- Root cause: Orchestrator initialized without RAG layer (no database connection)
+- Solution: Pass DatabaseManager to RivetOrchestrator constructor in post_init()
+- Files: agent_factory/integrations/telegram/orchestrator_bot.py (lines 138-153)
+- Result: Bot connected to 1,964 knowledge atoms in Neon database
+
+**Fix #3 - search_docs() Function Signature (Commit: 39f78a4)**
+- Issue: "search_docs() got an unexpected keyword argument 'query'"
+- Root cause: kb_evaluator calling search_docs() with wrong parameters (query, vendor, top_k)
+- Expected: search_docs(intent: RivetIntent, config: RAGConfig, db: DatabaseManager)
+- Solution: Create RivetIntent object from request before calling search_docs()
+- Files: agent_factory/routers/kb_evaluator.py (lines 13, 44-64)
+- Result: Knowledge base queries working correctly
+
+**Fix #4 - EquipmentType Enum (Commit: c1a0927)**
+- Issue: "type object 'EquipmentType' has no attribute 'GENERIC'"
+- Root cause: Used EquipmentType.GENERIC but enum only has UNKNOWN as fallback
+- Solution: Changed equipment_type=EquipmentType.GENERIC to UNKNOWN
+- Files: agent_factory/routers/kb_evaluator.py (line 50)
+- Result: Enum error eliminated
+
+**Passwordless SSH Configuration:**
+- Generated ed25519 SSH key pair
+- Copied public key to VPS authorized_keys
+- Created SSH config with host alias "vps"
+- Verified passwordless connection working
+- Enables instant deployments: `ssh vps "cd /root/Agent-Factory && git pull && systemctl restart orchestrator-bot"`
+
+**VPS Deployment:**
+- Server: 72.60.175.144 (Hostinger VPS)
+- Location: /root/Agent-Factory
+- Service: orchestrator-bot.service (systemd)
+- Database: Neon PostgreSQL (1,964 knowledge atoms)
+- Failover: Supabase, Railway
+- Auto-restart: Enabled (RestartSec=10)
+- Resource limits: 512M memory, 50% CPU
+
+**Files Modified This Session:**
+1. agent_factory/integrations/telegram/orchestrator_bot.py (added imports, RAG init)
+2. agent_factory/routers/kb_evaluator.py (fixed search_docs signature, enum)
+3. /root/Agent-Factory/.env (VPS - added ORCHESTRATOR_BOT_TOKEN)
+4. ~/.ssh/config (local - added VPS host alias)
+5. ~/.ssh/id_ed25519 (local - generated SSH key)
+
+**Commits Made:**
+- 63385b3: "fix: Add Markdown escaping and RAG layer to Telegram bot"
+- 39f78a4: "fix: Correct search_docs() function signature in kb_evaluator"
+- c1a0927: "fix: Change EquipmentType.GENERIC to UNKNOWN in kb_evaluator"
+
+**Current Status:**
+- Bot: Active and polling (HTTP 200 OK)
+- Database: Connected (1,964 atoms loaded)
+- Service: Running (orchestrator-bot.service enabled)
+- Logs: Clean (no errors since deployment)
+- Ready: For user testing with real queries
+
+**Verification Commands:**
+```bash
+# Check service status
+ssh vps "systemctl status orchestrator-bot --no-pager"
+
+# View logs
+ssh vps "journalctl -u orchestrator-bot -n 50"
+
+# Monitor in real-time
+ssh vps "journalctl -u orchestrator-bot -f"
+
+# Quick redeploy
+ssh vps "cd /root/Agent-Factory && git pull && systemctl restart orchestrator-bot"
+```
+
+---
+
+## [2025-12-22] RivetCEO Telegram Bot - Local Testing Complete
+
+### [07:10] Bot running successfully, ready for VPS deployment
+
+**RivetCEO Bot Deployment (orchestrator_bot.py):**
+- Created standalone Telegram bot that routes ALL messages through RivetOrchestrator
+- Bot: @RivetCeo_bot (t.me/RivetCeo_bot)
+- Token: ORCHESTRATOR_BOT_TOKEN (7910254197:AAGeEqMI_rvJExOsZVrTLc_0fb26CQKqlHQ)
+- No commands required - just send any technical question
+- Returns: Answer + safety warnings + suggested actions + sources + route info
+
+**Markdown Error Fix:**
+- Issue: Telegram Markdown parser failing on orchestrator responses
+- Error: "Can't parse entities: can't find end of the entity starting at byte offset 492"
+- Solution: Added BadRequest exception handling with plain text fallback
+- Result: Bot sends Markdown, falls back to plain text if parsing fails
+
+**Multiple Bot Instances Conflict:**
+- Issue: Multiple bot processes running simultaneously caused Telegram API conflict
+- Error: "Conflict: terminated by other getUpdates request"
+- Solution: Killed ALL Python processes, waited 10s, started single clean instance
+- Commands used: `taskkill //F //IM python.exe`, waited for Telegram to clear state
+- Result: Single bot instance polling successfully (200 OK responses)
+
+**Files Created:**
+- agent_factory/integrations/telegram/orchestrator_bot.py (161 lines)
+- deploy/vps/orchestrator-bot.service (17 lines, systemd service)
+
+**Files Modified:**
+- .env (added ORCHESTRATOR_BOT_TOKEN=7910254197:AAGeEqMI_rvJExOsZVrTLc_0fb26CQKqlHQ)
+
+**Bot Status:**
+- Running in background (task b607ea4)
+- Polling every 10 seconds successfully
+- No conflicts or errors
+- Ready for user testing in Telegram app
+
+**VPS Deployment Ready:**
+- Service file: deploy/vps/orchestrator-bot.service
+- Command: `poetry run python -m agent_factory.integrations.telegram.orchestrator_bot`
+- Restart policy: Always with 10s delay
+- Working directory: /opt/Agent-Factory
+
+**Next Steps:**
+1. User tests bot in Telegram (@RivetCeo_bot)
+2. Commit code to GitHub
+3. Deploy to VPS 72.60.175.144
+4. Start systemd service for 24/7 operation
+
+---
+
+## [2025-12-22] Parser Scale Validation + Knowledge Atom Generation
+
+### [04:40] Parser validation complete + 52 atoms generated
+
+**Parser Scale Validation (task-scaffold-validate-parser-scale):**
+- Created scripts/validate_parser_scale_direct.py (259 lines)
+- Validated parser with 140 tasks from backlog/tasks/*.md files
+- Results: 2.137s parse time, 0.34 MB memory, 100% success rate
+- All 5 acceptance criteria passed
+- Task marked as DONE
+
+**Knowledge Atom Generation (task-86.7):**
+- Generated 31 additional atoms (21 existing → 52 total)
+- Phase 2.2: 14 atoms from Archon analysis + platform docs
+- Phase 2.3: 17 atoms from SCAFFOLD/RIVET/LLM implementation code
+- Validation: 100% pass rate (52/52 atoms IEEE LOM-compliant)
+- File: data/atoms-core-repos.json updated
+- Acceptance criteria #1 complete (50-70 atoms created)
+
+**Documentation Updates:**
+- Created PRODUCTS.md (274 lines) - Revenue strategy, SCAFFOLD Priority #1
+- Updated CLAUDE.md with priority markers and reorganized sections
+- Added PRODUCTS.md to Reference Documents table
+
+**Files Created:**
+- scripts/validate_parser_scale.py (203 lines) - MCP-based validation
+- scripts/validate_parser_scale_direct.py (259 lines) - Direct file reading
+- PRODUCTS.md (274 lines) - Product portfolio strategy
+- scripts/generate_new_atoms.py (from agent) - Atom generation script
+
+**Files Modified:**
+- CLAUDE.md (updated lines 13-165, 402-418, 725) - Priority markers, reorganization
+- data/atoms-core-repos.json (21 → 52 atoms) - 31 new atoms added
+- backlog/tasks/task-scaffold-validate-parser-scale*.md - Task completion notes
+- backlog/tasks/task-86.7*.md - Progress notes
+
+**Test Results:**
+- Parser validation: ✅ All criteria passed (5/5)
+- Atom validation: ✅ 100% pass rate (52/52)
+- Documentation validation: ✅ Python imports working
+
+**Performance:**
+- Parser: 140 tasks in 2.137s (65.5 tasks/second)
+- Memory: 0.34 MB peak usage
+- Atom generation: 52 atoms with 933 chars average content
+
+---
+
 ## [2025-12-17] Autonomous Claude System - Complete Implementation
 
 ### [08:00] All 8 Phases Complete - Production Ready

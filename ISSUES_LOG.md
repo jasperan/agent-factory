@@ -4,6 +4,374 @@ Known issues, bugs, and blockers.
 
 ---
 
+## [2025-12-22 19:30] STATUS: [OPEN] - GitHub Actions deploy workflow deploys outdated bot
+
+**Problem:**
+GitHub Actions workflow `.github/workflows/deploy-vps.yml` is failing because it deploys the OLD bot setup (telegram_bot.py) instead of the current production bot (orchestrator_bot.py).
+
+**Root Cause:**
+- Workflow references outdated files:
+  - Bot: `telegram_bot.py` (old, exists but unused)
+  - Service: `rivet-pro.service` (old service file, not active)
+  - Script: `deploy_rivet_pro.sh` (old deployment script)
+- Production actually uses:
+  - Bot: `agent_factory/integrations/telegram/orchestrator_bot.py`
+  - Service: `/etc/systemd/system/orchestrator-bot.service` (active)
+  - Deployment: Manual git pull + systemctl restart
+- Verification steps fail:
+  - Workflow checks for `telegram_bot.py` process (doesn't run)
+  - Workflow verifies `rivet-pro.service` status (not enabled/active)
+
+**Impact:**
+- **Severity:** MEDIUM (production not affected, but CI/CD broken)
+- GitHub Actions deployments fail on every push to main
+- Manual deployments work fine (bot is stable)
+- No impact on production bot (@RivetCeo_bot runs independently via systemd)
+- Confusing failure notifications sent to admin
+
+**Evidence:**
+- VPS investigation (2025-12-22): Only `orchestrator-bot.service` is active
+- Recent commits (last 5): All focus on `orchestrator_bot.py` improvements
+- Service status: `orchestrator-bot.service` loaded/active/running
+- Legacy files exist but are unused (telegram_bot.py, rivet-pro.service)
+
+**Options:**
+
+Option A: Update GitHub Actions workflow
+- Edit `.github/workflows/deploy-vps.yml`
+- Change bot verification: `telegram_bot.py` → `orchestrator_bot.py`
+- Change service check: `rivet-pro.service` → `orchestrator-bot.service`
+- Update or remove reference to `deploy_rivet_pro.sh`
+- Pros: Automated deploys work again
+- Cons: Requires workflow YAML edits, testing
+
+Option B: Disable automated deploys (simpler)
+- Delete or disable `.github/workflows/deploy-vps.yml`
+- Continue using manual `git pull + systemctl restart`
+- Add comment: "Manual deployment only - GitHub Actions disabled"
+- Pros: Simple, manual deployment already works
+- Cons: No automation, no deployment notifications
+
+Option C: Clean up legacy files first, then update workflow
+- Delete: `telegram_bot.py`, `rivet-pro.service`, `deploy_rivet_pro.sh`
+- Update workflow to reference only new files
+- Pros: Clean repo, no confusion
+- Cons: Requires coordination (delete + workflow update)
+
+**Workaround:**
+Continue using manual deployment (current approach):
+```bash
+git push origin main
+ssh vps "cd /root/Agent-Factory && git pull origin main && systemctl restart orchestrator-bot"
+```
+
+**Related Files:**
+- `.github/workflows/deploy-vps.yml` (outdated workflow)
+- `telegram_bot.py` (legacy bot, unused)
+- `rivet-pro.service` (legacy service file, unused)
+- `deploy_rivet_pro.sh` (legacy deploy script)
+- `agent_factory/integrations/telegram/orchestrator_bot.py` (current bot)
+- `/etc/systemd/system/orchestrator-bot.service` (current service)
+
+**Documentation:**
+See `SYSTEM_MANIFEST.md` for complete CI/CD infrastructure audit
+
+**Status:** OPEN - decision needed on Option A, B, or C
+
+---
+
+## [2025-12-22 17:45] STATUS: [OPEN] - ORCHESTRATOR_BOT_TOKEN persistence issue on VPS
+
+**Problem:**
+ORCHESTRATOR_BOT_TOKEN environment variable not persisting in VPS .env file after git pull operations.
+
+**Root Cause:**
+- .env file is .gitignored (correctly for security)
+- git pull doesn't overwrite .env
+- However, ORCHESTRATOR_BOT_TOKEN line sometimes missing after deployments
+- Possible cause: Multiple echo commands creating duplicates or line position issues
+
+**Impact:**
+- **Severity:** LOW (workaround available)
+- Bot fails to start until token manually re-added
+- Requires manual SSH to fix: `echo 'ORCHESTRATOR_BOT_TOKEN=...' >> .env`
+- Delays deployment by 1-2 minutes
+
+**Workaround:**
+```bash
+# Always verify token exists after git pull
+ssh vps "cd /root/Agent-Factory && grep -q ORCHESTRATOR_BOT_TOKEN .env || echo 'ORCHESTRATOR_BOT_TOKEN=7910254197:AAGeEqMI_rvJExOsZVrTLc_0fb26CQKqlHQ' >> .env"
+```
+
+**Proposed Solution:**
+- Create deployment script that checks/adds required .env variables
+- Or: Use systemd EnvironmentFile directive to load from separate config
+- Or: Add pre-deployment validation to check for required env vars
+
+**Status:** OPEN - workaround documented, not critical
+
+---
+
+## [2025-12-22 13:30] STATUS: [FIXED] - EquipmentType.GENERIC enum attribute error
+
+**Problem:**
+Bot crashing with error: "type object 'EquipmentType' has no attribute 'GENERIC'"
+
+**Root Cause:**
+- kb_evaluator.py line 50 used `EquipmentType.GENERIC`
+- EquipmentType enum only has: VFD, PLC, HMI, SENSOR, CONTACTOR, BREAKER, MCC, SAFETY_RELAY, SERVO, MOTOR, ENCODER, UNKNOWN
+- GENERIC attribute doesn't exist, should use UNKNOWN as fallback
+
+**Impact:**
+- **Severity:** HIGH (fixed)
+- Bot unable to process any queries
+- All requests failed at knowledge base evaluation stage
+
+**Solution Implemented:**
+Changed line 50 in agent_factory/routers/kb_evaluator.py:
+```python
+# Before:
+equipment_type=EquipmentType.GENERIC,
+
+# After:
+equipment_type=EquipmentType.UNKNOWN,
+```
+
+**Commit:** c1a0927
+**Status:** FIXED - Bot now processes queries without enum errors
+
+---
+
+## [2025-12-22 13:30] STATUS: [FIXED] - search_docs() unexpected keyword argument
+
+**Problem:**
+Bot returning error: "search_docs() got an unexpected keyword argument 'query'"
+
+**Root Cause:**
+- kb_evaluator.py calling search_docs() with wrong parameters
+- Was calling: `search_docs(query="text", vendor="...", top_k=10)`
+- Expected signature: `search_docs(intent: RivetIntent, config: RAGConfig, db: DatabaseManager)`
+- Function signature mismatch from Phase 2 RAG implementation
+
+**Impact:**
+- **Severity:** CRITICAL (fixed)
+- Bot unable to query knowledge base
+- All queries failed after RAG layer initialization
+- Users received error messages instead of answers
+
+**Solution Implemented:**
+1. Import RivetIntent, EquipmentType, RAGConfig
+2. Create RivetIntent object from request:
+   ```python
+   intent = RivetIntent(
+       vendor=vendor,
+       equipment_type=EquipmentType.UNKNOWN,
+       symptom=request.text or "",
+       raw_summary=request.text or "",
+       context_source="text_only",
+       confidence=0.8
+   )
+   ```
+3. Pass correct parameters to search_docs():
+   ```python
+   config = RAGConfig(top_k=10)
+   docs = search_docs(intent=intent, config=config, db=self.rag)
+   ```
+4. Extract similarity scores from RetrievedDoc objects
+
+**Files Modified:**
+- agent_factory/routers/kb_evaluator.py (lines 13, 44-64)
+
+**Commit:** 39f78a4
+**Status:** FIXED - Knowledge base queries working correctly
+
+---
+
+## [2025-12-22 13:30] STATUS: [FIXED] - Telegram bot returning "no information" for all queries
+
+**Problem:**
+Bot always responding with "Our knowledge base doesn't have enough information... check back in 24-48 hours" for every query. Route C with 0% confidence.
+
+**Root Cause:**
+- Orchestrator initialized without RAG layer: `RivetOrchestrator()`
+- KB evaluator checking `if self.rag is None` → using mock evaluator
+- Mock evaluator uses query length heuristics, returns CoverageLevel.NONE
+- Router sees NONE coverage → defaults to Route C (research pipeline)
+
+**Impact:**
+- **Severity:** CRITICAL (fixed)
+- Bot unable to answer any questions from knowledge base
+- 1,964 knowledge atoms in database unused
+- Poor user experience (bot appears broken)
+
+**Solution Implemented:**
+Initialize orchestrator with DatabaseManager in post_init():
+```python
+from agent_factory.core.database_manager import DatabaseManager
+db = DatabaseManager()
+
+# Verify database has atoms
+result = db.execute_query("SELECT COUNT(*) FROM knowledge_atoms")
+atom_count = result[0][0] if result else 0
+logger.info(f"Database initialized with {atom_count} knowledge atoms")
+
+# Pass RAG layer to orchestrator
+orchestrator = RivetOrchestrator(rag_layer=db)
+logger.info("Orchestrator initialized successfully with RAG layer")
+```
+
+**Files Modified:**
+- agent_factory/integrations/telegram/orchestrator_bot.py (lines 138-153)
+
+**Commit:** 63385b3
+**Status:** FIXED - Bot now queries knowledge base with 1,964 atoms
+
+---
+
+## [2025-12-22 13:30] STATUS: [FIXED] - Telegram Markdown parse entity errors
+
+**Problem:**
+Bot responses causing error: "Can't parse entities: can't find end of the entity starting at byte offset 492"
+
+**Root Cause:**
+- Orchestrator responses contain special characters (`_`, `|`, `%`, etc.)
+- Telegram Markdown requires escaping these characters
+- Line 105: `f"\n\n_Route: {route} | Confidence: {conf:.0%}_"` has unescaped special chars
+- ResponseFormatter utility exists but wasn't imported/used
+
+**Impact:**
+- **Severity:** HIGH (fixed)
+- Users receive error messages instead of bot responses
+- All formatted responses failed to send
+- Plain text fallback existed but proper solution needed
+
+**Solution Implemented:**
+1. Import ResponseFormatter: `from agent_factory.integrations.telegram.formatters import ResponseFormatter`
+2. Escape response before sending: `escaped_response = ResponseFormatter.escape_markdown(response)`
+3. Send escaped response: `await update.message.reply_text(escaped_response, parse_mode="Markdown")`
+
+**Files Modified:**
+- agent_factory/integrations/telegram/orchestrator_bot.py (lines 27, 109)
+
+**Commit:** 63385b3
+**Status:** FIXED - All Markdown properly escaped, no parse errors
+
+---
+
+## [2025-12-22 07:10] STATUS: [FIXED] - Multiple Telegram bot instances causing conflicts
+
+**Problem:**
+Multiple bot processes running simultaneously causing Telegram API "Conflict: terminated by other getUpdates request" error.
+
+**Root Cause:**
+- Previous bot instances not properly killed when restarting
+- Multiple Python processes polling same bot token
+- Telegram API rejects concurrent getUpdates requests
+
+**Impact:**
+- **Severity:** HIGH (fixed)
+- Bot unable to poll for messages
+- 409 Conflict errors every 5-10 seconds
+- Bot appeared offline to users
+
+**Error Message:**
+```
+telegram.error.Conflict: Conflict: terminated by other getUpdates request;
+make sure that only one bot instance is running
+```
+
+**Solution Implemented:**
+1. Killed all Python processes: `taskkill //F //IM python.exe`
+2. Waited 10 seconds for Telegram to clear webhook state
+3. Started single clean bot instance
+4. Verified 200 OK responses on polling
+
+**Files Modified:**
+- None (process management fix)
+
+**Status:** FIXED - Bot now running cleanly without conflicts
+
+---
+
+## [2025-12-22 07:10] STATUS: [FIXED] - Telegram Markdown parsing errors
+
+**Problem:**
+Bot responses causing Markdown parsing errors in Telegram: "Can't parse entities: can't find end of the entity starting at byte offset 492"
+
+**Root Cause:**
+- RivetOrchestrator responses contain characters that conflict with Telegram's Markdown parser
+- Telegram Markdown v2 has strict entity parsing requirements
+- Certain special characters or formatting cause parser to fail
+
+**Impact:**
+- **Severity:** HIGH (fixed)
+- Users received error messages instead of bot responses
+- All queries resulted in parse failures
+- Bot appeared broken
+
+**Solution Implemented:**
+Added BadRequest exception handling with plain text fallback:
+```python
+try:
+    await update.message.reply_text(response, parse_mode="Markdown")
+except BadRequest as parse_error:
+    logger.warning(f"Markdown parse error, sending as plain text: {parse_error}")
+    await update.message.reply_text(response)  # No parse_mode = plain text
+```
+
+**Files Modified:**
+- agent_factory/integrations/telegram/orchestrator_bot.py (lines 108-121)
+
+**Status:** FIXED - Bot now falls back to plain text when Markdown fails
+
+---
+
+## [2025-12-22 04:40] STATUS: INFO - MCP tools unavailable in standalone Python scripts
+
+**Issue**: BacklogParser relies on MCP tools which aren't available when running standalone Python scripts (only work inside Claude Code CLI sessions).
+
+**Impact**: Cannot use BacklogParser for validation scripts run via `poetry run python`.
+
+**Solution Implemented**: Created direct file-reading validation script (validate_parser_scale_direct.py) that parses YAML frontmatter from backlog/tasks/*.md files directly.
+
+**Result**: Validation successful - 140 tasks parsed in 2.137s without MCP dependency.
+
+**Learning**: For standalone scripts, bypass MCP and read files directly from filesystem.
+
+---
+
+## [2025-12-22 04:40] STATUS: FIXED - Unicode emoji encoding in Windows console
+
+**Issue**: Windows console (cp1252 encoding) cannot display Unicode emojis (✅, ❌, ⚠️, 🎉) used in Python script output.
+
+**Error**: `UnicodeEncodeError: 'charmap' codec can't encode character '\u2705'`
+
+**Solution**: Replaced all Unicode emojis with ASCII equivalents ([OK], [FAIL], [WARN], [SUCCESS]).
+
+**Files Fixed**: scripts/validate_parser_scale.py, scripts/validate_parser_scale_direct.py
+
+**Result**: Scripts run successfully on Windows with readable ASCII output.
+
+---
+
+## [2025-12-22 04:40] STATUS: INFO - Blog post validation blocked by empty knowledge base
+
+**Issue**: task-scaffold-validate-knowledge-base shows only 851 words/post average (need 2000+).
+
+**Root Cause**: Knowledge base not yet populated with sufficient atoms (only 52 CORE atoms currently).
+
+**Blocker**: Blog post generation needs rich knowledge base for 2000+ word content.
+
+**Solution Path**:
+1. Generate embeddings for 52 atoms
+2. Upload to database
+3. OR extract more atoms from external repos (Archon, LangChain) for richer content
+4. Re-run blog post generation with populated knowledge base
+
+**Status**: Deferred until knowledge base has 100+ atoms with diverse content.
+
+---
+
 ## [2025-12-17 08:00] STATUS: [INFO] - Autonomous System Ready for Testing
 
 **Status:** INFO (Not a blocker)

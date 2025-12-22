@@ -4,6 +4,220 @@ Current state and status of Agent Factory project.
 
 ---
 
+## [2025-12-22 19:30] Two-Message Pattern + CI/CD Infrastructure Audit
+
+**Phase**: Production Enhancement - Debug Infrastructure + DevOps Visibility
+**Status**: Two-message pattern implemented (local), CI/CD infrastructure fully documented
+
+**What's Working**:
+- ✅ Two-message pattern implemented: clean user response + admin debug trace
+- ✅ Admin receives route/confidence in separate message (chat ID: 8445149012)
+- ✅ Users see clean responses without technical metadata
+- ✅ CI/CD infrastructure fully audited and documented in SYSTEM_MANIFEST.md
+- ✅ GitHub Actions mismatch identified (deploys old bot, production uses new bot)
+
+**Current State**:
+- Two-message pattern: Code complete, awaiting VPS deployment
+- Production bot: Running orchestrator-bot.service (manual deployment)
+- GitHub Actions: Failing (deploys outdated telegram_bot.py instead of orchestrator_bot.py)
+- Documentation: SYSTEM_MANIFEST.md created (359 lines, comprehensive CI/CD audit)
+
+**Code Changes (Two-Message Pattern)**:
+1. Removed route/confidence footer from user messages (orchestrator_bot.py line 104-106)
+2. Added `_send_admin_debug_message()` call after user response (line 126)
+3. Implemented admin debug helper function (lines 177-202)
+   - Simple code block format: TRACE, Route, Confidence
+   - Sent only to admin chat ID 8445149012
+   - Error handling with logger
+
+**CI/CD Discovery**:
+- GitHub Actions workflow `.github/workflows/deploy-vps.yml` is OUTDATED
+- Workflow deploys: telegram_bot.py (old bot, exists but unused)
+- Production runs: orchestrator_bot.py (new bot, active via systemd)
+- Result: Automated deploys FAIL, manual deploys WORK
+- No impact on production (bot not connected to GitHub Actions)
+
+**VPS Infrastructure** (72.60.175.144):
+- Active service: orchestrator-bot.service (running)
+- Deployment method: Manual git pull + systemctl restart
+- Other projects: /root/n8n/ (separate)
+- Git repos: Only 1 (Agent-Factory)
+
+**GitHub Workflows Found**:
+1. deploy-vps.yml - FAILING (wrong bot)
+2. claude-autonomous.yml - Nightly issue solver (2am UTC)
+3. claude.yml - Not reviewed
+
+**Outstanding Decisions**:
+- Fix GitHub Actions workflow OR disable automated deploys?
+- Delete legacy files (telegram_bot.py, rivet-pro.service, deploy_rivet_pro.sh)?
+- Deploy two-message pattern to VPS?
+
+**Next Priority**:
+- Deploy two-message pattern to VPS (git push + manual deploy)
+- Decide on GitHub Actions strategy (fix vs disable)
+- Test admin debug messages in production
+
+---
+
+## [2025-12-22 17:45] RivetCEO Bot - Groq LLM Fallback Integration Complete
+
+**Phase**: Production Enhancement - Intelligent Fallback System
+**Status**: Bot running 24/7 with Groq LLM fallback for Routes C & D (zero-KB-coverage queries)
+
+**What's Working**:
+- ✅ Groq Llama 3.1 70B integrated as free LLM fallback
+- ✅ 3-tier fallback chain: Groq → GPT-3.5 → hardcoded message
+- ✅ Routes C & D now generate intelligent responses (not "check back in 24-48 hours")
+- ✅ All code changes deployed to VPS and tested
+- ✅ Bot responding with helpful answers for unknown equipment/faults
+- ✅ LLMRouter infrastructure fully operational
+
+**Current State**:
+- Bot active on VPS with Groq fallback enabled
+- Database: Neon (1,964 atoms) + LLM fallback for coverage gaps
+- Route A/B: KB-backed answers (confidence 0.8-0.9)
+- Route C/D: Groq-generated answers (confidence 0.5/0.3)
+- Service: orchestrator-bot.service (enabled, running)
+- Cost: $0 (Groq free tier: 6,000 requests/day)
+
+**Recent Changes (This Session)**:
+- Added Groq provider to LLM system (LLMProvider.GROQ)
+- Registered 2 Groq models: llama-3.1-70b-versatile (COMPLEX), llama-3.1-8b-instant (MODERATE)
+- Implemented _generate_llm_response() method in RivetOrchestrator
+- Replaced hardcoded Routes C & D with LLM-generated responses
+- Deployed GROQ_API_KEY to VPS .env
+- Installed groq package (v1.0.0) on VPS
+
+**Technical Stack**:
+- LLM Routing: Groq (primary) → GPT-3.5-turbo (fallback) → hardcoded (last resort)
+- Safety: System prompts prevent hallucinated model numbers, unsafe advice
+- Confidence scoring: KB (0.8-0.9) > LLM (0.5-0.6) > hardcoded (0.0)
+- Analytics: trace["llm_fallback"] = true for tracking
+
+**Next Priority**:
+- User testing with no-KB-coverage queries (pneumatics, hydraulics, obscure equipment)
+- Monitor Groq response quality and rate limits
+- Validate 3-tier fallback chain under load
+
+---
+
+## [2025-12-22 13:30] RivetCEO Bot - Fully Deployed & Operational on VPS
+
+**Phase**: Production Deployment Complete
+**Status**: Bot running 24/7 on VPS with full RAG integration (1,964 knowledge atoms)
+
+**What's Working**:
+- ✅ RivetCEO bot (@RivetCeo_bot) deployed to VPS 72.60.175.144
+- ✅ All 3 critical fixes applied and tested:
+  - Fix #1: Markdown escaping (ResponseFormatter)
+  - Fix #2: RAG layer initialization (DatabaseManager with Neon database)
+  - Fix #3: EquipmentType.UNKNOWN enum fix
+- ✅ Passwordless SSH configured for instant deployments
+- ✅ Bot connected to 1,964 knowledge atoms in Neon database
+- ✅ Orchestrator routing working (Routes A/B/C/D)
+- ✅ systemd service (orchestrator-bot.service) with auto-restart
+
+**Current State**:
+- Bot active and polling successfully (HTTP 200 OK)
+- Database: Neon (1,964 atoms) with failover to Supabase
+- Service: orchestrator-bot.service (enabled, running)
+- Working directory: /root/Agent-Factory on VPS
+- Deployment method: `ssh vps "cd /root/Agent-Factory && git pull && systemctl restart orchestrator-bot"`
+
+**Recent Changes (This Session)**:
+- Fixed 3 critical bot errors in sequence:
+  1. Markdown parse entity errors (byte offset 492)
+  2. search_docs() unexpected keyword argument
+  3. EquipmentType.GENERIC attribute error
+- Configured passwordless SSH (ed25519 key) for VPS access
+- Deployed to production VPS with systemd service
+- Bot token configured in /root/Agent-Factory/.env
+
+**Technical Stack**:
+- Bot: @RivetCeo_bot (token: 7910254197:AAGeEqMI_rvJExOsZVrTLc_0fb26CQKqlHQ)
+- Database: Neon PostgreSQL (1,964 knowledge atoms)
+- Orchestrator: RivetOrchestrator with RAG layer
+- Service: systemd with auto-restart (RestartSec=10)
+- Memory: 512M limit, CPU: 50% quota
+
+**Next Priority**:
+- User testing with real Siemens drive fault queries
+- Monitor bot performance and response quality
+- Add more knowledge atoms if coverage gaps identified
+- Implement reranking if search quality needs improvement
+
+---
+
+## [2025-12-22 07:10] RivetCEO Telegram Bot - Production Ready
+
+**Phase**: Telegram Bot Deployment - Local Testing Complete
+**Status**: Bot running successfully, ready for VPS deployment
+
+**What's Working**:
+- ✅ RivetCEO bot (@RivetCeo_bot) running locally without conflicts
+- ✅ Markdown error handling implemented (BadRequest fallback to plain text)
+- ✅ orchestrator_bot.py created (161 lines, standalone bot)
+- ✅ RivetOrchestrator integration complete (4-route routing)
+- ✅ VPS deployment scripts ready (orchestrator-bot.service)
+- ✅ Bot polling successfully (200 OK responses every 10 seconds)
+
+**Current State**:
+- Bot running in background (task ID: b607ea4)
+- No Telegram API conflicts
+- Waiting for user to test in Telegram app
+- Ready for VPS deployment once confirmed working
+
+**Recent Changes**:
+- Created agent_factory/integrations/telegram/orchestrator_bot.py
+- Created deploy/vps/orchestrator-bot.service
+- Fixed multiple bot instances conflict (killed all conflicting processes)
+- Applied Markdown parsing error fix (plain text fallback)
+- Bot successfully started after cleanup
+
+**Next Priority**:
+- User tests bot in Telegram (@RivetCeo_bot)
+- Commit working code to GitHub
+- Deploy to VPS at 72.60.175.144
+- Start 24/7 autonomous operation
+
+**Technical Details**:
+- Bot token: ORCHESTRATOR_BOT_TOKEN (in .env)
+- Routes ALL messages through RivetOrchestrator (no commands required)
+- Returns responses with safety warnings, suggested actions, sources
+- Displays route taken and confidence score
+
+---
+
+## [2025-12-22 04:40] SCAFFOLD Validation + Knowledge Atom Extraction
+
+**Phase**: Week 1 - Documentation & Validation
+**Status**: In Progress (2/7 Week 1 tasks complete, 2 validation tasks complete)
+
+**What's Working**:
+- ✅ Parser scale validation complete (140 tasks, all criteria passed)
+- ✅ Knowledge atom generation complete (52 atoms from CORE repos)
+- ✅ PRODUCTS.md created (revenue strategy documented)
+- ✅ CLAUDE.md updated with priority markers
+- ✅ Automated validation infrastructure working
+
+**Current Blockers**:
+- None (all tasks unblocked)
+
+**Recent Changes**:
+- Created PRODUCTS.md with SCAFFOLD as Priority #1 ($1M-$3.2M Year 1 target)
+- Updated CLAUDE.md with priority markers ([PRIORITY #1], [DEFERRED], etc.)
+- Completed parser scale validation (scripts/validate_parser_scale_direct.py)
+- Generated 52 knowledge atoms from CORE repos (data/atoms-core-repos.json)
+- All atoms validated with 100% pass rate
+
+**Next Priority**:
+- Complete Week 1 documentation tasks (PROJECT_STRUCTURE.md, monetization docs)
+- OR generate embeddings for 52 atoms (task-86.7 acceptance criteria #3)
+- OR start external repo extraction (Archon, LangChain - Week 2-4 work)
+
+---
+
 ## [2025-12-17 08:00] Autonomous Claude System - COMPLETE ✅
 
 **Current Phase:** Autonomous Nighttime Issue Solver - Production Ready

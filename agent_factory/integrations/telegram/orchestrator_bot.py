@@ -100,7 +100,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             response += "\n\n📚 **Sources:**\n"
 
             # Check if KB atoms were used (cited_documents or Route A/B)
-            has_kb_sources = bool(result.cited_documents) or result.route_taken in [RouteType.A_DIRECT_SME, RouteType.B_SME_ENRICH]
+            has_kb_sources = bool(result.cited_documents) or result.route_taken in [RouteType.ROUTE_A, RouteType.ROUTE_B]
 
             if has_kb_sources:
                 # Show KB atom count and titles
@@ -119,7 +119,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     for link in result.links[:2]:  # Limit to 2
                         response += f"  • {link}\n"
 
-            elif result.route_taken in [RouteType.C_RESEARCH, RouteType.D_CLARIFICATION]:
+            elif result.route_taken in [RouteType.ROUTE_C, RouteType.ROUTE_D]:
                 # LLM-generated (no KB match)
                 response += "AI Generated (no KB match)\n"
                 if result.research_triggered:
