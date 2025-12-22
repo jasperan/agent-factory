@@ -13,6 +13,20 @@ from typing import Dict, Any, List, Optional
 from agent_factory.rivet_pro.models import RivetIntent, VendorType, EquipmentType
 
 
+# Map VendorType enum values to database manufacturer column values
+VENDOR_TO_MANUFACTURER = {
+    VendorType.SIEMENS: "siemens",
+    VendorType.ROCKWELL: "rockwell",
+    VendorType.ABB: "abb",
+    VendorType.MITSUBISHI: "mitsubishi",
+    VendorType.SCHNEIDER: "schneider",
+    VendorType.OMRON: "omron",
+    VendorType.ALLEN_BRADLEY: "allen_bradley",
+    VendorType.GENERIC: None,  # Don't filter by manufacturer for generic queries
+    VendorType.UNKNOWN: None,  # Don't filter if vendor unknown
+}
+
+
 def build_filters(intent: RivetIntent) -> Dict[str, Any]:
     """
     Build Supabase filter dict from RivetIntent.
@@ -39,17 +53,17 @@ def build_filters(intent: RivetIntent) -> Dict[str, Any]:
         ... )
         >>> filters = build_filters(intent)
         >>> filters
-        {'vendor': 'Siemens', 'equipment_type': 'VFD'}
+        {'manufacturer': 'siemens'}
     """
     filters = {}
 
-    # Always filter by vendor (unless unknown)
-    if intent.vendor != VendorType.UNKNOWN:
-        filters["vendor"] = intent.vendor.value
+    # Map vendor to manufacturer column (database uses "manufacturer" not "vendor")
+    manufacturer = VENDOR_TO_MANUFACTURER.get(intent.vendor)
+    if manufacturer:
+        filters["manufacturer"] = manufacturer
 
-    # Always filter by equipment type (unless unknown)
-    if intent.equipment_type != EquipmentType.UNKNOWN:
-        filters["equipment_type"] = intent.equipment_type.value
+    # Note: equipment_type column does not exist in knowledge_atoms table
+    # Equipment type filtering removed until database schema is updated
 
     return filters
 

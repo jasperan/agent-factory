@@ -130,15 +130,13 @@ def search_docs(
         where_clauses = []
         params = []
 
-        # Add vendor filter
-        if "vendor" in filters:
-            where_clauses.append("vendor = %s")
-            params.append(filters["vendor"])
+        # Add manufacturer filter (maps from vendor detection)
+        if "manufacturer" in filters:
+            where_clauses.append("manufacturer = %s")
+            params.append(filters["manufacturer"])
 
-        # Add equipment type filter
-        if "equipment_type" in filters:
-            where_clauses.append("equipment_type = %s")
-            params.append(filters["equipment_type"])
+        # Note: equipment_type column does not exist in knowledge_atoms table
+        # Filtering by equipment type removed until schema is updated
 
         # Add text search (simple keyword matching for now)
         if keywords:
