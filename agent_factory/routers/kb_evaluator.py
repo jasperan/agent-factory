@@ -10,11 +10,25 @@ from agent_factory.schemas.routing import (
     KBCoverage,
     CoverageThresholds,
 )
-from agent_factory.rivet_pro.models import RivetRequest, RivetIntent, EquipmentType
+from agent_factory.rivet_pro.models import (
+    RivetRequest,
+    RivetIntent,
+    EquipmentType,
+    VendorType as RivetVendorType,
+    KBCoverage as RivetKBCoverage,
+)
 
 
 class KBCoverageEvaluator:
     """Evaluates Knowledge Base coverage for queries."""
+
+    # Mapping from routing VendorType to rivet_pro VendorType
+    _VENDOR_MAP = {
+        VendorType.SIEMENS: RivetVendorType.SIEMENS,
+        VendorType.ROCKWELL: RivetVendorType.ROCKWELL,
+        VendorType.GENERIC: RivetVendorType.GENERIC,
+        VendorType.SAFETY: RivetVendorType.UNKNOWN,
+    }
 
     def __init__(self, rag_layer=None):
         """Initialize KB evaluator.
@@ -44,14 +58,18 @@ class KBCoverageEvaluator:
             from agent_factory.rivet_pro.rag.retriever import search_docs, estimate_coverage
             from agent_factory.rivet_pro.rag.config import RAGConfig
 
-            # Create intent from request
+            # Convert routing VendorType to rivet_pro VendorType
+            rivet_vendor = self._VENDOR_MAP.get(vendor, RivetVendorType.UNKNOWN)
+
+            # Create intent from request (kb_coverage determined after search)
             intent = RivetIntent(
-                vendor=vendor,
+                vendor=rivet_vendor,
                 equipment_type=EquipmentType.UNKNOWN,  # Could be parsed from request
                 symptom=request.text or "",
                 raw_summary=request.text or "",
                 context_source="text_only",
-                confidence=0.8
+                confidence=0.8,
+                kb_coverage=RivetKBCoverage.NONE  # Placeholder, updated after search
             )
 
             # Search for relevant KB atoms with DatabaseManager
