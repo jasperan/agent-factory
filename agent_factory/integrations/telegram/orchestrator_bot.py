@@ -101,9 +101,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for link in result.links[:3]:
                     response += f"- {link}\n"
 
-            route = result.route_taken.value if result.route_taken else "unknown"
-            conf = result.confidence or 0
-            response += f"\n\n_Route: {route} | Confidence: {conf:.0%}_"
+            # Debug info now sent to admin only (see _send_admin_debug_message)
 
             # Escape Markdown special characters before sending
             escaped_response = ResponseFormatter.escape_markdown(response)
@@ -123,6 +121,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await update.message.reply_text(response[i:i+4000])
                 else:
                     await update.message.reply_text(response)
+
+            # Send debug trace to admin
+            await _send_admin_debug_message(context, result)
         else:
             await update.message.reply_text("No response. Try rephrasing your question.")
 
@@ -171,6 +172,34 @@ def main():
 
     print("Bot running. Ctrl+C to stop.")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+
+async def _send_admin_debug_message(
+    context: ContextTypes.DEFAULT_TYPE,
+    result
+) -> None:
+    """Send debug trace to admin chat."""
+    admin_chat_id = 8445149012
+
+    # Extract route and confidence
+    route = result.route_taken.value if result.route_taken else "unknown"
+    confidence = result.confidence or 0.0
+
+    # Simple code block format
+    debug_message = f"""```
+TRACE
+Route: {route}
+Confidence: {confidence:.0%}
+```"""
+
+    try:
+        await context.bot.send_message(
+            chat_id=admin_chat_id,
+            text=debug_message,
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Failed to send admin debug message: {e}")
 
 
 if __name__ == "__main__":
