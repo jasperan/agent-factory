@@ -10,7 +10,7 @@ from agent_factory.schemas.routing import (
     KBCoverage,
     CoverageThresholds,
 )
-from agent_factory.rivet_pro.models import RivetRequest
+from agent_factory.rivet_pro.models import RivetRequest, RivetIntent, EquipmentType
 
 
 class KBCoverageEvaluator:
@@ -42,17 +42,25 @@ class KBCoverageEvaluator:
         # Real evaluation using Phase 2 RAG layer
         try:
             from agent_factory.rivet_pro.rag.retriever import search_docs, estimate_coverage
+            from agent_factory.rivet_pro.rag.config import RAGConfig
 
-            # Search for relevant KB atoms
-            docs = search_docs(
-                query=request.text or "",
-                vendor=vendor.value if vendor != VendorType.GENERIC else None,
-                top_k=10
+            # Create intent from request
+            intent = RivetIntent(
+                vendor=vendor,
+                equipment_type=EquipmentType.GENERIC,  # Could be parsed from request
+                symptom=request.text or "",
+                raw_summary=request.text or "",
+                context_source="text_only",
+                confidence=0.8
             )
 
-            # Calculate metrics
+            # Search for relevant KB atoms with DatabaseManager
+            config = RAGConfig(top_k=10)
+            docs = search_docs(intent=intent, config=config, db=self.rag)
+
+            # Calculate metrics from RetrievedDoc objects
             atom_count = len(docs)
-            relevance_scores = [doc.get("score", 0.0) for doc in docs]
+            relevance_scores = [doc.similarity for doc in docs]
             avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.0
 
             # Classify coverage level
