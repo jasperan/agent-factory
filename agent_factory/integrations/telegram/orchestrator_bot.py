@@ -258,7 +258,17 @@ If you cannot read the image clearly, explain why."""
 
             # Step 4: Parse JSON (or use raw text if JSON parsing fails)
             try:
-                equipment_data = json.loads(ocr_result)
+                # Strip markdown code fences if present (GPT-4o sometimes wraps in ```json ... ```)
+                cleaned_ocr = ocr_result.strip()
+                if cleaned_ocr.startswith("```json"):
+                    cleaned_ocr = cleaned_ocr[7:]  # Remove ```json
+                elif cleaned_ocr.startswith("```"):
+                    cleaned_ocr = cleaned_ocr[3:]  # Remove ```
+                if cleaned_ocr.endswith("```"):
+                    cleaned_ocr = cleaned_ocr[:-3]  # Remove trailing ```
+                cleaned_ocr = cleaned_ocr.strip()
+
+                equipment_data = json.loads(cleaned_ocr)
                 manufacturer = equipment_data.get("manufacturer", "").strip()
                 model = equipment_data.get("model_number", "").strip()
                 fault_code = equipment_data.get("fault_code", "").strip()

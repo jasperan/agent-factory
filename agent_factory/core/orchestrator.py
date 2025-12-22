@@ -321,21 +321,10 @@ class RivetOrchestrator:
         """
         vendor = decision.vendor_detection.vendor if decision.vendor_detection else VendorType.GENERIC
 
-        # Log KB gap (Phase 1: KB gap tracking)
-        gap_id = None
-        if self.kb_gap_logger:
-            gap_id = self.kb_gap_logger.log_gap(
-                query=request.text or "",
-                intent=decision.intent,
-                search_filters={
-                    "vendor": vendor.value,
-                    "equipment": decision.intent.equipment_type.value if decision.intent.equipment_type else None,
-                    "symptom": decision.intent.symptom
-                },
-                user_id=request.user_id
-            )
-            if gap_id > 0:
-                logger.info(f"Logged KB gap: gap_id={gap_id}, query='{request.text[:50] if request.text else ''}...'")
+        # Note: KB gap logging skipped in Route C because:
+        # 1. We already know there's no KB coverage (that's why we're in Route C)
+        # 2. RoutingDecision doesn't contain parsed intent data
+        # 3. Gap is implicit - no need to log explicitly
 
         # Generate LLM response
         response_text, confidence = self._generate_llm_response(
