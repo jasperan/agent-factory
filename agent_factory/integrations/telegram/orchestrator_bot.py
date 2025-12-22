@@ -23,7 +23,7 @@ BOT_TOKEN = os.getenv("ORCHESTRATOR_BOT_TOKEN")
 
 # Import orchestrator
 from agent_factory.core.orchestrator import RivetOrchestrator
-from agent_factory.rivet_pro.models import create_text_request, ChannelType
+from agent_factory.rivet_pro.models import create_text_request, ChannelType, RouteType
 from agent_factory.integrations.telegram.formatters import ResponseFormatter
 
 orchestrator = None
@@ -96,10 +96,46 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for i, action in enumerate(result.suggested_actions, 1):
                     response += f"{i}. {action}\n"
 
-            if result.links:
-                response += "\n\n**Sources:**\n"
-                for link in result.links[:3]:
-                    response += f"- {link}\n"
+            # Build sources section
+            response += "\n\n📚 **Sources:**\n"
+
+            # Check if KB atoms were used (cited_documents or Route A/B)
+            has_kb_sources = bool(result.cited_documents) or result.route_taken in [RouteType.A_DIRECT_SME, RouteType.B_SME_ENRICH]
+
+            if has_kb_sources:
+                # Show KB atom count and titles
+                if result.cited_documents:
+                    kb_count = len(result.cited_documents)
+                    response += f"Knowledge Base ({kb_count} matches):\n"
+                    for doc in result.cited_documents[:3]:  # Top 3 atoms
+                        title = doc.get("title", "Document")
+                        response += f"  • {title}\n"
+                else:
+                    response += "Knowledge Base (match found)\n"
+
+                # Also show manual links if available
+                if result.links:
+                    response += "Referenced Manuals:\n"
+                    for link in result.links[:2]:  # Limit to 2
+                        response += f"  • {link}\n"
+
+            elif result.route_taken in [RouteType.C_RESEARCH, RouteType.D_CLARIFICATION]:
+                # LLM-generated (no KB match)
+                response += "AI Generated (no KB match)\n"
+                if result.research_triggered:
+                    response += "  • Research pipeline used\n"
+            else:
+                # Fallback: show what we have
+                if result.links:
+                    for link in result.links[:3]:
+                        response += f"  • {link}\n"
+                else:
+                    response += "AI Generated\n"
+
+            # Add route and confidence for transparency
+            route = result.route_taken.value if result.route_taken else "unknown"
+            conf = result.confidence or 0
+            response += f"\n\n_Route: {route} | Confidence: {conf:.0%}_"
 
             # Debug info now sent to admin only (see _send_admin_debug_message)
 
@@ -123,7 +159,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await update.message.reply_text(response)
 
             # Send debug trace to admin
-            await _send_admin_debug_message(context, result)
+            await _send_admin_debug_message(context, user_id, query, result)
         else:
             await update.message.reply_text("No response. Try rephrasing your question.")
 
@@ -176,30 +212,52 @@ def main():
 
 async def _send_admin_debug_message(
     context: ContextTypes.DEFAULT_TYPE,
+    user_id: int,
+    query: str,
     result
 ) -> None:
-    """Send debug trace to admin chat."""
-    admin_chat_id = 8445149012
+    """Send debug trace to admin chat ID."""
+    admin_chat_id = os.getenv("TELEGRAM_ADMIN_CHAT_ID")
 
-    # Extract route and confidence
-    route = result.route_taken.value if result.route_taken else "unknown"
-    confidence = result.confidence or 0.0
-
-    # Simple code block format
-    debug_message = f"""```
-TRACE
-Route: {route}
-Confidence: {confidence:.0%}
-```"""
+    if not admin_chat_id:
+        return  # Admin notifications disabled
 
     try:
+        # Build trace message
+        route = result.route_taken.value if result.route_taken else "unknown"
+        agent = result.agent_id.value if hasattr(result, 'agent_id') and result.agent_id else "unknown"
+        conf = result.confidence or 0.0
+
+        # Extract KB info
+        kb_count = len(result.cited_documents) if result.cited_documents else 0
+        kb_coverage = result.trace.get('kb_coverage', 'unknown') if result.trace else 'unknown'
+        vendor = result.trace.get('vendor', 'unknown') if result.trace else 'unknown'
+
+        # Build trace text
+        trace_text = (
+            f"```\n"
+            f"TRACE\n"
+            f"Route: {route}\n"
+            f"Agent: {agent}\n"
+            f"Confidence: {conf:.0%}\n"
+            f"KB Coverage: {kb_coverage}\n"
+            f"KB Atoms: {kb_count}\n"
+            f"Vendor: {vendor}\n"
+            f"User: {user_id}\n"
+            f"Query: {query[:100]}{'...' if len(query) > 100 else ''}\n"
+            f"```"
+        )
+
+        # Send to admin
         await context.bot.send_message(
             chat_id=admin_chat_id,
-            text=debug_message,
+            text=trace_text,
             parse_mode="Markdown"
         )
+
     except Exception as e:
-        logger.error(f"Failed to send admin debug message: {e}")
+        logger.error(f"Failed to send admin trace: {e}")
+        # Don't let admin notification failures break user experience
 
 
 if __name__ == "__main__":
