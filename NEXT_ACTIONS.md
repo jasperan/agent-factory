@@ -6,12 +6,42 @@ Priority-ordered tasks for Agent Factory.
 
 ## CRITICAL
 
-### TELEGRAM BOT - TWO-MESSAGE PATTERN DEPLOYMENT (IMMEDIATE)
+### KB GAP RESEARCH PIPELINE - PHASE 1 TESTING (IMMEDIATE - 15 min)
+- [x] Phase 1: KB Gap Logging Implementation ✓ (COMPLETE - deployed to VPS 2025-12-22 23:16)
+  - [x] Created kb_gaps table on Neon database ✓
+  - [x] Implemented KBGapLogger class (200 lines) ✓
+  - [x] Integrated logging into Route C orchestrator ✓
+  - [x] Deployed to VPS and verified ✓
+  - [x] Created test guide: docs/testing/PHASE1_KB_GAP_TEST.md ✓
+- [ ] Phase 1: Test KB gap logging - **NEXT (User task - 15 min)**
+  - [ ] Send "Siemens G120 F0003 fault" query to @RivetCeo_bot
+  - [ ] Verify gap logged: Check database with provided command
+  - [ ] Repeat query → verify frequency increments from 1 to 2
+  - [ ] Send different query → verify creates new gap (ID 2)
+  - [ ] Check statistics → verify aggregates correct
+  - [ ] **Test Guide:** See `docs/testing/PHASE1_KB_GAP_TEST.md` for detailed steps
+- [ ] Phase 2: Auto-Trigger Research Pipeline (2-3 hours)
+  - [ ] Update orchestrator.py:297-333 (_route_c_no_kb) to call ResearchPipeline.run()
+  - [ ] Update research_pipeline.py:53 to accept gap_id parameter
+  - [ ] Update ingestion_chain.py (Stage 7) to mark gaps resolved after atoms created
+  - [ ] Add research_status field to RivetResponse model
+  - [ ] Deploy and test full loop: Route C → Research → Ingestion → Resolution
+- [ ] Phase 3: Re-Query After Ingestion (future enhancement - TBD)
+  - [ ] Design approach: notify user, auto re-query, or proactive re-response
+  - [ ] Implementation based on user preference
+
+**Integration Plan:** `C:\Users\hharp\.claude\plans\federated-sniffing-meteor.md`
+**Deployment Status:**
+- Bot: orchestrator-bot.service active (VPS 72.60.175.144)
+- Database: kb_gaps table created, count=0 (ready for testing)
+- Logger: Initialized successfully (logs show "KB gap logger initialized")
+
+### TELEGRAM BOT - TWO-MESSAGE PATTERN DEPLOYMENT
 - [x] Implement two-message pattern (clean user + admin debug) ✓
 - [x] Remove route/confidence footer from user messages ✓
 - [x] Add _send_admin_debug_message() helper function ✓
-- [ ] Push changes to GitHub - NEXT
-- [ ] Deploy to VPS: `ssh vps "cd /root/Agent-Factory && git pull origin main && systemctl restart orchestrator-bot"`
+- [x] Push changes to GitHub ✓
+- [x] Deploy to VPS ✓
 - [ ] Test admin debug messages (send query, verify admin chat 8445149012 receives trace)
 - [ ] Verify clean user messages (no route/confidence footer)
 
