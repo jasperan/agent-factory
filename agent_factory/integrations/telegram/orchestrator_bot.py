@@ -12,7 +12,7 @@ import json
 import time
 from pathlib import Path
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from telegram.error import BadRequest
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
@@ -34,6 +34,7 @@ from agent_factory.core.orchestrator import RivetOrchestrator
 from agent_factory.core.trace_logger import RequestTrace
 from agent_factory.rivet_pro.models import create_text_request, ChannelType, RouteType
 from agent_factory.integrations.telegram.formatters import ResponseFormatter
+from agent_factory.integrations.telegram import library
 
 orchestrator = None
 openai_client = None
@@ -191,6 +192,104 @@ async def send_admin_error(context: ContextTypes.DEFAULT_TYPE, trace: RequestTra
         pass
 
 
+async def _handle_machine_troubleshooting(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    machine: dict,
+    user_query: str
+):
+    """
+    Handle troubleshooting query with machine context enrichment.
+
+    When a user is in troubleshooting mode for a specific machine, their queries
+    are enriched with machine metadata before being sent to the orchestrator.
+    """
+    global orchestrator
+    from agent_factory.integrations.telegram.library_db import MachineLibraryDB
+
+    user_id = str(update.effective_user.id)
+
+    # Check for /done exit command
+    if user_query.lower().strip() == "/done":
+        context.user_data.pop('active_machine', None)
+        await update.message.reply_text(
+            "✅ **Exited troubleshooting mode**\n\n"
+            "Use /library to return to your machines.",
+            parse_mode="Markdown"
+        )
+        return
+
+    # Enrich query with machine context
+    enriched_query = f"""Equipment Information:
+Manufacturer: {machine.get('manufacturer') or 'Not specified'}
+Model Number: {machine.get('model_number') or 'Not specified'}
+Serial Number: {machine.get('serial_number') or 'Not specified'}
+Location: {machine.get('location') or 'Not specified'}
+Notes: {machine.get('notes') or 'None'}
+
+User Issue: {user_query}"""
+
+    # Update last_queried timestamp
+    db = MachineLibraryDB()
+    try:
+        db.update_machine_last_queried(machine['id'])
+    except Exception as e:
+        logger.warning(f"Failed to update last_queried: {e}")
+
+    if not orchestrator:
+        await update.message.reply_text("Orchestrator offline. Try /status")
+        return
+
+    await update.message.chat.send_action("typing")
+
+    try:
+        # Send enriched query to orchestrator
+        request = create_text_request(
+            user_id=f"telegram_{user_id}",
+            text=enriched_query,
+            channel=ChannelType.TELEGRAM
+        )
+
+        result = await orchestrator.route_query(request)
+
+        # Log to machine history
+        try:
+            route_taken = result.route_taken.value if result.route_taken else "unknown"
+            db.add_query_history(
+                machine_id=machine['id'],
+                query_text=user_query,
+                response_summary=result.text[:500] if result.text else "",
+                route_taken=route_taken,
+                atoms_used=[doc.get('id', '') for doc in (result.cited_documents or [])]
+            )
+        except Exception as e:
+            logger.warning(f"Failed to log query history: {e}")
+
+        # Format and send response
+        if result and result.route_taken:
+            formatted_text = await format_user_response(result, None)
+
+            # Add machine context header
+            header = f"🔧 **{machine['nickname']}** | Route {result.route_taken.value}\n\n"
+
+            await update.message.reply_text(
+                header + formatted_text,
+                parse_mode="Markdown"
+            )
+
+            logger.info(f"[{user_id}] Machine troubleshooting: {machine['nickname']} | Route {result.route_taken.value}")
+        else:
+            await update.message.reply_text("No response from orchestrator.")
+
+    except Exception as e:
+        logger.error(f"Error in machine troubleshooting: {e}", exc_info=True)
+        await update.message.reply_text(
+            f"Error processing query: {str(e)[:100]}\n\n"
+            "Type /done to exit troubleshooting mode.",
+            parse_mode="Markdown"
+        )
+
+
 @traceable(run_type="chain", project_name="rivet-ceo-bot", metadata={"component": "telegram_bot", "handler": "text"})
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Main text message handler - PARENT TRACE"""
@@ -200,6 +299,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text.strip()
 
     if not query:
+        return
+
+    # CHECK FOR ACTIVE MACHINE CONTEXT (Machine Library troubleshooting mode)
+    active_machine = context.user_data.get('active_machine')
+    if active_machine:
+        await _handle_machine_troubleshooting(update, context, active_machine, query)
         return
 
     # Start RequestTrace (existing system - runs in parallel with LangSmith)
@@ -584,6 +689,12 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("status", status))
+
+    # Machine Library - Personal equipment library for technicians
+    app.add_handler(CommandHandler("library", library.library_command))
+    app.add_handler(library.add_machine_handler)  # ConversationHandler for add flow
+    app.add_handler(CallbackQueryHandler(library.library_callback_router, pattern="^lib_"))
+
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))  # Photo handler (BEFORE text)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
