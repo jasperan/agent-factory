@@ -78,7 +78,7 @@ class KBCoverageEvaluator:
 
             # Calculate metrics from RetrievedDoc objects
             atom_count = len(docs)
-            relevance_scores = [doc.similarity for doc in docs]
+            relevance_scores = [float(doc.similarity) for doc in docs]
             avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.0
 
             # Classify coverage level
