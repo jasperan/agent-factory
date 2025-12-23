@@ -163,8 +163,7 @@ def search_docs(
                 summary,
                 content,
                 atom_type,
-                vendor,
-                equipment_type,
+                manufacturer,
                 source_document as source,
                 page_number,
                 created_at,
@@ -191,12 +190,12 @@ def search_docs(
                 summary=row[2],
                 content=row[3],
                 atom_type=row[4],
-                vendor=row[5],
-                equipment_type=row[6],
-                source=row[7],
-                page_number=row[8],
-                created_at=row[9],
-                similarity=row[10]
+                vendor=row[5],  # manufacturer from DB
+                equipment_type="unknown",  # Column doesn't exist in schema yet
+                source=row[6],
+                page_number=row[7],
+                created_at=row[8],
+                similarity=row[9]
             )
             docs.append(doc)
 
