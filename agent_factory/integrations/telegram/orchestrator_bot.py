@@ -240,6 +240,15 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
+    # Start trace
+    trace = RequestTrace(
+        message_type="photo",
+        user_id=str(user_id),
+        username=update.effective_user.username,
+        content=f"photo:{update.message.photo[-1].file_id[:20]}"
+    )
+    trace.event("PHOTO_RECEIVED")
+
     # Check if OpenAI Vision available
     if not openai_client:
         await update.message.reply_text(
@@ -255,6 +264,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"[{user_id}] Photo received")
 
     await update.message.chat.send_action("typing")
+
+    manufacturer = None
+    model = None
+    fault_code = None
 
     try:
         # Step 1: Download photo (highest resolution)
@@ -273,6 +286,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 image_data = base64.b64encode(image_file.read()).decode("utf-8")
 
             # Step 3: Send to GPT-4o Vision
+            ocr_start = time.time()
             vision_response = await openai_client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
@@ -304,6 +318,7 @@ If you cannot read the image clearly, explain why."""
             )
 
             ocr_result = vision_response.choices[0].message.content
+            trace.timing("ocr", int((time.time() - ocr_start) * 1000))
             logger.info(f"[{user_id}] OCR result: {ocr_result[:200]}")
 
             # Step 4: Parse JSON (or use raw text if JSON parsing fails)
@@ -357,6 +372,7 @@ If you cannot read the image clearly, explain why."""
                 fault_code = ""
 
             logger.info(f"[{user_id}] Search query: {search_query}")
+            trace.event("OCR_COMPLETE", manufacturer=manufacturer, model=model, fault_code=fault_code)
 
             # Step 5: Feed into orchestrator
             request = create_text_request(
@@ -365,7 +381,12 @@ If you cannot read the image clearly, explain why."""
                 channel=ChannelType.TELEGRAM
             )
 
+            route_start = time.time()
             result = await orchestrator.route_query(request)
+            trace.timing("routing", int((time.time() - route_start) * 1000))
+
+            if result and result.route_taken:
+                trace.event("ROUTE_DECISION", route=result.route_taken.value, confidence=result.confidence)
 
             # Step 6: Build response (same format as text handler)
             if result and result.text:
@@ -432,6 +453,9 @@ If you cannot read the image clearly, explain why."""
                             await update.message.reply_text(escaped_response[i:i+4000], parse_mode="Markdown")
                     else:
                         await update.message.reply_text(escaped_response, parse_mode="Markdown")
+
+                    trace.event("RESPONSE_SENT", length=len(response))
+
                 except BadRequest as parse_error:
                     logger.warning(f"Markdown parse error, sending as plain text: {parse_error}")
                     if len(response) > 4000:
@@ -440,17 +464,25 @@ If you cannot read the image clearly, explain why."""
                     else:
                         await update.message.reply_text(response)
 
-                # Send admin debug trace
-                await _send_admin_debug_message_photo(
-                    context=context,
-                    user_id=user_id,
-                    ocr_result=ocr_result,
-                    search_query=search_query,
-                    manufacturer=manufacturer,
-                    model=model,
-                    fault_code=fault_code,
-                    result=result
+                    trace.event("RESPONSE_SENT", length=len(response))
+
+                # Send trace to admin (Message 2)
+                admin_message = trace.format_admin_message(
+                    route=result.route_taken.value if result.route_taken else "unknown",
+                    confidence=result.confidence or 0.0,
+                    kb_atoms=len(result.cited_documents) if result.cited_documents else 0,
+                    llm_model=result.trace.get("llm_model") if result.trace else None,
+                    ocr_result={"manufacturer": manufacturer, "model": model, "fault_code": fault_code},
+                    kb_coverage="high" if result.confidence and result.confidence > 0.8 else "low"
                 )
+                try:
+                    await context.bot.send_message(
+                        chat_id=8445149012,  # Admin chat ID
+                        text=admin_message,
+                        parse_mode="Markdown"
+                    )
+                except Exception as admin_error:
+                    logger.warning(f"Failed to send admin trace: {admin_error}")
 
             else:
                 await update.message.reply_text("No response. Photo may not contain readable equipment nameplate.")
@@ -465,6 +497,21 @@ If you cannot read the image clearly, explain why."""
 
     except Exception as e:
         logger.error(f"Error handling photo: {e}", exc_info=True)
+        trace.error(type(e).__name__, str(e), "handle_photo")
+
+        # Send error trace to admin
+        error_message = trace.format_admin_message(
+            route="ERROR",
+            confidence=0,
+            kb_atoms=0,
+            ocr_result={"manufacturer": manufacturer or "N/A", "model": model or "N/A", "fault_code": fault_code or "N/A"},
+            error=str(e)[:200]
+        )
+        try:
+            await context.bot.send_message(chat_id=8445149012, text=error_message)
+        except:
+            pass
+
         await update.message.reply_text(f"Error processing photo: {str(e)[:200]}")
 
 
