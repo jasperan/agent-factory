@@ -1,29 +1,63 @@
-# Next Actions (2025-12-22)
+# Next Actions (2025-12-24)
+
+## CRITICAL
+
+**Deploy Performance Fixes to VPS** (HIGH PRIORITY)
+- Two major fixes merged to main, ready for deployment
+- Fix #1: Route C latency (36s → <5s)
+- Fix #2: KB population (0 → 21 atoms, dynamic count)
+- Deployment command: `ssh vps "cd /root/Agent-Factory && git pull && systemctl restart orchestrator-bot"`
+- Expected impact: 85% latency reduction for Route C queries
 
 ## Immediate Next Step
 
-**Test Phase 1 KB Search Fix**
-- Send photo of equipment nameplate via Telegram
-- Verify KB search returns > 0 atoms
-- Check if Route A/B responses now work (instead of always Route C)
+**Option 1: Deploy Merged Fixes** (RECOMMENDED)
+- Deploy Fix #1 + #2 to VPS
+- Test Route C latency with real queries
+- Verify dynamic atom count displays correctly
+- Monitor performance with timing instrumentation logs
 
-**If test succeeds → Phase 2: Expand Vendor Detection**
-**If test fails → Debug why manufacturer filter isn't finding atoms**
+**Option 2: Complete Fix #3 (OCR Wiring)**
+- Finish remaining 4 tasks in `fix/ocr-metadata-wiring` worktree
+- Then deploy all 3 fixes together
+- Estimate: 2-3 hours additional work
 
 ## Blocked By
 
-**None** - Phase 1 is complete and deployed
+**None** - All fixes complete and merged to main
 
 ## In Progress
 
-**Phase 1: KB Search Fix** ✅ COMPLETE
-- Changed retriever to use `manufacturer` column
-- Deployed to production VPS
-- Bot running with 1,964 atoms loaded
+**Fix #3 & #4: OCR Metadata Wiring** (worktree: `fix/ocr-metadata-wiring`)
+- Status: Worktree created, not yet started
+- Remaining tasks:
+  1. Update `create_text_request()` to accept OCR results parameter
+  2. Wire OCR through photo handler (pass to request)
+  3. Parse equipment from OCR in orchestrator (use metadata not regex)
+  4. Update gap detector to prefer OCR over text extraction
+
+**Files:**
+- `agent_factory/rivet_pro/models.py` - Add ocr_results parameter
+- `agent_factory/integrations/telegram/orchestrator_bot.py` - Pass OCR to request
+- `agent_factory/core/orchestrator.py` - Parse OCR metadata for intent
+- `agent_factory/core/gap_detector.py` - Prefer OCR equipment over regex
+
+**Estimate:** 2-3 hours
 
 ## Backlog (Prioritized)
 
-### 1. Phase 2: Expand Vendor Detection (HIGH)
+### 1. Clean Up Git Worktrees (MEDIUM)
+**Why:** 3 worktrees active, 2 merged to main
+
+**Tasks:**
+1. Remove latency fix worktree: `git worktree remove ../agent-factory-latency-fix`
+2. Remove KB fix worktree: `git worktree remove ../agent-factory-kb-fix`
+3. Keep OCR fix worktree active for Fix #3
+4. Push main branch to GitHub: `git push origin main`
+
+**Estimate:** 5 minutes
+
+### 2. Phase 2: Expand Vendor Detection (HIGH)
 **Why:** Only 4 vendors recognized, missing 10+ major manufacturers
 
 **Tasks:**
@@ -39,7 +73,19 @@
 
 **Estimate:** 2-3 hours
 
-### 2. Phase 3: Integrate Research Pipeline (MEDIUM)
+### 3. Performance Monitoring & Validation (MEDIUM)
+**Why:** Verify latency improvements in production
+
+**Tasks:**
+1. Run performance tests: `poetry run pytest tests/test_route_c_performance.py -v`
+2. Monitor VPS logs for timing markers: `ssh vps "journalctl -u orchestrator-bot -f | grep PERF"`
+3. Test LLM cache hit rate with repeated queries
+4. Validate parallel execution actually reduces latency
+5. Check gap logging doesn't block user responses
+
+**Estimate:** 1-2 hours
+
+### 4. Phase 3: Integrate Research Pipeline (MEDIUM)
 **Why:** Routes C/D fallback to single LLM, no actual research happens
 
 **Tasks:**
@@ -54,33 +100,16 @@
 
 **Estimate:** 4-6 hours
 
-### 3. Test Semantic Search with pgvector (LOW)
-**Why:** Keyword matching may miss relevant atoms
-
-**Tasks:**
-1. Verify embeddings exist in knowledge_atoms table
-2. Enable pgvector cosine similarity in retriever.py
-3. Test hybrid search (keywords + semantic)
-
-**Estimate:** 2-3 hours
-
-### 4. Replace Mock SME Agents (FUTURE)
-**Why:** All agents are mocks, no vendor-specific logic
-
-**Tasks:**
-1. Implement SiemensAgent with Siemens fault code database
-2. Implement RockwellAgent with Allen-Bradley patterns
-3. etc. for each vendor
-
-**Estimate:** 1-2 weeks
-
 ## Decisions Needed
 
-**None** - Clear path forward with Phases 2 and 3
+**Deployment Strategy**
+- Deploy now (Fix #1 + #2) or wait for Fix #3 (OCR wiring)?
+- User preference needed
 
 ## Notes
 
-- Phase 1 deployed without database migration (used existing `manufacturer` column)
-- Backward compatible (GENERIC vendor still works)
-- No breaking changes to API response format
-- Research is async (won't block user responses)
+- All performance optimizations use async/await patterns
+- LLM cache saves ~$0.002 per cached query
+- Fire-and-forget pattern prevents blocking user responses
+- Performance tests validate <5s latency target
+- Git worktree pattern successful for parallel development
