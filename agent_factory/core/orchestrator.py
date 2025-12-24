@@ -120,8 +120,8 @@ class RivetOrchestrator:
         # Step 1: Detect vendor from query
         vendor_detection = self.vendor_detector.detect(request.text or "")
 
-        # Step 2: Evaluate KB coverage for detected vendor
-        kb_coverage = self.kb_evaluator.evaluate(request, vendor_detection.vendor)
+        # Step 2: Evaluate KB coverage for detected vendor (async to avoid blocking)
+        kb_coverage = await self.kb_evaluator.evaluate_async(request, vendor_detection.vendor)
 
         # Step 3: Make routing decision based on coverage
         routing_decision = self._make_routing_decision(

@@ -3,6 +3,7 @@
 Evaluates Knowledge Base coverage level (strong/thin/none/unclear) using Phase 2 RAG layer.
 """
 
+import asyncio
 from typing import Optional
 from agent_factory.schemas.routing import (
     VendorType,
@@ -37,6 +38,25 @@ class KBCoverageEvaluator:
             rag_layer: Phase 2 RAG layer retriever (optional for testing)
         """
         self.rag = rag_layer
+
+    async def evaluate_async(self, request: RivetRequest, vendor: VendorType) -> KBCoverage:
+        """Evaluate KB coverage asynchronously (runs search in thread pool).
+
+        Args:
+            request: User query request
+            vendor: Detected vendor type
+
+        Returns:
+            KBCoverage with level, metrics, and confidence
+        """
+        # Run synchronous evaluate() in thread pool to avoid blocking event loop
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            None,  # Use default ThreadPoolExecutor
+            self.evaluate,
+            request,
+            vendor
+        )
 
     def evaluate(self, request: RivetRequest, vendor: VendorType) -> KBCoverage:
         """Evaluate KB coverage for a query.
