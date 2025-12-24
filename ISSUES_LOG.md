@@ -4,6 +4,233 @@ Known issues, bugs, and blockers.
 
 ---
 
+## [2025-12-23 22:00] STATUS: [RESOLVED] - Route C always shows 54% confidence
+
+**Problem:**
+All Route C queries showed exactly 54% confidence regardless of content.
+
+**Root Cause:**
+- Missing GROQ_API_KEY in VPS .env file
+- LLMRouter attempted Groq → failed with 401 Unauthorized
+- Fell back to OpenAI GPT-3.5-turbo
+- Confidence calculation: 0.6 (OpenAI base) × 0.9 (fallback penalty) = 0.54
+
+**Impact:**
+- **Severity:** LOW (functional but misleading)
+- Route C still worked (OpenAI fallback successful)
+- User responses correct, but confidence misleading
+- Higher LLM costs (~$0.002/query vs free Groq)
+- Logs showed 401 errors from Groq API
+
+**Fix Applied:**
+1. Found GROQ_API_KEY in local .env: `gsk_***` (redacted)
+2. Added to VPS .env: `echo 'GROQ_API_KEY=...' >> /root/Agent-Factory/.env`
+3. Restarted bot service: `systemctl restart orchestrator-bot.service`
+4. Verified initialization successful
+
+**Verification:**
+- Test query: "AS-i troubleshooting"
+- Route: C (no KB coverage) ✅
+- Confidence: 50% (Groq base, no fallback penalty) ✅
+- Groq logs: No 401 errors ✅
+- Response quality: Good ✅
+
+**Status:** RESOLVED (2025-12-23 22:00)
+
+---
+
+## [2025-12-23 22:00] STATUS: [RESOLVED] - Decimal type error in kb_evaluator.py
+
+**Problem:**
+TypeError when calculating KB coverage confidence: `unsupported operand type(s) for *: 'decimal.Decimal' and 'float'`
+
+**Trigger:**
+Query: "How to troubleshoot the Siemens PLC"
+
+**Root Cause:**
+- PostgreSQL returns NUMERIC columns as Python `Decimal` objects
+- Line 81: `relevance_scores = [doc.similarity for doc in docs]` returned list of Decimals
+- Line 82: Sum/division kept Decimal type for avg_relevance
+- Line 154: `avg_relevance * 0.3` attempted Decimal × float → TypeError
+- Python Decimal doesn't support mixed-type arithmetic
+
+**Impact:**
+- **Severity:** CRITICAL (crashes all KB coverage evaluations)
+- All queries with KB search crashed (Routes A, B, C with any atoms)
+- Bot returned ERROR response to user
+- Confidence calculation impossible
+- Affected ALL vendor queries that found atoms
+
+**Fix Applied:**
+Line 81 changed to:
+```python
+relevance_scores = [float(doc.similarity) for doc in docs]
+```
+
+**Deployment:**
+- Committed: cee50ff "fix: Convert Decimal similarity to float in kb_evaluator"
+- Pushed to GitHub
+- Pulled on VPS: `git pull`
+- Discovered ORCHESTRATOR_BOT_TOKEN and GROQ_API_KEY also missing
+- Re-added both tokens to VPS .env
+- Restarted service successfully
+
+**Verification:**
+- Test query: "How to troubleshoot the Siemens PLC"
+- No TypeError ✅
+- Confidence calculated correctly ✅
+- Route selected appropriately ✅
+
+**Status:** RESOLVED (2025-12-23 22:00)
+
+---
+
+## [2025-12-23 22:00] STATUS: [KNOWN ISSUE] - Limited VFD KB coverage (4 atoms, config-only)
+
+**Problem:**
+Query "Diagnose VFD overheating" hits Route C (no KB coverage) instead of Route A/B.
+
+**Root Cause:**
+- Database has 1,964 total atoms
+- Only 4 VFD-related atoms found
+- All 4 atoms about VFD configuration/setup (parameter settings, commissioning)
+- None about troubleshooting, faults, or diagnostics
+- Similarity scores for those 4 atoms all <0.55 (below threshold)
+
+**Impact:**
+- **Severity:** MEDIUM (expected behavior, not a bug)
+- VFD troubleshooting queries hit Route C (Groq LLM fallback)
+- Responses still helpful (Groq generates good generic advice)
+- Missing opportunity to use KB-backed SME agents
+- Users don't get manufacturer-specific troubleshooting steps
+
+**Analysis:**
+- This is EXPECTED behavior, not a bug
+- KB genuinely lacks VFD troubleshooting content
+- Route C fallback working correctly
+- Similarity threshold (0.55) appropriate - atoms were about config, not troubleshooting
+
+**Fix Required:**
+- Ingest VFD troubleshooting manuals (Siemens, Rockwell, ABB)
+- Target content: fault codes, overheating causes, diagnostic procedures
+- Estimated: 50-100 new atoms needed for VFD troubleshooting coverage
+
+**Workaround:**
+Route C Groq fallback provides reasonable generic answers until KB coverage improves.
+
+**Status:** KNOWN ISSUE - KB enrichment task
+
+---
+
+## [2025-12-23 22:00] STATUS: [PENDING] - Phase 3 SME agents untested for Route A/B
+
+**Problem:**
+Phase 3 agents deployed but never validated working because all test queries hit Route C (no KB coverage).
+
+**Root Cause:**
+- Test queries: "Diagnose VFD overheating", "AS-i troubleshooting", etc.
+- All hit Route C due to no KB coverage or low similarity
+- Route A/B require KB atoms with similarity ≥0.55
+- Haven't sent query with strong KB coverage yet
+
+**Impact:**
+- **Severity:** MEDIUM (deployment risk)
+- Unknown if real agents generate responses correctly
+- Unknown if [MOCK] prefix removed
+- Unknown if KB citations working
+- Unknown if vendor-specific agents selected properly
+
+**Validation Needed:**
+1. Send query with KB coverage: "What is a PLC?" or "Explain Siemens S7-1200"
+2. Verify Route A or B selected (not C)
+3. Verify response contains NO [MOCK] prefix
+4. Verify response includes real technical content
+5. Verify KB citations present ([Source 1], [Source 2], etc.)
+6. Verify confidence 0.80-0.95 (Route A) or 0.70-0.85 (Route B)
+
+**Expected Behavior:**
+- Route A/B triggered
+- GenericAgent or vendor-specific agent selected
+- LLM generates response using KB atoms as context
+- Citations to KB sources included
+- Professional technical content with proper terminology
+
+**Status:** PENDING - awaiting test query with KB coverage
+
+---
+
+## [2025-12-23 00:20] STATUS: [FIXED] - Photo handler crashes with "column vendor does not exist"
+
+**Problem:**
+Photo OCR worked (extracted manufacturer/model/fault), but KB search crashed with SQL error: "column vendor does not exist".
+
+**Root Cause:**
+- `agent_factory/rivet_pro/rag/retriever.py` lines 166-167
+- SELECT statement used `vendor` and `equipment_type` columns
+- Database schema has `manufacturer` (not `vendor`) and no `equipment_type` column
+- Schema evolved over time, code didn't update
+- Silent failure: no admin notification, generic error to user
+
+**Impact:**
+- **Severity:** HIGH (photo handler completely broken)
+- All photo messages failed after OCR extraction
+- User saw: "Error processing photo: column vendor does not exist"
+- No visibility into production failures (no tracing)
+- KB gap logging also affected (depends on retriever)
+
+**Fix Applied:**
+1. Updated SELECT: `vendor` → `manufacturer` (line 166)
+2. Removed `equipment_type` from SELECT (line 167)
+3. Updated tuple unpacking to match new column count (line 193)
+4. Hardcoded `equipment_type="unknown"` in RetrievedDoc construction (line 194)
+
+**Prevention Measures:**
+1. Created `scripts/validate_schema.py` - runs before deploy, exits 1 on mismatch
+2. Added RequestTrace class - logs all requests to JSONL + admin messages
+3. Updated SYSTEM_MANIFEST.md - pre-deployment validation checklist
+4. Production tracing - all failures now send admin notification (chat ID 8445149012)
+
+**Deployment:**
+- Deployed to VPS: 2025-12-23 00:19 UTC
+- Service restarted successfully
+- Trace logs initialized: `/root/Agent-Factory/logs/traces.jsonl`
+- No errors in journalctl logs
+
+**Status:** FIXED - deployed to production
+
+---
+
+## [2025-12-23 14:45] STATUS: [FIXED] - Schema mismatch: page_number vs source_pages
+
+**Problem:**
+Schema validation script found mismatch: retriever.py uses `page_number`, database has `source_pages`.
+
+**Root Cause:**
+- Same as photo handler bug: schema drift over time
+- retriever.py wasn't using `source_pages` column (TEXT[] array)
+- Database schema: `source_pages TEXT[]` column exists
+- RetrievedDoc.page_number always None
+- Affects source citation accuracy
+
+**Impact:**
+- **Severity:** MEDIUM (query worked, but column unused)
+- page_number returned NULL for all rows
+- RetrievedDoc.page_number always None
+- No visible errors (SQL query didn't fail)
+- Citations lacked page numbers
+
+**Fix Applied:**
+1. Added `source_pages` to SELECT query (line 168)
+2. Extract first page number from array: `source_pages[0] if source_pages and len(source_pages) > 0 else None`
+3. Updated tuple unpacking to use correct row indices (lines 186-204)
+4. Schema validation passes: `poetry run python scripts/validate_schema.py`
+
+**Commit:** a021a2f - "fix: Use source_pages column for citation accuracy in retriever"
+
+**Status:** FIXED - Citations now include page numbers when available
+
+---
+
 ## [2025-12-22 19:30] STATUS: [OPEN] - GitHub Actions deploy workflow deploys outdated bot
 
 **Problem:**
