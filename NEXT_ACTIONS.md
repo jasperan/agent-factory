@@ -1,48 +1,30 @@
 # Next Actions (2025-12-24)
 
-## CRITICAL
+## Recently Completed
 
-**Deploy Performance Fixes to VPS** (HIGH PRIORITY)
-- Two major fixes merged to main, ready for deployment
-- Fix #1: Route C latency (36s → <5s)
-- Fix #2: KB population (0 → 21 atoms, dynamic count)
-- Deployment command: `ssh vps "cd /root/Agent-Factory && git pull && systemctl restart orchestrator-bot"`
-- Expected impact: 85% latency reduction for Route C queries
+**✅ OCR Enhancement Project - All 5 Phases Deployed** (Commit: 80f4be2)
+- Phase 1: Dual OCR providers (GPT-4o primary, Gemini fallback)
+- Phase 2: KB model number filtering for precision matching
+- Phase 3: Auto-fill library from OCR (with "Save to Library" button)
+- Phase 4: Quality validation, normalization, confidence scoring
+- Phase 5: LangSmith tracing integration
+- **Status**: Deployed to VPS, bot running successfully
+- **Next**: User testing with photo upload to verify button appears
 
 ## Immediate Next Step
 
-**Option 1: Deploy Merged Fixes** (RECOMMENDED)
-- Deploy Fix #1 + #2 to VPS
-- Test Route C latency with real queries
-- Verify dynamic atom count displays correctly
-- Monitor performance with timing instrumentation logs
-
-**Option 2: Complete Fix #3 (OCR Wiring)**
-- Finish remaining 4 tasks in `fix/ocr-metadata-wiring` worktree
-- Then deploy all 3 fixes together
-- Estimate: 2-3 hours additional work
+**User Testing Required** (HIGH PRIORITY)
+1. Send nameplate photo to Telegram bot
+2. Verify "Save to Library" button appears after OCR response
+3. Tap button → confirm auto-fill with manufacturer/model/serial
+4. Enter nickname → save → check `/library` command
+5. Report any issues or proceed to next feature
 
 ## Blocked By
 
-**None** - All fixes complete and merged to main
+**None** - All code deployed and operational
 
-## In Progress
-
-**Fix #3 & #4: OCR Metadata Wiring** (worktree: `fix/ocr-metadata-wiring`)
-- Status: Worktree created, not yet started
-- Remaining tasks:
-  1. Update `create_text_request()` to accept OCR results parameter
-  2. Wire OCR through photo handler (pass to request)
-  3. Parse equipment from OCR in orchestrator (use metadata not regex)
-  4. Update gap detector to prefer OCR over text extraction
-
-**Files:**
-- `agent_factory/rivet_pro/models.py` - Add ocr_results parameter
-- `agent_factory/integrations/telegram/orchestrator_bot.py` - Pass OCR to request
-- `agent_factory/core/orchestrator.py` - Parse OCR metadata for intent
-- `agent_factory/core/gap_detector.py` - Prefer OCR equipment over regex
-
-**Estimate:** 2-3 hours
+## Ready to Start (When User Tested OCR)
 
 ## Backlog (Prioritized)
 
