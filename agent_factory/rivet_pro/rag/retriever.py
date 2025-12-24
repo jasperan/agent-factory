@@ -228,6 +228,7 @@ def search_docs(
             """
 
         # Execute query
+        logger.info(f"Executing search with {len(params)} params, search_query: '{search_query_tsquery if search_query_tsquery else 'NONE'}'")
         result = db.execute_query(sql, tuple(params))
 
         if not result:
@@ -236,7 +237,9 @@ def search_docs(
 
         # Convert to RetrievedDoc objects
         docs = []
+        similarity_scores = []
         for row in result:
+            similarity_scores.append(float(row[9]))
             # Extract first page number from source_pages array (if it exists)
             source_pages = row[7]  # source_pages array
             page_number = source_pages[0] if source_pages and len(source_pages) > 0 else None
@@ -256,7 +259,11 @@ def search_docs(
             )
             docs.append(doc)
 
-        logger.info(f"Retrieved {len(docs)} documents")
+        if similarity_scores:
+            avg_sim = sum(similarity_scores) / len(similarity_scores)
+            logger.info(f"Retrieved {len(docs)} documents, similarity scores: min={min(similarity_scores):.3f}, max={max(similarity_scores):.3f}, avg={avg_sim:.3f}")
+        else:
+            logger.info(f"Retrieved {len(docs)} documents (no similarity scores)")
         return docs
 
     except Exception as e:
