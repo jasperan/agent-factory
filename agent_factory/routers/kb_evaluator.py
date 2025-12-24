@@ -38,12 +38,18 @@ class KBCoverageEvaluator:
         """
         self.rag = rag_layer
 
-    def evaluate(self, request: RivetRequest, vendor: VendorType) -> KBCoverage:
+    def evaluate(
+        self,
+        request: RivetRequest,
+        vendor: VendorType,
+        model_number: Optional[str] = None
+    ) -> KBCoverage:
         """Evaluate KB coverage for a query.
 
         Args:
             request: User query request
             vendor: Detected vendor type
+            model_number: Equipment model number from OCR (optional)
 
         Returns:
             KBCoverage with level, metrics, and confidence
@@ -51,7 +57,10 @@ class KBCoverageEvaluator:
         # TODO: Phase 3 dependency - real SME agents not yet implemented
         # Using mock evaluation for now
         if self.rag is None:
+            logger.warning(f"KB evaluator: RAG layer is None, using mock evaluation for query: {request.text[:50]}...")
             return self._mock_evaluate(request, vendor)
+
+        logger.info(f"KB evaluator: Using real RAG search for query: {request.text[:50]}...")
 
         # Real evaluation using Phase 2 RAG layer
         try:
@@ -72,14 +81,16 @@ class KBCoverageEvaluator:
                 kb_coverage=RivetKBCoverage.NONE  # Placeholder, updated after search
             )
 
-            # Search for relevant KB atoms with DatabaseManager
+            # Search for relevant KB atoms with DatabaseManager (with model filtering)
             config = RAGConfig(top_k=10)
-            docs = search_docs(intent=intent, config=config, db=self.rag)
+            docs = search_docs(intent=intent, config=config, db=self.rag, model_number=model_number)
 
             # Calculate metrics from RetrievedDoc objects
             atom_count = len(docs)
             relevance_scores = [float(doc.similarity) for doc in docs]
             avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.0
+
+            logger.info(f"KB search found {atom_count} atoms, avg relevance: {avg_relevance:.3f}")
 
             # Classify coverage level
             level = self._classify_coverage(atom_count, avg_relevance)
