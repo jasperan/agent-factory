@@ -154,13 +154,13 @@ class RoutingDecision(BaseModel):
 class CoverageThresholds:
     """Thresholds for KB coverage classification."""
 
-    # Atom count thresholds
-    STRONG_ATOM_COUNT = 8
-    THIN_ATOM_COUNT = 3
+    # Atom count thresholds (lowered for small KB - 1,964 atoms)
+    STRONG_ATOM_COUNT = 3          # Was: 8 (lowered for growing KB)
+    THIN_ATOM_COUNT = 1            # Was: 3 (very permissive)
 
-    # Relevance score thresholds
-    STRONG_RELEVANCE = 0.7
-    THIN_RELEVANCE = 0.4
+    # Relevance score thresholds (lowered to work with ts_rank scores)
+    STRONG_RELEVANCE = 0.05        # Was: 0.7 (allows PostgreSQL ts_rank scores)
+    THIN_RELEVANCE = 0.0           # Was: 0.4 (any match counts)
 
     # Confidence thresholds
     MIN_VENDOR_CONFIDENCE = 0.6
