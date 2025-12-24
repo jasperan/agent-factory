@@ -218,6 +218,118 @@ class DatabaseProvider:
             logger.info(f"Closed connection pool for {self.name}")
 
 
+class LocalDatabaseProvider(DatabaseProvider):
+    """
+    Local SQLite database provider for final fallback.
+
+    Uses SQLite as local persistent storage when all cloud providers fail.
+    Provides same interface as PostgreSQL providers for seamless failover.
+    """
+
+    def __init__(self, db_path: str = "data/local.db"):
+        """
+        Initialize local SQLite provider.
+
+        Args:
+            db_path: Path to SQLite database file (default: data/local.db)
+        """
+        super().__init__("local", f"sqlite:///{db_path}")
+        self.db_path = db_path
+        self._ensure_db_directory()
+        self._init_schema()
+
+    def _ensure_db_directory(self):
+        """Ensure database directory exists."""
+        import pathlib
+        pathlib.Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+
+    def _init_schema(self):
+        """Initialize SQLite schema if needed."""
+        try:
+            import sqlite3
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            # Create conversation_states table (SQLite compatible)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_states (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    conversation_type TEXT NOT NULL,
+                    current_state TEXT NOT NULL,
+                    data TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TEXT
+                )
+            """)
+
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_states_user
+                ON conversation_states(user_id, conversation_type)
+            """)
+
+            conn.commit()
+            conn.close()
+            logger.info(f"Initialized local SQLite database at {self.db_path}")
+
+        except Exception as e:
+            logger.warning(f"Failed to initialize local database: {e}")
+
+    def get_connection(self):
+        """Get SQLite connection."""
+        import sqlite3
+        return sqlite3.connect(self.db_path)
+
+    def release_connection(self, conn):
+        """Close SQLite connection."""
+        if conn:
+            conn.close()
+
+    def health_check(self) -> bool:
+        """SQLite is always healthy (local file)."""
+        import pathlib
+        return pathlib.Path(self.db_path).parent.exists()
+
+    def execute_query(self, query: str, params: Optional[Tuple] = None, fetch_mode: str = "all") -> Any:
+        """Execute query on SQLite with PostgreSQL compatibility."""
+        conn = None
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+
+            # Convert PostgreSQL-style placeholders ($1, $2) to SQLite (?, ?)
+            sqlite_query = query.replace("$1", "?").replace("$2", "?").replace("$3", "?").replace("$4", "?").replace("$5", "?")
+
+            # Execute query
+            if params:
+                cursor.execute(sqlite_query, params)
+            else:
+                cursor.execute(sqlite_query)
+
+            # Handle different fetch modes
+            if fetch_mode == "all":
+                result = cursor.fetchall()
+            elif fetch_mode == "one":
+                result = cursor.fetchone()
+            elif fetch_mode == "none":
+                result = None
+            else:
+                raise ValueError(f"Invalid fetch_mode: {fetch_mode}")
+
+            conn.commit()
+            return result
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            raise
+
+        finally:
+            if conn:
+                self.release_connection(conn)
+
+
 class DatabaseManager:
     """
     Multi-provider database manager with automatic failover.
@@ -248,9 +360,10 @@ class DatabaseManager:
     def __init__(self):
         """Initialize database manager with all configured providers."""
         self.providers: Dict[str, DatabaseProvider] = {}
-        self.primary_provider = os.getenv("DATABASE_PROVIDER", "supabase")
+        self.primary_provider = os.getenv("DATABASE_PROVIDER", "neon")
         self.failover_enabled = os.getenv("DATABASE_FAILOVER_ENABLED", "true").lower() == "true"
-        self.failover_order = os.getenv("DATABASE_FAILOVER_ORDER", "supabase,railway,neon").split(",")
+        # Cloud providers first, local SQLite as final fallback
+        self.failover_order = os.getenv("DATABASE_FAILOVER_ORDER", "neon,supabase,railway,local").split(",")
 
         # Initialize providers
         self._init_providers()
@@ -290,6 +403,14 @@ class DatabaseManager:
             logger.info("Initialized Neon provider")
         else:
             logger.warning("Neon credentials incomplete, skipping provider")
+
+        # Local SQLite provider (always available as final fallback)
+        local_db_path = os.getenv("LOCAL_DB_PATH", "data/local.db")
+        try:
+            self.providers["local"] = LocalDatabaseProvider(local_db_path)
+            logger.info(f"Initialized Local SQLite provider at {local_db_path}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize local provider: {e}")
 
         # Validate at least one provider available
         if not self.providers:
