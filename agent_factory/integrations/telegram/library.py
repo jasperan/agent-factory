@@ -109,7 +109,8 @@ async def library_callback_router(update: Update, context: ContextTypes.DEFAULT_
     """
     Route lib_* callbacks to specific handlers.
 
-    Handles: view, troubleshoot, history, delete, confirm delete, save from OCR, back
+    Handles: view, troubleshoot, history, delete, confirm delete, back
+    Note: CB_SAVE_OCR is handled by ConversationHandler entry point, not here
     """
     query = update.callback_query
     data = query.data
@@ -125,10 +126,11 @@ async def library_callback_router(update: Update, context: ContextTypes.DEFAULT_
             await _handle_delete_confirm(update, context)
         elif data.startswith(CB_CONFIRM_DEL):
             await _handle_delete_machine(update, context)
-        elif data == CB_SAVE_OCR:
-            await add_from_ocr(update, context)
         elif data == CB_BACK:
             await _handle_back_to_library(update, context)
+        elif data == CB_SAVE_OCR:
+            # Handled by ConversationHandler, not here
+            pass
         else:
             await query.answer("Unknown action", show_alert=True)
 
@@ -441,6 +443,51 @@ async def add_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return NICKNAME
 
 
+async def add_from_ocr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Start add machine with OCR pre-fill."""
+    query = update.callback_query
+    await query.answer()
+
+    # Get OCR result from context
+    ocr_result = context.user_data.get('ocr_result')
+    if not ocr_result:
+        await query.edit_message_text("⏰ Session expired. Please send the photo again.")
+        return ConversationHandler.END
+
+    # Pre-fill from OCR (convert OCRResult object to dict)
+    context.user_data['new_machine'] = {
+        'manufacturer': ocr_result.manufacturer or '',
+        'model_number': ocr_result.model_number or '',
+        'serial_number': ocr_result.serial_number or '',
+        'photo_file_id': context.user_data.get('photo_file_id')
+    }
+
+    # Show preview
+    preview = "📸 **Equipment Detected:**\n\n"
+    if ocr_result.manufacturer:
+        preview += f"• Manufacturer: {ocr_result.manufacturer}\n"
+    if ocr_result.model_number:
+        preview += f"• Model: {ocr_result.model_number}\n"
+    if ocr_result.serial_number:
+        preview += f"• Serial: {ocr_result.serial_number}\n"
+
+    if not (ocr_result.manufacturer or ocr_result.model_number):
+        preview += "• _(No equipment data detected)_\n"
+
+    preview += "\n"
+
+    # Confidence warning
+    confidence = getattr(ocr_result, 'confidence', 0.0)
+    if confidence < 0.7:
+        preview += f"⚠️ Low OCR confidence ({confidence:.0%}). Please verify.\n\n"
+
+    preview += "**What nickname do you want to give this machine?**\n_(e.g., 'Line 3 Robot')_\n\n/cancel to abort"
+
+    await query.edit_message_text(preview, parse_mode="Markdown")
+
+    return NICKNAME
+
+
 async def add_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Save nickname, ask for manufacturer."""
     context.user_data['new_machine']['nickname'] = update.message.text.strip()
@@ -621,7 +668,10 @@ async def add_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # ============================================================================
 
 add_machine_handler = ConversationHandler(
-    entry_points=[CallbackQueryHandler(add_start, pattern=f"^{CB_ADD}$")],
+    entry_points=[
+        CallbackQueryHandler(add_start, pattern=f"^{CB_ADD}$"),
+        CallbackQueryHandler(add_from_ocr, pattern=f"^{CB_SAVE_OCR}$")
+    ],
     states={
         NICKNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_nickname)],
         MANUFACTURER: [
