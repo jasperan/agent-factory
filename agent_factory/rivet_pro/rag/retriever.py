@@ -165,6 +165,7 @@ def search_docs(
                 atom_type,
                 manufacturer,
                 source_document as source,
+                source_pages,
                 created_at,
                 0.8 as similarity  -- Placeholder similarity score
             FROM knowledge_atoms
@@ -183,6 +184,10 @@ def search_docs(
         # Convert to RetrievedDoc objects
         docs = []
         for row in result:
+            # Extract first page number from source_pages array (if it exists)
+            source_pages = row[7]  # source_pages array
+            page_number = source_pages[0] if source_pages and len(source_pages) > 0 else None
+
             doc = RetrievedDoc(
                 atom_id=row[0],
                 title=row[1],
@@ -192,9 +197,9 @@ def search_docs(
                 vendor=row[5],  # manufacturer from DB
                 equipment_type="unknown",  # Column doesn't exist in schema yet
                 source=row[6],
-                page_number=None,  # Column doesn't exist in schema (source_pages array used instead)
-                created_at=row[7],
-                similarity=row[8]
+                page_number=page_number,  # First page from source_pages array
+                created_at=row[8],
+                similarity=row[9]
             )
             docs.append(doc)
 
