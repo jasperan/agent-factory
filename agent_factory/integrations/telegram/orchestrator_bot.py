@@ -11,7 +11,7 @@ import base64
 import json
 import time
 from pathlib import Path
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from telegram.error import BadRequest
 from dotenv import load_dotenv
@@ -611,6 +611,33 @@ If you cannot read the image clearly, explain why."""
                         await update.message.reply_text(response)
 
                     trace.event("RESPONSE_SENT", length=len(response))
+
+                # Show "Save to Library" button if OCR extracted equipment data
+                if ocr_result and ocr_result.confidence >= 0.5 and (ocr_result.manufacturer or ocr_result.model_number):
+                    # Store OCR result for library module
+                    context.user_data['ocr_result'] = ocr_result
+                    context.user_data['photo_file_id'] = photo.file_id
+
+                    # Create button
+                    save_button = InlineKeyboardMarkup([[
+                        InlineKeyboardButton("💾 Save to My Library", callback_data="lib_save_ocr")
+                    ]])
+
+                    # Show different message based on confidence
+                    if ocr_result.confidence >= 0.7:
+                        save_message = "📸 **Equipment detected!** Save this to your library for quick reference?"
+                    else:
+                        save_message = f"📸 **Equipment detected** (confidence: {ocr_result.confidence:.0%})\n⚠️ _Low confidence - please verify details_\n\nSave to your library?"
+
+                    try:
+                        await update.message.reply_text(
+                            save_message,
+                            reply_markup=save_button,
+                            parse_mode="Markdown"
+                        )
+                        logger.info(f"[{user_id}] Save to Library button shown (confidence: {ocr_result.confidence:.2f})")
+                    except Exception as button_error:
+                        logger.warning(f"Failed to show Save to Library button: {button_error}")
 
                 # Send trace to admin (Message 2)
                 admin_message = trace.format_admin_message(
