@@ -3,7 +3,9 @@
 Evaluates Knowledge Base coverage level (strong/thin/none/unclear) using Phase 2 RAG layer.
 """
 
+import logging
 from typing import Optional
+
 from agent_factory.schemas.routing import (
     VendorType,
     CoverageLevel,
@@ -17,6 +19,8 @@ from agent_factory.rivet_pro.models import (
     VendorType as RivetVendorType,
     KBCoverage as RivetKBCoverage,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class KBCoverageEvaluator:
