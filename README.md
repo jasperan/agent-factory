@@ -15,6 +15,15 @@ Agent Factory is not just a framework—it's the **orchestration engine** poweri
 
 ## 📝 Latest Updates
 
+**2025-12-25 11:42:04 UTC**
+- Fixed Use temp file instead of pipe for hook reliability
+- Avoids stderr/stdout mixing in pipes on Windows
+- Metrics saved to temp JSON file
+- README script reads from file instead of stdin
+- More reliable cross-platform execution
+- **Metrics:** Files: 2 | Lines: +38/-4 | KB Atoms: (unavailable)
+
+
 **2025-12-25 08:45:00 UTC**
 - Added README auto-update on git push
 - Automatic metrics extraction (git stats + DB atom count)
