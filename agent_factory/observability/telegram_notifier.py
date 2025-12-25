@@ -238,8 +238,8 @@ class TelegramNotifier:
         # Format message
         message = self._format_batch_message(stats)
 
-        # Send message
-        await self._send_message(message)
+        # Send message (plain text, no Markdown)
+        await self._send_message(message, parse_mode=None)
 
         # Mark sessions as notified in database
         if self.db_manager and sessions:
@@ -294,9 +294,12 @@ class TelegramNotifier:
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = {
             "chat_id": self.chat_id,
-            "text": text,
-            "parse_mode": parse_mode
+            "text": text
         }
+
+        # Only add parse_mode if specified
+        if parse_mode is not None:
+            payload["parse_mode"] = parse_mode
 
         # Retry logic (3 attempts with exponential backoff)
         for attempt in range(3):
@@ -384,32 +387,32 @@ class TelegramNotifier:
         return "\n".join(lines)
 
     def _format_batch_message(self, stats: Dict[str, Any]) -> str:
-        """Format BATCH mode message (ASCII-only for Windows compatibility)."""
+        """Format BATCH mode message (plain text, no Markdown)."""
         lines = [
-            "[STATS] *KB Ingestion Summary* (Last 5 min)",
+            "[STATS] KB Ingestion Summary (Last 5 min)",
             "",
-            f"*Sources:* {stats['total_sources']} processed",
-            f"[OK] Success: {stats['success_count']} ({stats['success_rate']:.0%})",
+            f"Sources: {stats['total_sources']} processed",
+            f"[OK] Success: {stats['success_count']} ({int(stats['success_rate']*100)}%)",
         ]
 
         if stats['partial_count'] > 0:
-            lines.append(f"[WARN] Partial: {stats['partial_count']} ({stats['partial_rate']:.0%})")
+            lines.append(f"[WARN] Partial: {stats['partial_count']} ({int(stats['partial_rate']*100)}%)")
 
         if stats['failed_count'] > 0:
-            lines.append(f"[FAIL] Failed: {stats['failed_count']} ({stats['failed_rate']:.0%})")
+            lines.append(f"[FAIL] Failed: {stats['failed_count']} ({int(stats['failed_rate']*100)}%)")
 
         lines.extend([
             "",
-            f"*Atoms:* {stats['total_atoms_created']} created, {stats['total_atoms_failed']} failed",
-            f"*Avg Duration:* {self._format_duration(stats['avg_duration_ms'])}",
+            f"Atoms: {stats['total_atoms_created']} created, {stats['total_atoms_failed']} failed",
+            f"Avg Duration: {self._format_duration(stats['avg_duration_ms'])}",
         ])
 
         if stats['avg_quality_score'] is not None:
-            lines.append(f"*Avg Quality:* {stats['avg_quality_score']:.0%}")
+            lines.append(f"Avg Quality: {int(stats['avg_quality_score']*100)}%")
 
         if stats['top_vendors']:
             lines.append("")
-            lines.append("*Top Vendors:*")
+            lines.append("Top Vendors:")
             for vendor, count in stats['top_vendors'][:3]:
                 lines.append(f"  - {vendor} ({count} sources)")
 
