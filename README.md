@@ -15,6 +15,24 @@ Agent Factory is not just a framework—it's the **orchestration engine** poweri
 
 ## 📝 Latest Updates
 
+**2025-12-25 11:50:33 UTC**
+- Updated documentation for Add comprehensive Telegram Observability implementation guide
+- Basic integration (recommended)
+- BATCH mode with background timer
+- Error-only notifications
+- Multiple chat IDs (team notifications)
+- Step-by-step Telegram bot setup (2 minutes)
+- Quick start testing (5 minutes)
+- 4 copy-paste implementation patterns
+- Production systemd service template
+- Comprehensive troubleshooting guide
+- Environment variable reference
+- Validation commands
+- docs/SYSTEM_MAP_OBSERVABILITY.md (technical architecture)
+- .claude/memory/CONTINUE_HERE_OBSERVABILITY.md (developer resume guide)
+- **Metrics:** Files: 1 | Lines: +956/-0 | KB Atoms: (unavailable)
+
+
 **2025-12-25 11:44:27 UTC**
 - Updated documentation for Add KB Observability Platform system map and test files
 - docs/SYSTEM_MAP_OBSERVABILITY.md (25 KB)
