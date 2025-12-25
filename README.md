@@ -15,6 +15,16 @@ Agent Factory is not just a framework—it's the **orchestration engine** poweri
 
 ## 📝 Latest Updates
 
+**2025-12-25 12:40:09 UTC**
+- Added Integrate KB observability into ingestion pipeline
+- Add IngestionMonitor + TelegramNotifier to ingestion_chain.py
+- Background batch timer for 5-minute summaries
+- Session tracking through all 7 pipeline stages
+- Graceful degradation if monitoring fails
+- End-to-end test script for validation
+- **Metrics:** Files: 2 | Lines: +429/-40 | KB Atoms: (unavailable)
+
+
 **2025-12-25 11:50:33 UTC**
 - Updated documentation for Add comprehensive Telegram Observability implementation guide
 - Basic integration (recommended)
