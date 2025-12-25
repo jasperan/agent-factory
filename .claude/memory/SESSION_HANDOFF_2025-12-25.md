@@ -8,10 +8,15 @@
 
 **BREAKTHROUGH ACHIEVED:** After comprehensive troubleshooting, the complete KB observability + ingestion pipeline is now working end-to-end.
 
+**DATABASE DISCOVERY (CRITICAL):**
+- **Main Neon DB** (ep-purple-hall-ahimeyn0): **21 atoms** - No observability table
+- **VPS Neon DB** (ep-red-shadow-a5e6z5kc): **1,964+ atoms** - Full observability deployed
+- **Action Required:** Consolidate databases OR deploy observability to main DB
+
 **What's Running RIGHT NOW:**
 - VPS ingestion test processing 186 chunks from Rockwell PDF
 - LLM generating atoms (HTTP 200 OK confirmed)
-- Database metrics being written to Neon
+- Database metrics being written to VPS Neon database
 - Telegram batch notification pending (within 5 min)
 
 **Expected Next Event:** Within 5-10 minutes, user will receive Telegram message:
@@ -262,4 +267,15 @@ ssh vps "cd /root/Agent-Factory && grep -A 5 'LLM response (first 200 chars)' /t
 
 ---
 
+## Session End Status
+
+**Commit:** `1b76ede` - KB observability troubleshooting complete
+**Files Modified:** 4 files, 1660 insertions, 10 deletions
+**Memory Files:** SESSION_HANDOFF, KB_OBSERVABILITY_COMPLETE, INGESTION_FIXES_DEC25
+**Database Status:** 2 separate Neon databases discovered (main: 21 atoms, VPS: 1,964+ atoms)
+**Next Session Priority:** Verify ingestion completion, consolidate databases if needed
+
+---
+
 **Handoff Complete** ✅
+**Ready for Shutdown** ✅
