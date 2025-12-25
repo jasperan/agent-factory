@@ -15,6 +15,11 @@ Agent Factory is not just a framework—it's the **orchestration engine** poweri
 
 ## 📝 Latest Updates
 
+**2025-12-25 14:42:06 UTC**
+- Fixed Use plain text instead of Markdown for batch summaries (fixes 400 error)
+- **Metrics:** Files: 1 | Lines: +17/-14 | KB Atoms: (unavailable)
+
+
 **2025-12-25 14:30:36 UTC**
 - Fixed Write ingestion metrics immediately instead of background queue
 - Add _write_metric_immediately() for synchronous DB writes
