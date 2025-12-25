@@ -24,11 +24,13 @@ from telegram.ext import (
 )
 
 from .library_db import MachineLibraryDB
+from .conversation_state import get_state_manager
 
 logger = logging.getLogger(__name__)
 
-# Initialize database
+# Initialize database and state manager
 db = MachineLibraryDB()
+state_manager = get_state_manager()
 
 # Conversation states for add machine flow
 NICKNAME, MANUFACTURER, MODEL, SERIAL, LOCATION, NOTES, PHOTO = range(7)
@@ -431,6 +433,36 @@ async def add_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
 
+    user_id = str(update.effective_user.id)
+
+    # Check for existing state (resume capability)
+    existing_state = await state_manager.load_state(user_id, "add_machine")
+
+    if existing_state:
+        # Resume from saved state
+        context.user_data['new_machine'] = existing_state['data']
+        logger.info(f"Resuming add_machine for user {user_id} from state {existing_state['current_state']}")
+
+        # Map state name to conversation state constant
+        state_map = {
+            'NICKNAME': NICKNAME,
+            'MANUFACTURER': MANUFACTURER,
+            'MODEL': MODEL,
+            'SERIAL': SERIAL,
+            'LOCATION': LOCATION,
+            'NOTES': NOTES,
+            'PHOTO': PHOTO
+        }
+
+        resume_text = "🔄 **Resuming...**\n\n"
+        resume_text += f"Last state: {existing_state['current_state']}\n\n"
+        resume_text += "Continuing where you left off..."
+
+        await query.edit_message_text(resume_text, parse_mode="Markdown")
+
+        return state_map.get(existing_state['current_state'], NICKNAME)
+
+    # Fresh start - initialize empty machine data
     context.user_data['new_machine'] = {}
 
     await query.edit_message_text(
@@ -448,7 +480,35 @@ async def add_from_ocr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     query = update.callback_query
     await query.answer()
 
-    # Get OCR result from context
+    user_id = str(update.effective_user.id)
+
+    # Check for existing state first (resume capability)
+    existing_state = await state_manager.load_state(user_id, "add_machine")
+
+    if existing_state:
+        # Resume from saved state
+        context.user_data['new_machine'] = existing_state['data']
+        logger.info(f"Resuming add_machine (OCR) for user {user_id} from state {existing_state['current_state']}")
+
+        state_map = {
+            'NICKNAME': NICKNAME,
+            'MANUFACTURER': MANUFACTURER,
+            'MODEL': MODEL,
+            'SERIAL': SERIAL,
+            'LOCATION': LOCATION,
+            'NOTES': NOTES,
+            'PHOTO': PHOTO
+        }
+
+        resume_text = "🔄 **Resuming...**\n\n"
+        resume_text += f"Last state: {existing_state['current_state']}\n\n"
+        resume_text += "Continuing where you left off..."
+
+        await query.edit_message_text(resume_text, parse_mode="Markdown")
+
+        return state_map.get(existing_state['current_state'], NICKNAME)
+
+    # No existing state - try OCR pre-fill
     ocr_result = context.user_data.get('ocr_result')
     if not ocr_result:
         await query.edit_message_text("⏰ Session expired. Please send the photo again.")
@@ -490,7 +550,18 @@ async def add_from_ocr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def add_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Save nickname, ask for manufacturer."""
+    user_id = str(update.effective_user.id)
+
+    # Save nickname to context
     context.user_data['new_machine']['nickname'] = update.message.text.strip()
+
+    # Persist state to database (CRITICAL: prevents data loss)
+    await state_manager.save_state(
+        user_id=user_id,
+        conversation_type="add_machine",
+        current_state="MANUFACTURER",
+        data=context.user_data['new_machine']
+    )
 
     keyboard = [[InlineKeyboardButton("Skip ⏭️", callback_data=CB_SKIP)]]
     await update.message.reply_text(
@@ -503,6 +574,8 @@ async def add_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def add_manufacturer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Save manufacturer, ask for model."""
+    user_id = str(update.effective_user.id)
+
     if update.callback_query:  # Skip pressed
         await update.callback_query.answer()
         context.user_data['new_machine']['manufacturer'] = None
@@ -510,6 +583,14 @@ async def add_manufacturer(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     else:
         context.user_data['new_machine']['manufacturer'] = update.message.text.strip()
         msg = update.message
+
+    # Persist state to database
+    await state_manager.save_state(
+        user_id=user_id,
+        conversation_type="add_machine",
+        current_state="MODEL",
+        data=context.user_data['new_machine']
+    )
 
     keyboard = [[InlineKeyboardButton("Skip ⏭️", callback_data=CB_SKIP)]]
     await msg.reply_text(
@@ -522,6 +603,8 @@ async def add_manufacturer(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def add_model(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Save model, ask for serial."""
+    user_id = str(update.effective_user.id)
+
     if update.callback_query:
         await update.callback_query.answer()
         context.user_data['new_machine']['model_number'] = None
@@ -529,6 +612,14 @@ async def add_model(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     else:
         context.user_data['new_machine']['model_number'] = update.message.text.strip()
         msg = update.message
+
+    # Persist state to database
+    await state_manager.save_state(
+        user_id=user_id,
+        conversation_type="add_machine",
+        current_state="SERIAL",
+        data=context.user_data['new_machine']
+    )
 
     keyboard = [[InlineKeyboardButton("Skip ⏭️", callback_data=CB_SKIP)]]
     await msg.reply_text(
@@ -541,6 +632,8 @@ async def add_model(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def add_serial(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Save serial, ask for location."""
+    user_id = str(update.effective_user.id)
+
     if update.callback_query:
         await update.callback_query.answer()
         context.user_data['new_machine']['serial_number'] = None
@@ -548,6 +641,14 @@ async def add_serial(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     else:
         context.user_data['new_machine']['serial_number'] = update.message.text.strip()
         msg = update.message
+
+    # Persist state to database
+    await state_manager.save_state(
+        user_id=user_id,
+        conversation_type="add_machine",
+        current_state="LOCATION",
+        data=context.user_data['new_machine']
+    )
 
     keyboard = [[InlineKeyboardButton("Skip ⏭️", callback_data=CB_SKIP)]]
     await msg.reply_text(
@@ -560,6 +661,8 @@ async def add_serial(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def add_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Save location, ask for notes."""
+    user_id = str(update.effective_user.id)
+
     if update.callback_query:
         await update.callback_query.answer()
         context.user_data['new_machine']['location'] = None
@@ -567,6 +670,14 @@ async def add_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     else:
         context.user_data['new_machine']['location'] = update.message.text.strip()
         msg = update.message
+
+    # Persist state to database
+    await state_manager.save_state(
+        user_id=user_id,
+        conversation_type="add_machine",
+        current_state="NOTES",
+        data=context.user_data['new_machine']
+    )
 
     keyboard = [[InlineKeyboardButton("Skip ⏭️", callback_data=CB_SKIP)]]
     await msg.reply_text(
@@ -579,6 +690,8 @@ async def add_location(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def add_notes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Save notes, ask for photo."""
+    user_id = str(update.effective_user.id)
+
     if update.callback_query:
         await update.callback_query.answer()
         context.user_data['new_machine']['notes'] = None
@@ -586,6 +699,14 @@ async def add_notes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     else:
         context.user_data['new_machine']['notes'] = update.message.text.strip()
         msg = update.message
+
+    # Persist state to database
+    await state_manager.save_state(
+        user_id=user_id,
+        conversation_type="add_machine",
+        current_state="PHOTO",
+        data=context.user_data['new_machine']
+    )
 
     keyboard = [[InlineKeyboardButton("Skip ⏭️", callback_data=CB_SKIP)]]
     await msg.reply_text(
@@ -627,6 +748,9 @@ async def add_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         machine_id = db.create_machine(user_id, machine_data)
         logger.info(f"User {user_id} created machine {machine_data['nickname']} ({machine_id[:8]})")
 
+        # Clear persistent state on successful save
+        await state_manager.clear_state(user_id, "add_machine")
+
         text += "\nUse /library to view your machines."
 
         msg = update.callback_query.message if update.callback_query else update.message
@@ -655,6 +779,11 @@ async def add_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 async def add_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancel add machine flow."""
+    user_id = str(update.effective_user.id)
+
+    # Clear persistent state on cancel
+    await state_manager.clear_state(user_id, "add_machine")
+
     context.user_data.pop('new_machine', None)
     await update.message.reply_text(
         "❌ Cancelled. Use /library to view your machines.",
