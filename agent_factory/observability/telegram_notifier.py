@@ -62,7 +62,8 @@ class TelegramNotifier:
         chat_id: int,
         mode: str = "BATCH",
         quiet_hours_start: int = 23,
-        quiet_hours_end: int = 7
+        quiet_hours_end: int = 7,
+        db_manager=None
     ):
         """
         Initialize Telegram notifier.
@@ -73,6 +74,7 @@ class TelegramNotifier:
             mode: Notification mode ("VERBOSE" or "BATCH")
             quiet_hours_start: Hour to start quiet period (24h format, default 11pm)
             quiet_hours_end: Hour to end quiet period (24h format, default 7am)
+            db_manager: Optional DatabaseManager for reading ingestion metrics
 
         Raises:
             ValueError: If mode is not "VERBOSE" or "BATCH"
@@ -85,6 +87,7 @@ class TelegramNotifier:
         self.mode = mode
         self.quiet_hours_start = quiet_hours_start
         self.quiet_hours_end = quiet_hours_end
+        self.db_manager = db_manager
 
         # Rate limiting (token bucket algorithm)
         self._rate_limit_tokens = 20.0  # 20 messages per minute
@@ -92,14 +95,14 @@ class TelegramNotifier:
         self._rate_limit_refill_rate = 20.0 / 60.0  # 20 per 60 seconds = 1/3 per second
         self._last_refill = time_module.time()
 
-        # BATCH mode queue
+        # BATCH mode queue (fallback if no db_manager)
         self._batch_queue: deque = deque(maxlen=1000)
 
         # Error tracking
         self._failed_sends_log = Path("data/observability/failed_telegram_sends.jsonl")
         self._failed_sends_log.parent.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"TelegramNotifier initialized (mode={mode}, chat_id={chat_id})")
+        logger.info(f"TelegramNotifier initialized (mode={mode}, chat_id={chat_id}, db={'enabled' if db_manager else 'disabled'})")
 
     async def notify_ingestion_complete(
         self,
@@ -164,24 +167,72 @@ class TelegramNotifier:
         """
         Send 5-minute batch summary (called by background timer).
 
-        Aggregates queued sessions and sends summary message.
+        Reads recent ingestion sessions from database (last 5 min) and sends summary.
+        Falls back to in-memory queue if database unavailable.
         """
         if self.mode != "BATCH":
             logger.debug(f"Skipping BATCH summary (mode={self.mode})")
             return
 
-        # Check if queue is empty
-        if not self._batch_queue:
-            logger.debug("Batch queue empty, skipping summary")
-            return
-
-        # Check quiet hours
+        # Check quiet hours first
         if self._is_quiet_hours():
             logger.debug("Skipping batch summary (quiet hours)")
             return
 
+        # Get sessions from database or fallback to in-memory queue
+        sessions = []
+
+        if self.db_manager:
+            # Query database for sessions from last 5 minutes
+            try:
+                query = """
+                    SELECT
+                        source_url,
+                        source_type,
+                        atoms_created,
+                        atoms_failed,
+                        total_duration_ms as duration_ms,
+                        status,
+                        vendor,
+                        avg_quality_score as quality_score
+                    FROM ingestion_metrics_realtime
+                    WHERE created_at >= NOW() - INTERVAL '5 minutes'
+                    AND notified_at IS NULL
+                    ORDER BY created_at DESC
+                """
+                results = self.db_manager.execute_query(query)
+
+                if results:
+                    sessions = [
+                        {
+                            "source_url": row[0],
+                            "source_type": row[1],
+                            "atoms_created": row[2],
+                            "atoms_failed": row[3],
+                            "duration_ms": row[4],
+                            "status": row[5],
+                            "vendor": row[6],
+                            "quality_score": row[7]
+                        }
+                        for row in results
+                    ]
+                    logger.info(f"Found {len(sessions)} sessions from database (last 5 min)")
+                else:
+                    logger.debug("No recent sessions in database")
+
+            except Exception as e:
+                logger.error(f"Database query failed, falling back to in-memory queue: {e}")
+                sessions = list(self._batch_queue)
+        else:
+            # Fallback: use in-memory queue
+            sessions = list(self._batch_queue)
+
+        # Check if we have any sessions
+        if not sessions:
+            logger.debug("No sessions to summarize")
+            return
+
         # Aggregate stats
-        sessions = list(self._batch_queue)
         stats = self._aggregate_batch_stats(sessions)
 
         # Format message
@@ -190,8 +241,23 @@ class TelegramNotifier:
         # Send message
         await self._send_message(message)
 
-        # Clear queue
+        # Mark sessions as notified in database
+        if self.db_manager and sessions:
+            try:
+                update_query = """
+                    UPDATE ingestion_metrics_realtime
+                    SET notified_at = NOW()
+                    WHERE created_at >= NOW() - INTERVAL '5 minutes'
+                    AND notified_at IS NULL
+                """
+                self.db_manager.execute_query(update_query)
+                logger.info(f"Marked {len(sessions)} sessions as notified")
+            except Exception as e:
+                logger.error(f"Failed to mark sessions as notified: {e}")
+
+        # Clear in-memory queue (if used)
         self._batch_queue.clear()
+
         logger.info(f"Sent batch summary ({stats['total_sources']} sources)")
 
     def _is_quiet_hours(self) -> bool:

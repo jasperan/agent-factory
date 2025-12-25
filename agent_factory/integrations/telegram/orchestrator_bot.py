@@ -700,7 +700,8 @@ async def post_init(app: Application):
             chat_id=int(os.getenv("TELEGRAM_ADMIN_CHAT_ID", "8445149012")),
             mode=os.getenv("KB_NOTIFICATION_MODE", "BATCH"),
             quiet_hours_start=int(os.getenv("NOTIFICATION_QUIET_START", "23")),
-            quiet_hours_end=int(os.getenv("NOTIFICATION_QUIET_END", "7"))
+            quiet_hours_end=int(os.getenv("NOTIFICATION_QUIET_END", "7")),
+            db_manager=db_manager
         )
 
         # Start batch notification timer (runs every 5 minutes)
