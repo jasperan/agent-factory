@@ -1,0 +1,97 @@
+name: Update README
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - '.github/workflows/update-readme.yml'
+  workflow_dispatch:
+
+jobs:
+  update-readme:
+    name: Auto-update README with latest metrics
+    runs-on: ubuntu-latest
+
+    # Skip if commit message contains our marker (recursion prevention)
+    if: "!contains(github.event.head_commit.message, 'Update README with latest metrics')"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Full history for git stats
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-root --only main
+
+      - name: Extract metrics
+        run: |
+          poetry run python scripts/update_readme_metrics.py > metrics.json
+        env:
+          # Database credentials (for atom count)
+          NEON_DB_URL: ${{ secrets.NEON_DB_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      - name: Update README
+        run: |
+          poetry run python scripts/update_readme.py < metrics.json
+
+      - name: Check for changes
+        id: check
+        run: |
+          if git diff --quiet README.md; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes to README.md"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "README.md was updated"
+          fi
+
+      - name: Commit changes
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: Update README with latest metrics [skip ci]"
+          git push
+
+      - name: Send Telegram notification (on success)
+        if: always()
+        run: |
+          # Build status message
+          if [ "${{ steps.check.outputs.changed }}" == "true" ]; then
+            STATUS="✅ Updated"
+            MESSAGE="✅ README Auto-Update Success%0A%0ACommit: ${{ github.sha }}%0AAuthor: ${{ github.actor }}%0A%0AREADME.md has been updated with latest metrics.%0A%0AWorkflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          else
+            STATUS="ℹ️ No changes"
+            MESSAGE="ℹ️ README Auto-Update: No changes%0A%0ACommit: ${{ github.sha }}%0ANo metrics changes detected.%0A%0AWorkflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+          # Send notification
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.ORCHESTRATOR_BOT_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_ADMIN_CHAT_ID }} \
+            -d text="$MESSAGE" \
+            -d parse_mode=HTML
+
+      - name: Send Telegram notification (on failure)
+        if: failure()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.ORCHESTRATOR_BOT_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_ADMIN_CHAT_ID }} \
+            -d text="❌ README Auto-Update FAILED!%0A%0ACommit: ${{ github.sha }}%0AAuthor: ${{ github.actor }}%0A%0ACheck GitHub Actions for details.%0A%0AWorkflow: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -d parse_mode=HTML

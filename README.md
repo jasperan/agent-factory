@@ -10,6 +10,20 @@ Agent Factory is not just a framework—it's the **orchestration engine** poweri
 
 **Status:** ✅ Week 2 Day 3 COMPLETE - All 9 ISH Agents Ready (100%)
 
+
+---
+
+## 📝 Latest Updates
+
+**2025-12-25 08:45:00 UTC**
+- Added README auto-update on git push
+- Automatic metrics extraction (git stats + DB atom count)
+- Plain English summaries from conventional commits
+- Reverse chronological updates in README.md
+- Dual-layer: local hook + GitHub Actions backup
+- **Metrics:** Files: 5 | Lines: +900/-0 | KB Atoms: 1,965
+
+
 ---
 
 ## 📊 Current Development Status (Week 2, Day 3 Complete)
