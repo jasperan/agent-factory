@@ -139,8 +139,25 @@ fi
 # Execute update (skip database for speed)
 export DB_SKIP=1
 
-# Run metrics extraction and README update
-if poetry run python scripts/update_readme_metrics.py 2>&1 | poetry run python scripts/update_readme.py 2>&1 | tee -a "$LOG_DIR/pre_push_output.log"; then
+# Run metrics extraction and README update (via temp file to avoid pipe issues)
+METRICS_FILE="$LOG_DIR/metrics_temp.json"
+if poetry run python scripts/update_readme_metrics.py > "$METRICS_FILE" 2>> "$LOG_DIR/pre_push_output.log"; then
+    if poetry run python scripts/update_readme.py < "$METRICS_FILE" 2>&1 | tee -a "$LOG_DIR/pre_push_output.log"; then
+        rm -f "$METRICS_FILE"
+    else
+        rm -f "$METRICS_FILE"
+        echo_error "README update script failed"
+        log "status=failed"
+        exit 0
+    fi
+else
+    echo_error "Metrics extraction failed"
+    log "status=failed"
+    exit 0
+fi
+
+# Check if update succeeded
+if true; then
     # Check if README actually changed
     if git diff --quiet README.md; then
         echo_info "ℹ️  No changes to README"
