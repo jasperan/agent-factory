@@ -189,15 +189,24 @@ def source_acquisition_node(state: IngestionState) -> IngestionState:
         # Check for duplicates via URL hash
         url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
 
-        duplicate_check = storage.client.table("source_fingerprints") \
-            .select("*") \
-            .eq("fingerprint", url_hash) \
-            .execute()
+        try:
+            duplicate_check = storage.client.table("source_fingerprints") \
+                .select("*") \
+                .eq("fingerprint", url_hash) \
+                .execute()
 
-        if duplicate_check.data:
-            logger.warning(f"Source already processed: {url}")
-            state["errors"].append(f"Duplicate source: {url}")
-            return state
+            if duplicate_check.data:
+                logger.warning(f"Source already processed: {url}")
+                state["errors"].append(f"Duplicate source: {url}")
+                return state
+        except Exception as e:
+            # Gracefully degrade if source_fingerprints table doesn't exist
+            error_msg = str(e)
+            if "Could not find" in error_msg or "PGRST205" in error_msg:
+                logger.warning(f"source_fingerprints table not found - skipping deduplication check")
+            else:
+                logger.error(f"Fingerprint check failed: {e}")
+                # Continue processing anyway (deduplication is optional)
 
         # Determine source type
         if url.endswith('.pdf') or 'pdf' in url.lower():
@@ -220,12 +229,21 @@ def source_acquisition_node(state: IngestionState) -> IngestionState:
         }
 
         # Store fingerprint to prevent re-processing
-        storage.client.table("source_fingerprints").insert({
-            "fingerprint": url_hash,
-            "url": url,
-            "source_type": state["source_type"],
-            "processed_at": datetime.utcnow().isoformat()
-        }).execute()
+        try:
+            storage.client.table("source_fingerprints").insert({
+                "fingerprint": url_hash,
+                "url": url,
+                "source_type": state["source_type"],
+                "processed_at": datetime.utcnow().isoformat()
+            }).execute()
+        except Exception as e:
+            # Gracefully degrade if source_fingerprints table doesn't exist
+            error_msg = str(e)
+            if "Could not find" in error_msg or "PGRST205" in error_msg:
+                logger.warning(f"source_fingerprints table not found - skipping fingerprint storage")
+            else:
+                logger.warning(f"Failed to store fingerprint: {e}")
+                # Continue processing anyway (fingerprint storage is optional)
 
         logger.info(f"[Stage 1] Acquired {len(raw_content) if raw_content else 0} chars from {state['source_type']} source")
 
