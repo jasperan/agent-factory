@@ -1,0 +1,190 @@
+# PAI Hooks Configuration
+# Event-driven automation for Agent Factory
+
+hooks:
+  enabled: true
+  log_directory: data/logs/hooks
+  timeout_seconds: 30
+  retry_on_failure: false
+  verbose_logging: false
+
+# Session Hooks
+session_hooks:
+  on_session_start:
+    enabled: true
+    async: false  # Block session start until complete
+    actions:
+      - check_git_status
+      - load_task_context
+      - check_user_actions
+      - restore_previous_session
+
+  on_session_end:
+    enabled: true
+    async: true   # Don't block session end
+    actions:
+      - save_session_state
+      - commit_work_if_requested
+      - sync_backlog
+      - log_session_metrics
+
+  on_session_save:
+    enabled: true
+    async: false
+    actions:
+      - checkpoint_progress
+      - update_uocs
+
+# Task Hooks
+task_hooks:
+  on_task_create:
+    enabled: true
+    actions:
+      - update_backlog_md
+      - sync_to_backlog_mcp
+      - log_task_creation
+
+  on_task_update:
+    enabled: true
+    actions:
+      - sync_to_task_md
+      - log_task_update
+      - check_dependencies
+
+  on_task_complete:
+    enabled: true
+    validate_acceptance_criteria: true
+    sync_to_task_md: true
+    actions:
+      - validate_acceptance_criteria
+      - update_metrics
+      - sync_to_task_md
+      - log_task_completion
+      - check_milestones
+
+# Tool Hooks
+tool_hooks:
+  on_tool_use:
+    enabled: false  # Disabled by default (high frequency)
+    actions:
+      - validate_tool_inputs
+      - check_permissions
+
+  after_tool_use:
+    enabled: false  # Disabled by default (high frequency)
+    actions:
+      - log_tool_output
+      - update_state
+
+# Agent Hooks
+agent_hooks:
+  on_agent_init:
+    enabled: true
+    actions:
+      - register_in_database
+      - setup_logging
+
+  on_agent_execute:
+    enabled: true
+    actions:
+      - track_cost
+      - measure_latency
+
+  on_agent_finish:
+    enabled: true
+    actions:
+      - save_results
+      - update_metrics
+
+# Git Hooks
+git_hooks:
+  pre_commit:
+    enabled: true
+    run_tests: true
+    check_secrets: true
+    lint_code: true
+    actions:
+      - check_worktree_usage
+      - run_linter
+      - run_tests
+      - validate_no_secrets
+
+  post_commit:
+    enabled: true
+    actions:
+      - update_changelog
+      - sync_docs
+
+  pre_push:
+    enabled: true
+    prevent_force_push_main: true
+    update_readme: true  # NEW: Auto-update README with metrics
+    readme_timeout_seconds: 10
+    actions:
+      - check_branch
+      - prevent_force_push_to_main
+      - update_readme_metrics  # NEW: Extract git + DB metrics
+
+# README Auto-Update Configuration
+readme_update:
+  enabled: true
+  max_entries: 10  # Keep maximum 10 entries in "Latest Updates" section
+  include_db_metrics: true  # Query database for atom count
+  include_git_stats: true   # Extract git files/lines changed
+  timeout_seconds: 10       # Maximum execution time (non-blocking)
+  section_header: "## 📝 Latest Updates"  # Section to update
+  cache_atom_count: true    # Cache last known atom count for graceful degradation
+  skip_on_uncommitted: true  # Skip if README has uncommitted changes
+  skip_on_staged: true       # Skip if README already staged
+  commit_message_template: "docs: Update README with latest metrics [skip ci]"
+  log_execution: true        # Log all README updates to hooks log
+
+# UOCS (Use Of Claude Sessions) Configuration
+uocs:
+  enabled: true
+  history_directory: .claude/history
+  max_sessions_stored: 100
+  session_format: json
+  track_metrics: true
+  auto_restore: true
+
+# Windows Integration
+windows:
+  enabled: true  # Auto-detected based on OS
+  powershell_scripts: .claude/hooks/windows
+  registry_sync: true
+  registry_path: "HKCU:\\Software\\AgentFactory\\Context"
+
+# Security
+security:
+  validate_hook_ownership: true
+  check_hook_signatures: false  # Not implemented yet
+  sandbox_execution: false       # Not implemented yet
+  audit_logging: true
+  max_execution_time_seconds: 30
+
+# Logging
+logging:
+  session_log: data/logs/hooks/sessions.log
+  task_log: data/logs/hooks/tasks.log
+  hook_execution_log: data/logs/hooks/hook_executions.log
+  error_log: data/logs/hooks/errors.log
+  metrics_file: data/logs/hooks/metrics.json
+  log_format: "timestamp event_type details"
+  log_level: INFO  # DEBUG, INFO, WARN, ERROR
+
+# Metrics
+metrics:
+  enabled: true
+  track_hook_execution_time: true
+  track_hook_success_rate: true
+  track_tool_usage: true
+  track_agent_cost: true
+  aggregate_interval_minutes: 60
+
+# Notifications (Future)
+notifications:
+  enabled: false
+  slack_webhook: null
+  email: null
+  discord_webhook: null
