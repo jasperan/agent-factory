@@ -925,13 +925,26 @@ async def _ingest_source_monitored(url: str, monitor: IngestionMonitor) -> Dict[
                 atoms_failed=final_state["atoms_failed"]
             )
 
-            logger.info(f"Ingestion complete: {final_state['atoms_created']} atoms created, {final_state['atoms_failed']} failed")
+            atoms_created = final_state["atoms_created"]
+            atoms_failed = final_state["atoms_failed"]
+            errors = final_state["errors"]
+
+            # Determine success status
+            if atoms_created > 0:
+                success = True
+                logger.info(f"Ingestion complete: {atoms_created} atoms created, {atoms_failed} failed")
+            elif errors:
+                success = False
+                logger.warning(f"Ingestion failed: 0 atoms created, {len(errors)} errors")
+            else:
+                success = True  # No errors, but also no atoms (empty content or filtered out)
+                logger.warning(f"Ingestion completed with 0 atoms created (content may be empty or filtered)")
 
             return {
-                "success": True,
-                "atoms_created": final_state["atoms_created"],
-                "atoms_failed": final_state["atoms_failed"],
-                "errors": final_state["errors"],
+                "success": success,
+                "atoms_created": atoms_created,
+                "atoms_failed": atoms_failed,
+                "errors": errors,
                 "source_metadata": final_state["source_metadata"],
                 "total_duration_ms": total_duration_ms
             }
@@ -1001,13 +1014,26 @@ def ingest_source(url: str) -> Dict[str, Any]:
         try:
             final_state = chain.invoke(initial_state)
 
-            logger.info(f"Ingestion complete: {final_state['atoms_created']} atoms created, {final_state['atoms_failed']} failed")
+            atoms_created = final_state["atoms_created"]
+            atoms_failed = final_state["atoms_failed"]
+            errors = final_state["errors"]
+
+            # Determine success status
+            if atoms_created > 0:
+                success = True
+                logger.info(f"Ingestion complete: {atoms_created} atoms created, {atoms_failed} failed")
+            elif errors:
+                success = False
+                logger.warning(f"Ingestion failed: 0 atoms created, {len(errors)} errors")
+            else:
+                success = True  # No errors, but also no atoms (empty content or filtered out)
+                logger.warning(f"Ingestion completed with 0 atoms created (content may be empty or filtered)")
 
             return {
-                "success": True,
-                "atoms_created": final_state["atoms_created"],
-                "atoms_failed": final_state["atoms_failed"],
-                "errors": final_state["errors"],
+                "success": success,
+                "atoms_created": atoms_created,
+                "atoms_failed": atoms_failed,
+                "errors": errors,
                 "source_metadata": final_state["source_metadata"]
             }
 
