@@ -688,6 +688,40 @@ async def post_init(app: Application):
         logger.error(f"Failed to initialize OCR Pipeline: {e}")
         ocr_pipeline = None
 
+    # Initialize KB Observability Batch Timer
+    try:
+        from agent_factory.observability import TelegramNotifier
+        from agent_factory.core.database_manager import DatabaseManager
+
+        # Get DB manager and create notifier
+        db_manager = DatabaseManager()
+        notifier = TelegramNotifier(
+            bot_token=os.getenv("ORCHESTRATOR_BOT_TOKEN"),
+            chat_id=int(os.getenv("TELEGRAM_ADMIN_CHAT_ID", "8445149012")),
+            mode=os.getenv("KB_NOTIFICATION_MODE", "BATCH"),
+            quiet_hours_start=int(os.getenv("NOTIFICATION_QUIET_START", "23")),
+            quiet_hours_end=int(os.getenv("NOTIFICATION_QUIET_END", "7"))
+        )
+
+        # Start batch notification timer (runs every 5 minutes)
+        async def batch_notification_timer():
+            """Background task to send batch summaries every 5 minutes."""
+            while True:
+                await asyncio.sleep(300)  # 5 minutes
+                try:
+                    await notifier.send_batch_summary()
+                    logger.info("KB observability batch summary sent")
+                except Exception as e:
+                    logger.error(f"Batch summary failed: {e}")
+
+        # Create background task in bot's event loop
+        app.create_task(batch_notification_timer())
+        logger.info("✅ KB Observability batch timer started (5-minute intervals)")
+
+    except Exception as e:
+        logger.error(f"Failed to initialize KB observability timer: {e}")
+        logger.warning("KB ingestion notifications disabled")
+
 
 def main():
     global kb_manager
