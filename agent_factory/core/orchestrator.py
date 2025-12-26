@@ -36,6 +36,11 @@ from agent_factory.rivet_pro.agents.rockwell_agent import RockwellAgent
 from agent_factory.rivet_pro.agents.generic_agent import GenericAgent
 from agent_factory.rivet_pro.agents.safety_agent import SafetyAgent
 
+# Phase 3 Dynamic Few-Shot RAG Integration (2025-12-26)
+from examples.integration import FewShotEnhancer, FewShotConfig
+from examples.store import CaseStore
+from examples.embedder import CaseEmbedder
+
 
 class RivetOrchestrator:
     """4-route orchestrator for RIVET Pro queries.
@@ -63,6 +68,31 @@ class RivetOrchestrator:
 
         # Load SME agents (requires llm_router to be initialized)
         self.sme_agents = self._load_sme_agents()
+
+        # Initialize Few-Shot RAG Enhancer (Phase 3: Dynamic Few-Shot RAG - 2025-12-26)
+        self.fewshot_enhancer = None
+        try:
+            fewshot_config = FewShotConfig(
+                enabled=True,  # Enable by default
+                k=3,  # Top 3 similar cases
+                similarity_threshold=0.7,  # 70% minimum similarity
+                timeout_seconds=2.0,  # 2-second timeout budget
+                fallback_on_error=True  # Graceful degradation
+            )
+            self.fewshot_enhancer = FewShotEnhancer(fewshot_config)
+
+            # Initialize with test mode store and embedder
+            # TODO: Connect to production Supabase + Gemini in Phase 4
+            store = CaseStore(test_mode=True)
+            embedder = CaseEmbedder(test_mode=True)
+
+            # Load sample cases for testing
+            store.load_from_directory("examples/tests/fixtures")
+
+            self.fewshot_enhancer.initialize(store, embedder)
+            logger.info("Few-shot RAG enhancer initialized (test mode)")
+        except Exception as e:
+            logger.warning(f"Few-shot enhancer initialization failed (continuing without it): {e}")
 
         # Initialize KB gap logger (Phase 1: KB gap tracking)
         self.kb_gap_logger = None
@@ -263,6 +293,9 @@ class RivetOrchestrator:
     ) -> RivetResponse:
         """Route A: Strong KB coverage → direct answer from SME agent.
 
+        NEW (2025-12-26): Dynamic few-shot RAG integration - enhances SME prompts
+        with similar past maintenance cases for improved parsing of technician input.
+
         Args:
             request: User query request
             decision: Routing decision with vendor and coverage info
@@ -273,8 +306,32 @@ class RivetOrchestrator:
         vendor = decision.vendor_detection.vendor
         agent = self.sme_agents[vendor]
 
-        # Get answer from SME agent with KB coverage
-        response = await agent.handle_query(request, decision.kb_coverage)
+        # Phase 3: Retrieve similar maintenance cases for few-shot learning
+        fewshot_context = None
+        fewshot_cases_count = 0
+        if self.fewshot_enhancer:
+            try:
+                from examples.formatter import format_maintenance_examples
+
+                # Retrieve similar cases (with 2-second timeout)
+                results = await asyncio.wait_for(
+                    self.fewshot_enhancer._retriever.aget_similar_cases(request.text or ""),
+                    timeout=2.0
+                )
+
+                if results:
+                    # Format as few-shot examples for injection into system prompt
+                    fewshot_context = format_maintenance_examples(results, include_scores=False)
+                    fewshot_cases_count = len(results)
+                    logger.info(f"Few-shot RAG: Retrieved {fewshot_cases_count} similar cases for Route A")
+
+            except asyncio.TimeoutError:
+                logger.warning("Few-shot retrieval timed out (2s), continuing without examples")
+            except Exception as e:
+                logger.warning(f"Few-shot retrieval failed: {e}, continuing without examples")
+
+        # Get answer from SME agent with KB coverage + optional few-shot context
+        response = await agent.handle_query(request, decision.kb_coverage, fewshot_context)
 
         # Update response with routing metadata
         response.route_taken = self._get_model_route_type(RouteType.ROUTE_A)
@@ -282,6 +339,7 @@ class RivetOrchestrator:
         response.trace["route"] = "A"
         response.trace["vendor"] = vendor.value
         response.trace["kb_coverage"] = decision.kb_coverage.level.value
+        response.trace["fewshot_cases_retrieved"] = fewshot_cases_count
 
         return response
 

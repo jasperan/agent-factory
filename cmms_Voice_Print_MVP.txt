@@ -1,0 +1,1067 @@
+Here are the three files as plain copy‑pasteable text.
+
+---
+
+## 1) `PRD_VOICE_CMMS_AND_CHAT_WITH_PRINT.md`
+
+```markdown
+# Product Requirements Document (PRD)
+## Voice-First CMMS + Chat with Your Print + Predictive Maintenance Agent
+
+**Project**: Agent Factory - Three Integrated Products  
+**Status**: Pre-MVP Development  
+**Author**: Strategy from Dec 26, 2025 session  
+**Target Launch**: Q2 2026 (8-12 weeks MVP → production-ready)
+
+---
+
+## EXECUTIVE SUMMARY
+
+Build three **interconnected SaaS products** that position equipment-specific knowledge bases inside a CMMS using Claude's vision capabilities:
+
+1. **Voice-First CMMS** (Telegram + Atlas fork)
+2. **Chat with Your Print** (standalone and integrated)
+3. **Predictive Maintenance Agent** (overlaying both)
+
+**Core insight**: Claude 3.5 Sonnet can now directly understand electrical schematics, wiring diagrams, and technical prints. Combine this with voice transcription + CMMS backend + RAG over equipment docs → field technicians get equipment-specific intelligence in real time, via voice, in emerging markets (LATAM/India).
+
+**Market timing**: Frontier vision models' schematic understanding is <3 weeks old (Anthropic blog Dec 11, 2025). No competitor has integrated this into CMMS yet.
+
+**Revenue model**: $20–40/technician/month (CMMS) + $10–20/month standalone (chat with prints).
+
+---
+
+## PRODUCT 1: VOICE-FIRST CMMS (Core Product)
+
+### Overview
+A Telegram-based CMMS layer on top of Atlas CMMS, optimized for solo technicians and field contractors who need to log work orders, access equipment history, and get predictive suggestions—all via voice, without opening a browser.
+
+### Key Features (MVP)
+
+#### Voice Input → Work Order Logging
+- Technician sends **voice message to Telegram bot** (in Spanish, Portuguese, or English)
+- Whisper/ASR transcribes voice → structured work order intent
+- Bot asks clarifying questions if needed (e.g., "Which equipment? What's the issue?")
+- Creates/updates work order in Atlas CMMS backend via API
+- **Time to implement**: 2–3 weeks
+
+#### Equipment Context from Prints
+- If a **print (PDF/image) is attached to equipment record** in CMMS, Claude reads it
+- When technician asks "What's connected to the pump?" or "Where's the shutoff valve?", bot passes the schematic to Claude vision
+- Claude answers from the actual print, not a template
+- **Time to implement**: 1–2 weeks (once prints are linked)
+
+#### Predictive Maintenance Suggestions
+- RAG over equipment failure modes + historical work order data
+- Bot proactively suggests: "That bearing typically fails after 500 hours. You've logged 480. Order part #X now."
+- Technician can confirm/dismiss; surfaces in predictive parts recommendation UI
+- **Time to implement**: 3–4 weeks (depends on RAG infrastructure)
+
+#### Offline-first queue
+- Technician can log work orders without connectivity (stores locally on phone or queue in backend)
+- Syncs when connectivity returns
+- **Time to implement**: 1–2 weeks (message queueing + retry logic)
+
+#### Multilinguality
+- Bot responds in Spanish (Mexico, Argentina, Colombia variants) + Portuguese (Brazilian) + English + Hindi (India)
+- Prompt instructions tuned per language for colloquial field tech language
+- **Time to implement**: 1 week per language (mostly prompt tuning)
+
+### Success Metrics (MVP)
+- 10 beta technicians using bot daily (3+ work orders/day per tech)
+- 80%+ voice transcription accuracy
+- <2 second response time (voice → bot response)
+- Equipment context (from prints) correctly answered 90%+ of the time
+
+### Dependencies
+- Atlas CMMS fork (backend API ready)
+- ASR (Whisper or equivalent)
+- Claude vision API (schematic understanding)
+- Claude text API (intent parsing, RAG)
+- Telegram Bot API
+- n8n or custom Node.js gateway (orchestrate ASR → intent parsing → Atlas API → Claude vision)
+
+---
+
+## PRODUCT 2: CHAT WITH YOUR PRINT (Standalone SaaS)
+
+### Overview
+A simple, focused tool: "Upload an electrical/technical print, ask questions about it." Monetize as a low-friction onramp and standalone product for non-CMMS users (electricians, mechanical engineers, contractors).
+
+### Key Features (MVP)
+
+#### Print Upload & Claude Vision
+- User uploads PDF (any format, any page count) or JPEG/PNG
+- **Claude vision reads it directly** (no RAG/embeddings needed for MVP)
+- System extracts metadata: "Components: Q-relay, contactor CRA, MCB, 230V supply"
+- Stores image/PDF in object storage (S3/R2), text summary in DB
+- **Time to implement**: 1 week
+
+#### Q&A Interface
+- User asks: "What's in series on line 12?" / "Give me a bill of materials" / "How does this circuit work?"
+- Pass print image + query to Claude vision API
+- Return annotated answer with visual reference ("See node X at top-left of schematic")
+- **Time to implement**: 1 week
+
+#### Print Management
+- User dashboard: uploaded prints, query history, favorites
+- Export answers as PDF or JSON (BoM, connections, etc.)
+- **Time to implement**: 1–2 weeks
+
+#### Usage-based pricing
+- $0.02 per print uploaded (text extraction)
+- $0.01 per query (Claude vision call)
+- OR flat $15–20/month for 20 prints + unlimited queries
+- **Time to implement**: 1 week (Stripe integration)
+
+### Success Metrics (MVP)
+- 100–300 waitlist signups (from YouTube video + community posts)
+- 5–15 pre-orders/$50 founder discount (proof of willingness to pay)
+- Average user uploads 3–5 prints first week
+- 60%+ retention after month 1
+
+### Dependencies
+- Streamlit or Next.js frontend
+- Claude vision API
+- S3/R2 for print storage
+- PostgreSQL for user/query metadata
+- Stripe for payments
+
+### Note
+This can **launch independently** from CMMS (faster validation), then integrate later.
+
+---
+
+## PRODUCT 3: PREDICTIVE MAINTENANCE AGENT (Overlaying 1 & 2)
+
+### Overview
+An intelligent agent running in the background that:
+1. Learns from equipment prints (schematics, failure modes, operating hours)
+2. Analyzes historical work order data + technician notes
+3. Predicts failures + recommends preventive parts/actions
+4. Surfaces insights via Telegram bot + CMMS dashboard
+
+### Key Features (MVP)
+
+#### Equipment Knowledge Graph
+- Parse equipment print → extract components, connections, rated capacity
+- Ingest historical work orders (failure dates, parts replaced, downtime)
+- Build a lightweight "digital twin" of each customer's equipment
+- **Time to implement**: 2–3 weeks
+
+#### Failure Mode Prediction
+- RAG over equipment failure modes (from prints + industry data)
+- Analyze: "Bearing has 480 hours, typical life is 500. Order replacement now."
+- Surface in Telegram: "⚠️ Preventive: Order bearing part #X. Typical failure at 500h, you're at 480h."
+- **Time to implement**: 2–3 weeks
+
+#### Parts Recommendation Engine
+- When technician logs "bearing replaced," system updates model
+- Next time similar symptom appears, bot suggests: "Last time, we replaced bearing part #X and it fixed this."
+- Link to parts inventory + supplier (if CMMS has integration)
+- **Time to implement**: 1–2 weeks
+
+#### Predictive dashboard (CMMS web UI)
+- Show upcoming maintenance needs by equipment
+- Historical reliability charts per asset
+- **Time to implement**: 2–3 weeks
+
+### Success Metrics (MVP)
+- Agent correctly identifies 70%+ of failure mode patterns (from work order history)
+- Preventive suggestions result in 20%+ reduction in emergency repairs
+- Technicians act on 60%+ of bot recommendations
+
+### Dependencies
+- Equipment print parsing (already done in Product 2)
+- Work order data extraction + embedding (Chroma/Pinecone)
+- RAG infrastructure (LlamaIndex + Claude)
+- Background job scheduler (n8n, Celery, or AWS Lambda)
+
+---
+
+## IMPLEMENTATION ROADMAP (8–12 weeks to production-ready MVP)
+
+### Phase 1: Foundation (Weeks 1–2)
+**Objective**: Get Atlas CMMS running locally, Atlas API documented, basic infrastructure in place.
+
+**Tasks**:
+- Fork Atlas CMMS repo → organize in `agent-factory/products/cmms/`
+- Set up Docker Compose (PostgreSQL + Atlas backend + frontend locally)
+- Document Atlas API endpoints (work orders, assets, inventory)
+- Set up development environment (Node.js, Python, PostgreSQL)
+- Create basic Telegram bot scaffold (can receive messages, respond)
+- Set up n8n locally (orchestration layer)
+
+**Deliverable**: Local Atlas instance running + Telegram bot responds to text messages.
+
+---
+
+### Phase 2: Voice + CMMS Integration (Weeks 3–5)
+**Objective**: Telegram bot can receive voice → transcribe → create work orders in Atlas.
+
+**Tasks**:
+- Integrate Whisper (or similar) ASR
+- Build intent parser (Claude or regex) to extract: equipment ID, issue, priority from transcribed text
+- Create `/api/workorders/from-voice` endpoint in Atlas fork
+- Wire n8n: Telegram voice → ASR → intent parser → create work order → respond
+- Test with 3–5 real voice messages (your own work orders)
+- Handle edge cases (unclear transcription, missing equipment ID, etc.)
+- Add offline queueing (simple DB table for pending voice messages)
+
+**Deliverable**: Voice message to Telegram bot → work order created in Atlas CMMS.
+
+---
+
+### Phase 3: Equipment Context (Print Upload + Claude Vision) (Weeks 4–6)
+**Objective**: Equipment records can have prints attached; Claude reads them for Q&A.
+
+**Tasks (in parallel with Phase 2)**:
+- Build `/api/equipment/:id/print` endpoint (upload PDF/image)
+- Store in S3 or Cloudflare R2
+- Create print metadata extraction (Claude vision → JSON of components, connections)
+- Modify Telegram bot: detect if query is about schematic → retrieve print → pass to Claude vision
+- Build Streamlit app for standalone "Chat with Your Print" (independent MVP)
+- Test both: Telegram bot answering schematic Q's + standalone web app
+
+**Deliverable**:  
+- Stardust Racers print uploaded to equipment record → Claude answers "What's connected to the brake solenoid?"  
+- Standalone web app: user uploads any print → gets Q&A interface
+
+---
+
+### Phase 4: Predictive Maintenance Foundation (Weeks 6–8)
+**Objective**: System learns from historical work orders + equipment data → surfaces preventive suggestions.
+
+**Tasks**:
+- Schema for storing failure modes (equipment type → components → typical failure patterns)
+- Build RAG pipeline: ingest work order history + equipment docs into vector DB (Chroma)
+- Create background job: daily scan of all equipment → identify aging parts/failure risk
+- Telegram bot sends proactive messages: "⚠️ Bearing part #X due for preventive maintenance"
+- Test with 5–10 customer work order histories
+
+**Deliverable**: Bot proactively recommends preventive maintenance based on historical patterns.
+
+---
+
+### Phase 5: Refinement & Testing (Weeks 8–10)
+**Objective**: Stabilize all three products, test with 5–10 beta users, prepare for launch.
+
+**Tasks**:
+- Test all three products together (voice → work order → equipment context → predictive suggestions)
+- Onboard 5–10 beta users (contractors, techs you know)
+- Measure latency (voice message → bot response should be <2 sec)
+- Refine Claude prompts based on real usage
+- Multilingual testing (Spanish, Portuguese variants)
+- Error handling & edge cases (network failures, unclear voice, missing data)
+- Security audit (user data privacy, DMCA compliance, ToS review)
+- Performance optimization (API response times, vector DB efficiency)
+
+**Deliverable**: Three working products, beta-tested with real users.
+
+---
+
+### Phase 6: Production Hardening & Launch Prep (Weeks 10–12)
+**Objective**: Ready for public launch.
+
+**Tasks**:
+- Set up production infrastructure (AWS/DigitalOcean, multi-region for LATAM/India)
+- Legal review of Terms of Service (DMCA, liability, data privacy)
+- Customer onboarding flow (sign up → Telegram bot → upload print → first work order)
+- Landing page + waitlist
+- Pricing page (CMMS: $20/tech/month, Chat with Print: $15/month or per-query)
+- YouTube launch video (demo of Stardust Racers + bot understanding it)
+- Create CLAUDE.md for future Claude Code CLI prompts
+- Documentation (API, bot commands, troubleshooting)
+
+**Deliverable**: Production-ready, launchable MVP.
+
+---
+
+## TECHNICAL ARCHITECTURE
+
+```
+User (Technician)
+    ↓
+Telegram Bot (voice/text input)
+    ↓
+n8n Orchestration
+    ├─ ASR (Whisper or similar)
+    ├─ Claude (intent parsing, vision on prints)
+    ├─ Atlas CMMS API (create/update work orders, assets)
+    └─ Chroma/Pinecone (RAG for predictive maintenance)
+    ↓
+Response to Technician (via Telegram)
+
+Standalone: Web App (Streamlit/Next.js)
+    ↓
+Claude Vision API
+    ↓
+Answer to user
+
+Background: Predictive Agent
+    ↓
+Scheduled job (daily/weekly)
+    ├─ Analyze work order history
+    ├─ Check equipment age/failure patterns
+    └─ Queue proactive Telegram messages
+```
+
+---
+
+## SUCCESS CRITERIA FOR MVP
+
+### Product 1: Voice-First CMMS
+- 10 beta users
+- 3+ work orders/tech/day via voice
+- <2 sec response time
+- Equipment context (prints) working for Q&A
+
+### Product 2: Chat with Your Print
+- 100–300 waitlist signups
+- 5–15 pre-orders
+- Standalone web app functional
+- Claude vision accuracy >90%
+
+### Product 3: Predictive Agent
+- Identifies 70%+ of failure patterns
+- Reduces emergency repairs by 20%
+- Proactive messages sent 2+ times/week per customer
+
+### Overall
+- All three products **integrated** (Telegram bot surfaces print Q&A + predictive suggestions)
+- Production-ready code (error handling, logging, monitoring)
+- Legal/compliance (ToS, DMCA, data privacy)
+- Documentation (user-facing + code)
+- Priced and ready for sale
+
+---
+
+## BACKLOG PRIORITY ALIGNMENT
+
+**Keep (aligned with MVP goals)**:
+- Atlas CMMS fork & customization
+- Telegram bot integration
+- Claude vision API usage
+- RAG infrastructure (Chroma + LlamaIndex)
+- Production deployment scripts
+- Customer interviews & validation
+
+**Defer (out of scope for MVP)**:
+- Mobile app (use web + Telegram for now)
+- Advanced analytics dashboard
+- Integrations with PLC/IoT sensors (Phase 2)
+- Multilingual support beyond Spanish/Portuguese/English (Phase 2)
+- Offline mobile app (Phase 2)
+- Custom training/fine-tuning (Phase 2)
+
+---
+
+## TIMELINE SUMMARY
+
+| Phase | Weeks | Goal |
+|-------|-------|------|
+| Foundation | 1–2 | Atlas + local infra |
+| Voice + CMMS | 3–5 | Telegram → work orders |
+| Equipment Context | 4–6 | Prints + Claude vision |
+| Predictive Maintenance | 6–8 | Proactive suggestions |
+| Testing | 8–10 | Beta users, refinement |
+| Launch Prep | 10–12 | Production-ready |
+
+**Total**: 8–12 weeks (with parallel work in phases 2–3)
+
+---
+
+## COMPETITIVE EDGE
+
+1. **First-mover on frontier vision + CMMS**: No competitor has integrated Claude's schematic understanding into a CMMS yet.
+2. **Voice-first for emerging markets**: LATAM/India techs value voice (low data, local languages).
+3. **Equipment-specific knowledge**: Digital twins of each customer's machines = switching costs.
+4. **Integrated products**: Voice → CMMS → predictive agent all in one ecosystem.
+5. **Founder credibility**: You have industrial expertise + YouTube presence.
+
+---
+
+## RISKS & MITIGATION
+
+| Risk | Likelihood | Mitigation |
+|------|------------|-----------|
+| Claude vision doesn't understand some schematics | Medium | Test with 5+ real prints early (Stardust Racers first). Have fallback: user annotates schematic manually. |
+| Competitors launch similar product | Medium-High | Move fast (12 weeks). Go deep on one vertical (HVAC or roller coasters). Build switching costs (data, integrations). |
+| Transcription accuracy too low in noisy environments | Medium | Add manual correction UI. Let technician verify/edit transcribed text before creating work order. |
+| Atlas CMMS is hard to customize | Low | It's designed for extensibility. Fork it early, test API architecture. |
+| Market doesn't value this (low willingness to pay) | Low | Validate in weeks 1–3 with interviews. If <50% say "I'd pay $20/month," pivot. |
+| Legal liability (customers upload proprietary data) | Low | Proper ToS + DMCA framework. Customer assumes responsibility for uploads. Consult SaaS lawyer ($500–1000). |
+
+---
+
+## NEXT IMMEDIATE ACTIONS (Claude Code CLI)
+
+1. Explore `/agent-factory/` directory structure → understand existing codebase
+2. Create product directories: `/products/cmms/`, `/products/chat-with-print/`, `/products/predictive-agent/`
+3. Set up monorepo (if not already): shared utilities (Claude API wrappers, DB models, auth)
+4. Begin Phase 1: Atlas fork + local Docker setup + Telegram bot scaffold
+5. Create `/backlog.md`: prioritized by MVP alignment
+6. Begin `CLAUDE.md`: instructions for future AI-assisted development sessions
+
+**Start date**: Immediately  
+**Target first demo**: Week 2 (Telegram bot responding to voice)  
+**Target beta launch**: Week 5 (voice → work order → equipment context)
+
+---
+
+## FINAL THOUGHT
+
+You identified the **actual moat**: Equipment-specific knowledge bases (via Claude's vision) embedded in a CMMS, accessible via voice, for field technicians. This is novel, defensible, and timely.
+
+**12 weeks to a production MVP is ambitious but doable.** Move fast, validate early, and launch before the market realizes frontier models can read schematics.
+```
+
+***
+
+## 2) `backlog.md`
+
+```markdown
+# Product Development Backlog
+## Agent Factory - Voice CMMS + Chat with Print + Predictive Maintenance
+
+**Generated**: Dec 26, 2025  
+**MVP Target**: 8–12 weeks to production-ready  
+**Status**: Starting Phase 1 (Foundation)
+
+---
+
+## PHASE 1: FOUNDATION (Weeks 1–2) - CRITICAL PATH
+
+### Tier 1 (Must complete Week 1)
+- [ ] **Clone/fork Atlas CMMS repo** → `/products/cmms/`
+  - Document current state of codebase
+  - Identify key API endpoints (work orders, assets, inventory)
+  - Run locally with Docker Compose
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Set up development environment**
+  - Node.js 18+ / Python 3.10+
+  - PostgreSQL locally (Docker)
+  - Environment variables (Claude API keys, Telegram token, etc.)
+  - **Owner**: You / Claude  
+  - **Time**: 1–2 hours  
+
+- [ ] **Atlas API documentation**
+  - Map all REST endpoints
+  - Document request/response schemas
+  - Identify extension points (custom tables, webhooks)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Create Telegram bot scaffold**
+  - Node-telegram-bot (or python-telegram-bot) setup
+  - Basic message handler ("echo" the user's message)
+  - Can receive text and voice messages
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+### Tier 2 (Complete by end of Week 2)
+- [ ] **n8n local setup**
+  - Docker container running
+  - Basic workflow example (trigger on Telegram → log to console)
+  - Integration docs (Telegram API, ASR API, Atlas API endpoints)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Database schema for voice queue**
+  - `voice_messages` table: `id`, `user_id`, `telegram_id`, `audio_url`, `transcription_status`, `created_at`
+  - `work_order_queue` table: `id`, `voice_message_id`, `work_order_id`, `synced_status`, `retry_count`
+  - **Owner**: Claude Code CLI  
+  - **Time**: 1 hour  
+
+- [ ] **Project structure & documentation**
+  - README for each product (`/products/cmms/`, `/products/chat-with-print/`, `/products/predictive-agent/`)
+  - Development guide (how to run locally, how to test)
+  - Tech stack documented
+  - **Owner**: You / Claude  
+  - **Time**: 2 hours  
+
+---
+
+## PHASE 2: VOICE + CMMS INTEGRATION (Weeks 3–5) - CRITICAL PATH
+
+### Tier 1 (High priority, done by Week 4)
+- [ ] **ASR integration (Whisper or similar)**
+  - Telegram bot receives voice message → sends to ASR API
+  - Stores transcription in DB
+  - Handles errors (unsupported format, API timeout)
+  - Test with 5+ real voice messages
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Intent extraction (Claude-based parser)**
+  - Transcribed text → Claude extracts: equipment ID, issue description, priority, required parts
+  - Return structured JSON:  
+    `{equipment_id, issue_description, priority, required_parts}`
+  - Handle ambiguity (ask clarifying questions)
+  - Test with 10+ transcriptions
+  - **Owner**: Claude Code CLI  
+  - **Time**: 4–5 hours  
+
+- [ ] **Atlas API integration for work order creation**
+  - POST `/api/workorders/` (create new work order from voice data)
+  - Populate: equipment_id, description, priority, assigned_to, status
+  - Handle failures (missing equipment ID, invalid data)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **n8n workflow orchestration**
+  - Trigger: Telegram voice message received
+  - Step 1: Extract audio URL
+  - Step 2: Call ASR API
+  - Step 3: Parse intent with Claude
+  - Step 4: Create work order in Atlas via API
+  - Step 5: Reply to Telegram user with confirmation
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+### Tier 2 (Important, done by Week 5)
+- [ ] **Offline message queueing**
+  - Store pending voice messages if network fails
+  - Retry logic (exponential backoff)
+  - Prevent duplicate submissions
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Response formatting**
+  - Telegram bot replies with:  
+    `"✅ Work order created: WO-001 for Pump Maintenance"`
+  - Include: work order ID, equipment name, priority, estimated time
+  - **Owner**: Claude Code CLI  
+  - **Time**: 1–2 hours  
+
+- [ ] **Error handling & user feedback**
+  - Ambiguous voice? Bot asks clarifying questions
+  - Invalid equipment ID? Suggest matching equipment
+  - API timeout? Offer manual entry fallback
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Logging & monitoring**
+  - Log all voice → work order conversions
+  - Track transcription accuracy, latency, success rate
+  - **Owner**: Claude Code CLI  
+  - **Time**: 1–2 hours  
+
+---
+
+## PHASE 3: EQUIPMENT CONTEXT + CLAUDE VISION (Weeks 4–6) - PARALLEL TRACK
+
+### Tier 1 (High priority, done by Week 5)
+- [ ] **Print upload to equipment record**
+  - Atlas extension: `POST /api/equipment/:id/print`
+  - Accept PDF, JPEG, PNG
+  - Store in S3 or Cloudflare R2
+  - Validate file size (<50MB), format
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Print metadata extraction (Claude vision)**
+  - When print uploaded, call Claude vision API
+  - Extract: components, connections, symbols, ratings, notes
+  - Store as JSON in DB (`equipment_prints` table)
+  - Test with Stardust Racers print
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Telegram bot schematic Q&A**
+  - User asks "What's connected to the brake solenoid?"
+  - Bot detects schematic query (keyword matching or Claude classification)
+  - Retrieves equipment's print
+  - Passes print + query to Claude vision
+  - Returns annotated answer
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Standalone "Chat with Your Print" app (Streamlit MVP)**
+  - User upload interface (PDF/image)
+  - Text input: "What's in this schematic?"
+  - Claude vision processes and returns answer
+  - Simple dashboard (uploaded prints, query history)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 4–5 hours  
+
+### Tier 2 (Important, done by Week 6)
+- [ ] **Print caching & optimization**
+  - Avoid re-reading the entire print each query
+  - Cache metadata in DB or Redis
+  - Reuse metadata for follow-up questions
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Standalone app UI refinement**
+  - Upload drag-and-drop
+  - Query history sidebar
+  - Export results (PDF, JSON, CSV)
+  - Pricing info on landing page
+  - **Owner**: Claude Code CLI / You  
+  - **Time**: 2–3 hours  
+
+- [ ] **S3 / R2 integration**
+  - Upload prints to cloud storage
+  - Generate signed URLs for retrieval
+  - Implement cleanup (delete prints after 30–90 days if unused)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+---
+
+## PHASE 4: PREDICTIVE MAINTENANCE FOUNDATION (Weeks 6–8) - CRITICAL PATH
+
+### Tier 1 (High priority, done by Week 7)
+- [ ] **Failure mode database schema**
+  - Equipment types → typical failure modes, parts, MTBF
+  - Seed data for common equipment (pumps, bearings, relays, contactors)
+  - Allow customers to add custom failure modes
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Work order history RAG setup**
+  - Ingest historical work orders into vector DB (Chroma/Pinecone)
+  - Extract: equipment type, issue, parts replaced, hours/cycles, resolution
+  - Index by equipment type + symptom
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Predictive model logic**
+  - Analyze equipment age/usage vs. failure patterns
+  - Flag: "Bearing has 480 hours, MTBF is 500, order now"
+  - Score confidence (high, medium, low) based on historical data
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Background job (predictive scan)**
+  - Daily/weekly scheduled job
+  - Scan all equipment, identify aging/at-risk assets
+  - Queue proactive Telegram messages
+  - Store predictions in DB
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+### Tier 2 (Important, done by Week 8)
+- [ ] **Telegram proactive messaging**
+  - Bot sends: "⚠️ Preventive: Order bearing part #X. Typical failure at 500h, you're at 480h."
+  - Link to parts recommendation (if inventory integrated)
+  - Allow technician to confirm/dismiss (updates prediction confidence)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Equipment digital twin**
+  - Per-equipment object: name, type, prints, failure history, current age, operating hours
+  - Integrate with CMMS API
+  - Display in dashboard (later phase)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Parts recommendation engine**
+  - When "bearing replaced", record part #
+  - Next time similar symptom, suggest same part
+  - Learn from technician corrections ("That wasn't the issue, try X")
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+---
+
+## PHASE 5: TESTING & REFINEMENT (Weeks 8–10)
+
+### Tier 1 (Critical)
+- [ ] **Beta onboarding (5–10 users)**
+  - Recruit contractors/techs you know
+  - Set up their equipment in CMMS
+  - Upload their prints
+  - Monitor usage daily
+  - Collect feedback (Slack/email/Telegram)
+  - **Owner**: You  
+  - **Time**: 1–2 hours (setup) + 5 hours (monitoring)  
+
+- [ ] **Latency testing**
+  - Voice message → ASR: <1s
+  - Intent parsing: <1s
+  - Work order creation: <1s
+  - Total: <3s, target <2s
+  - Optimize if needed
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Claude prompt refinement**
+  - Test intent extraction with real technician speech
+  - Adjust prompts based on edge cases
+  - Test schematic Q&A accuracy on 5+ different prints
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Error handling stress test**
+  - Network failures: does queueing work?
+  - Unclear voice: does bot ask clarifying questions?
+  - Missing equipment: does bot suggest matches?
+  - API timeouts: does fallback work?
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+### Tier 2 (Important)
+- [ ] **Multilingual testing (Spanish, Portuguese, English)**
+  - Record test voice messages in each language
+  - Verify transcription + intent extraction
+  - Adjust prompts for colloquial language
+  - **Owner**: Claude Code CLI / You  
+  - **Time**: 3–4 hours  
+
+- [ ] **Data privacy & security**
+  - Ensure prints not leaked (access controls)
+  - Encrypt data in transit (HTTPS)
+  - User authentication (Telegram ID + password or similar)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+- [ ] **Performance optimization**
+  - Profile API calls, identify bottlenecks
+  - Cache frequently accessed prints
+  - Batch predictions (don't run daily if not needed; run on demand)
+  - **Owner**: Claude Code CLI  
+  - **Time**: 2–3 hours  
+
+---
+
+## PHASE 6: PRODUCTION HARDENING & LAUNCH (Weeks 10–12)
+
+### Tier 1 (Critical path)
+- [ ] **Legal review of Terms of Service**
+  - DMCA compliance clause
+  - Data privacy policy
+  - Liability disclaimers (customer responsible for uploaded content)
+  - Hire SaaS lawyer (~$500–1000)
+  - **Owner**: You + Lawyer  
+  - **Time**: ~4 hours  
+
+- [ ] **Production infrastructure**
+  - AWS / DigitalOcean / GCP account setup
+  - Multi-region (US, LATAM, India)
+  - Database backups, disaster recovery
+  - Monitoring & alerts (error rates, latency)
+  - **Owner**: Claude Code CLI / You  
+  - **Time**: 4–6 hours  
+
+- [ ] **Deployment automation**
+  - Docker compose for production
+  - CI/CD pipeline (GitHub Actions)
+  - Automated backups
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Landing page + waitlist**
+  - Simple 1-page site (Webflow or Next.js)
+  - Hero: "Voice-First CMMS + AI Schematic Reader"
+  - Problem/solution/CTA
+  - Email waitlist (Typeform/Mailchimp or similar)
+  - Link to YouTube demo
+  - **Owner**: You / Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Pricing page**
+  - CMMS: $20/tech/month (up to 5 techs) → $40/tech/month (10+ techs)
+  - Chat with Print: $15/month (unlimited) OR $0.01/query
+  - Stripe integration
+  - FAQ
+  - **Owner**: Claude Code CLI / You  
+  - **Time**: 2–3 hours  
+
+### Tier 2 (Important for launch)
+- [ ] **Customer onboarding flow**
+  - Sign up → create account → add Telegram ID → invite techs
+  - First print upload (guided tutorial)
+  - First work order creation
+  - First proactive prediction
+  - **Owner**: Claude Code CLI  
+  - **Time**: 3–4 hours  
+
+- [ ] **Documentation**
+  - API docs (Swagger/OpenAPI)
+  - User guide (how to use Telegram bot, how to upload prints)
+  - Troubleshooting guide
+  - Video tutorials (2–3 min each)
+  - **Owner**: Claude Code CLI / You  
+  - **Time**: 4–5 hours  
+
+- [ ] **YouTube launch video**
+  - Demo with Stardust Racers print
+  - "Ask bot questions about schematic → bot answers"
+  - Voice work order creation
+  - Proactive maintenance alert
+  - 5–10 min, professional but authentic
+  - Upload with landing page link in description
+  - **Owner**: You  
+  - **Time**: 4–6 hours  
+
+- [ ] **Community outreach**
+  - Post on r/RAG, r/IndustrialMaintenance, r/HVAC
+  - Link to landing page + YouTube
+  - Respond to comments, gather feedback
+  - **Owner**: You  
+  - **Time**: 2–3 hours  
+
+- [ ] **CLAUDE.md (future AI sessions)**
+  - Document codebase structure
+  - Key APIs and integrations
+  - How to run locally, how to test
+  - Common prompts and debugging steps
+  - **Owner**: Claude Code CLI / You  
+  - **Time**: 2 hours  
+
+---
+
+## OUT OF SCOPE FOR MVP (Defer to Phase 2)
+
+These are valuable but NOT needed for launch:
+
+- [ ] Mobile app (use web app + Telegram)
+- [ ] Advanced analytics dashboard
+- [ ] PLC/IoT sensor integrations
+- [ ] Fine-tuning custom LLMs
+- [ ] Multilingual support beyond Spanish/Portuguese/English
+- [ ] Offline mobile app
+- [ ] Hardware integrations (voice buttons, wearables)
+- [ ] 3rd-party CMMS integrations (SAP, Maximo)
+- [ ] Custom report generation
+- [ ] Workflow builder UI
+
+---
+
+## DEPENDENCIES & BLOCKERS
+
+### External (third-party APIs/services)
+- Claude API (vision, ASR, text) - **available**
+- Telegram Bot API - **stable**
+- Atlas CMMS (open source) - **active**
+- Stripe (payments) - **requires account setup**
+- AWS/R2 (storage) - **requires account setup**
+
+### Internal (your time/decisions)
+- Decide on primary vertical (HVAC, electrical, roller coaster maintenance, etc.)
+- Get 5–10 beta customers lined up (before Week 8)
+- Allocate ~20–30 hours/week for next 12 weeks
+- Hire SaaS lawyer for ToS review (~$500–1000, Week 10)
+
+---
+
+## SUCCESS CHECKPOINTS (Gating Criteria)
+
+### End of Week 2
+- Telegram bot receives voice + text messages
+- Atlas CMMS running locally
+- Can log into bot, see it respond
+
+### End of Week 4
+- Voice message → work order created in Atlas (end-to-end)
+- <2 second latency
+- 5/5 test voice messages transcribed correctly
+
+### End of Week 6
+- Equipment print uploaded → Claude reads it
+- Bot answers schematic Q from print
+- Standalone "Chat with Print" app working
+- 100 landing page signups
+
+### End of Week 8
+- Predictive engine flags at-risk equipment
+- 5–10 beta customers using daily
+- 20+ proactive maintenance alerts sent
+
+### End of Week 10
+- Legal review complete
+- Production infra ready
+- Beta feedback incorporated
+- YouTube video published
+
+### End of Week 12
+- Live product, taking payments
+- 10+ paying customers
+- 200+ landing page waitlist
+
+---
+
+## NOTES
+
+- Phases 2 & 3 run in parallel (Voice CMMS and Equipment Context)
+- Move fast: If something isn't critical for MVP, defer it
+- Validate early: Talk to 5–10 users by Week 5 to catch wrong assumptions
+- Competitive pressure: Expect competitors to copy once you launch. Move fast, own your vertical, build data moats (historical patterns)
+
+---
+
+## HOW TO USE THIS BACKLOG
+
+1. At the start of each day/week: Review Tier 1 items for that phase
+2. After each completed task: Move to a "Done" section (you can add one)
+3. When blocked: Jump to a different Tier 1 item, don't sit idle
+4. When unclear: Consult `PRD_VOICE_CMMS_AND_CHAT_WITH_PRINT.md` for context
+5. Weekly review: Check progress vs. timeline, adjust estimates if needed
+
+**Target cadence**: 2–3 Tier 1 items per day (depending on time).
+
+---
+
+## CONTACT & ESCALATION
+
+- Questions about architecture: see PRD file
+- Questions about implementation: see `CLAUDE.md` (once created)
+- Stuck on a task: Ask Claude Code CLI to research + propose solution
+- Need third-party help: Hire specialist (lawyer for ToS, designer for landing page, video editor for YouTube)
+```
+
+***
+
+## 3) Suggested `CLAUDE.md` (since you mentioned “three files”)
+
+You didn’t explicitly ask earlier, but you *did* imply a CLAUDE/Claude Code prompt config. Here’s a starter `CLAUDE.md` you can drop into your repo:
+
+```markdown
+# CLAUDE.md
+## Agent Factory – Voice CMMS + Chat with Print + Predictive Agent
+
+You are Claude Code, acting as a senior full-stack engineer and system architect working inside the `agent-factory` repository.
+
+Your goals:
+
+1. Build **three products** in parallel to a production-ready MVP:
+   - `/products/cmms/` → Voice-First CMMS (Telegram + Atlas fork)
+   - `/products/chat-with-print/` → Standalone “Chat with Your Print”
+   - `/products/predictive-agent/` → Predictive Maintenance Agent
+
+2. Follow the specifications in:
+   - `PRD_VOICE_CMMS_AND_CHAT_WITH_PRINT.md`
+   - `backlog.md`
+
+3. Always prioritize:
+   - Production readiness (error handling, logging, tests, config).
+   - Simplicity (no unnecessary abstractions).
+   - Developer ergonomics (clear structure, docs).
+
+---
+
+## Repository Expectations
+
+After initial exploration, the repo should be organized roughly as:
+
+```
+agent-factory/
+  CLAUDE.md
+  PRD_VOICE_CMMS_AND_CHAT_WITH_PRINT.md
+  backlog.md
+  products/
+    cmms/
+      atlas-fork/...
+      api/...
+      telegram-gateway/...
+    chat-with-print/
+      app/...
+      api/...
+    predictive-agent/
+      jobs/...
+      rag/...
+  infra/
+    docker-compose.yml
+    k8s/...
+  docs/
+    architecture/
+    api/
+```
+
+You may adjust structure if you find strong reasons to, but keep:
+
+- One shared monorepo.
+- Clear separation between the three product folders.
+- Shared utilities in a single place (e.g., `lib/` or `shared/`).
+
+---
+
+## General Development Rules
+
+1. **Read before coding**:
+   - On first run, read `PRD_VOICE_CMMS_AND_CHAT_WITH_PRINT.md` and `backlog.md`.
+   - Explore the existing codebase (`ls`, `tree`, etc.).
+
+2. **Backlog-driven**:
+   - Always pick tasks from `backlog.md`, starting with Phase 1, Tier 1.
+   - When a task is done, update `backlog.md` (mark it as done and briefly note what changed).
+
+3. **Error handling**:
+   - All API calls must handle timeouts, non-200 responses, and misconfig.
+   - Telegram bot must fail soft (user-friendly messages) instead of crashing.
+
+4. **Configuration**:
+   - Use `.env` / environment variables for keys (Claude, Telegram, Stripe, DB).
+   - No hard-coded secrets.
+
+5. **Testing**:
+   - For each non-trivial module, add minimal tests (happy path + one failure path).
+   - Provide scripts: `npm test` / `pytest` etc.
+
+6. **Logging**:
+   - Log key events: voice → work order, print uploads, predictive alerts sent.
+   - Use structured logs where possible (JSON).
+
+7. **Docs**:
+   - Update `docs/` and inline comments whenever you add non-obvious behavior.
+   - Keep a changelog or short section in `backlog.md` for daily progress.
+
+---
+
+## Specific Startup Instructions
+
+On first execution in this repo, do the following:
+
+1. Run `ls` to understand current top-level layout.
+2. Locate (or create) `/products/` directory.
+3. If Atlas CMMS is not yet cloned:
+   - Create `/products/cmms/` and clone/fork the Atlas CMMS repo into it.
+4. Create:
+   - `/products/chat-with-print/` (initial Streamlit or Next.js skeleton)
+   - `/products/predictive-agent/` (Python job skeleton with RAG placeholder)
+
+Then:
+
+- Confirm Docker + PostgreSQL setup.
+- Confirm a Telegram bot token can be read from env.
+- Start implementing Phase 1 tasks from `backlog.md`.
+
+---
+
+## Interaction Style
+
+When you respond to the user (developer):
+
+- Summarize what you understood.
+- Propose a short plan (1–3 bullets).
+- Then implement step-by-step.
+- Show code diffs or file contents when requested.
+- Keep answers concise and focused on the current task.
+
+If something is unclear in the PRD or backlog:
+
+- Ask clarifying questions.
+- Offer 2–3 options with pros/cons.
+
+---
+
+## Non-Goals (for MVP)
+
+- Do not build a dedicated mobile app (use web + Telegram).
+- Do not integrate PLC/IoT hardware yet.
+- Do not fine-tune models; use Claude APIs directly.
+- Do not over-engineer analytics; basic metrics are enough.
+
+---
+
+Use this document as your operating manual while developing inside this repo. 
+```
+
+You can now:
+
+- Create `PRD_VOICE_CMMS_AND_CHAT_WITH_PRINT.md` and `backlog.md` in your repo by pasting the first two blocks.
+- Optionally add `CLAUDE.md` with the third block to drive Claude Code CLI.

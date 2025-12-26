@@ -1,0 +1,54 @@
+[
+  {
+    "case_id": "SAMPLE-001",
+    "timestamp": "2025-12-26T10:00:00Z",
+    "equipment": {
+      "type": "PLC",
+      "manufacturer": "Allen-Bradley",
+      "model": "ControlLogix 5580",
+      "location": "Lift Hill"
+    },
+    "input": {
+      "raw_text": "lift not moving fault light on",
+      "photo_url": null
+    },
+    "diagnosis": {
+      "root_cause": "E-stop chain broken",
+      "fault_codes": ["E-STOP"],
+      "symptoms": ["Lift motor not energizing"]
+    },
+    "resolution": {
+      "steps": ["Checked E-stop chain", "Found broken contact", "Replaced switch"],
+      "parts_used": ["E-stop switch"],
+      "time_to_fix": "30 minutes"
+    },
+    "keywords": ["lift", "e-stop", "safety"],
+    "category": "electrical"
+  },
+  {
+    "case_id": "SAMPLE-002",
+    "timestamp": "2025-12-26T11:00:00Z",
+    "equipment": {
+      "type": "VFD",
+      "manufacturer": "ABB",
+      "model": "ACS880",
+      "location": "Brake Run"
+    },
+    "input": {
+      "raw_text": "vfd showing fault 7121 motor not running",
+      "photo_url": null
+    },
+    "diagnosis": {
+      "root_cause": "DC bus overvoltage during decel",
+      "fault_codes": ["7121", "OVERVOLT"],
+      "symptoms": ["Drive tripped", "Motor coasting"]
+    },
+    "resolution": {
+      "steps": ["Checked decel ramp", "Increased decel time", "Added braking resistor"],
+      "parts_used": ["Braking resistor 100ohm"],
+      "time_to_fix": "2 hours"
+    },
+    "keywords": ["vfd", "overvoltage", "braking", "abb"],
+    "category": "electrical"
+  }
+]

@@ -44,13 +44,15 @@ class GenericAgent:
     async def handle_query(
         self,
         request: RivetRequest,
-        kb_coverage: Optional[KBCoverage] = None
+        kb_coverage: Optional[KBCoverage] = None,
+        fewshot_context: Optional[str] = None
     ) -> RivetResponse:
         """Handle user query using KB atoms and LLM generation.
 
         Args:
             request: User query request
             kb_coverage: KB coverage with retrieved documents
+            fewshot_context: Optional few-shot examples from similar maintenance cases
 
         Returns:
             RivetResponse with generated answer and citations
@@ -64,7 +66,7 @@ class GenericAgent:
 
         # Generate response using LLM
         if kb_atoms:
-            response_text = await self._generate_response_with_kb(query_text, kb_atoms)
+            response_text = await self._generate_response_with_kb(query_text, kb_atoms, fewshot_context)
             cited_docs = self._format_citations(kb_atoms)
             links = [f"atom_{doc.atom_id}" for doc in kb_atoms[:5]]  # Top 5 atoms
             confidence = min(0.85, kb_coverage.confidence + 0.1)  # Boost confidence slightly
@@ -89,12 +91,13 @@ class GenericAgent:
             }
         )
 
-    async def _generate_response_with_kb(self, query: str, kb_atoms: List) -> str:
+    async def _generate_response_with_kb(self, query: str, kb_atoms: List, fewshot_context: Optional[str] = None) -> str:
         """Generate LLM response using KB atoms as context.
 
         Args:
             query: User's question
             kb_atoms: List of RetrievedDoc objects from KB search
+            fewshot_context: Optional few-shot examples from similar maintenance cases
 
         Returns:
             Generated response text
@@ -102,7 +105,7 @@ class GenericAgent:
         # Format KB atoms into context string
         kb_context = self._format_kb_atoms(kb_atoms)
 
-        # Create system prompt
+        # Create base system prompt
         system_prompt = """You are an expert industrial maintenance technician and PLC programmer with 20+ years of experience across all major equipment vendors (Siemens, Rockwell, ABB, Schneider, Mitsubishi, Omron).
 
 Your role is to answer technical questions about:
@@ -111,7 +114,14 @@ Your role is to answer technical questions about:
 - HMIs (Human-Machine Interfaces)
 - Industrial sensors and actuators
 - Motor control systems
-- Safety systems
+- Safety systems"""
+
+        # Inject few-shot examples if provided (Phase 3: Dynamic Few-Shot RAG)
+        if fewshot_context:
+            system_prompt += f"\n\n{fewshot_context}"
+
+        # Add guidelines
+        system_prompt += """
 
 Guidelines:
 1. Answer based ONLY on the provided knowledge base articles
