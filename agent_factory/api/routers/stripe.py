@@ -11,9 +11,19 @@ from fastapi import APIRouter, Request, HTTPException, Header
 from pydantic import BaseModel, EmailStr
 from typing import Literal, Optional
 import logging
+from datetime import datetime
 
 from agent_factory.api.config import get_settings
 from agent_factory.observability.langsmith_config import trace_endpoint
+from agent_factory.api.services.user_provisioning import (
+    provision_user_internal,
+    update_user_tier,
+    downgrade_user
+)
+from agent_factory.api.services.telegram_notifications import (
+    send_telegram_welcome,
+    notify_payment_failed
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -27,7 +37,7 @@ settings = get_settings()
 class CreateCheckoutRequest(BaseModel):
     """Request to create a checkout session."""
     email: EmailStr
-    tier: Literal["basic", "pro", "enterprise"]
+    tier: Literal["beta", "pro", "team"]
     success_url: Optional[str] = None
     cancel_url: Optional[str] = None
 
@@ -71,9 +81,9 @@ class CheckoutSuccessResponse(BaseModel):
 def get_tier_prices() -> dict:
     """Get tier to price mapping from settings."""
     return {
-        "basic": settings.stripe_price_basic,
+        "beta": settings.stripe_price_basic,  # Legacy setting name, but represents beta tier
         "pro": settings.stripe_price_pro,
-        "enterprise": settings.stripe_price_enterprise,
+        "team": settings.stripe_price_enterprise,  # Legacy setting name, but represents team tier
     }
 
 
@@ -95,9 +105,9 @@ async def create_checkout_session(request: CreateCheckoutRequest):
     Returns a URL to redirect the user to Stripe's hosted checkout page.
     
     **Tiers:**
-    - basic: $20/month - Voice work orders, 5 prints
-    - pro: $40/month - Unlimited prints, Chat with Print
-    - enterprise: $99/month - Predictive AI, API access
+    - beta: Free - Voice & text commands, 5 print uploads/month
+    - pro: $29/month - Unlimited prints, Work order creation, Priority support
+    - team: $99/month - 10 users, Shared library, Admin dashboard, Phone support
     """
     tier_prices = get_tier_prices()
     price_id = tier_prices.get(request.tier)
@@ -238,38 +248,38 @@ async def stripe_webhook(
 async def handle_checkout_completed(session: dict):
     """
     Handle successful checkout - provision new user.
-    
+
     This is the critical path: payment → user creation → bot access
     """
     customer_email = session.get("customer_email")
     customer_id = session.get("customer")
     subscription_id = session.get("subscription")
-    tier = session.get("metadata", {}).get("tier", "basic")
-    
+    tier = session.get("metadata", {}).get("tier", "beta")
+
     logger.info(f"Checkout completed: {customer_email} ({tier})")
-    
-    # Get subscription details for more info
+
+    # Get subscription details
+    current_period_end = None
     if subscription_id:
         subscription = stripe.Subscription.retrieve(subscription_id)
         logger.info(f"Subscription status: {subscription.status}")
-    
-    # ==========================================================================
-    # TODO: Implement user provisioning (WS-1 provides this)
-    # ==========================================================================
-    # from agent_factory.integrations.atlas import AtlasClient
-    # from agent_factory.api.routers.users import provision_user_internal
-    # 
-    # user = await provision_user_internal(
-    #     email=customer_email,
-    #     stripe_customer_id=customer_id,
-    #     subscription_tier=tier
-    # )
-    # 
-    # # Send welcome message via Telegram if they've already started the bot
-    # await send_telegram_welcome(user.telegram_id, tier)
-    
-    # For now, log what we would do
-    logger.info(f"[TODO] Provision user: email={customer_email}, tier={tier}, stripe_id={customer_id}")
+        current_period_end = datetime.fromtimestamp(subscription.current_period_end)
+
+    # Provision user
+    user = await provision_user_internal(
+        email=customer_email,
+        stripe_customer_id=customer_id,
+        subscription_tier=tier,
+        stripe_subscription_id=subscription_id,
+        current_period_end=current_period_end
+    )
+
+    # Send Telegram welcome if user has linked their account
+    telegram_id = user.get('telegram_id') if isinstance(user, dict) else getattr(user, 'telegram_id', None)
+    if telegram_id:
+        await send_telegram_welcome(telegram_id, tier)
+    else:
+        logger.info(f"User {customer_email} not linked to Telegram yet, skipping welcome message")
 
 
 async def handle_subscription_created(subscription: dict):
@@ -285,35 +295,31 @@ async def handle_subscription_updated(subscription: dict):
     """Handle subscription update (tier change, renewal, etc.)."""
     customer_id = subscription.get("customer")
     status = subscription.get("status")
-    
+
     # Get the price ID to determine tier
     price_tiers = get_price_tiers()
     items = subscription.get("items", {}).get("data", [])
-    
+
     if items:
         price_id = items[0].get("price", {}).get("id")
         new_tier = price_tiers.get(price_id, "unknown")
     else:
         new_tier = subscription.get("metadata", {}).get("tier", "unknown")
-    
+
     logger.info(f"Subscription updated: customer={customer_id}, status={status}, tier={new_tier}")
-    
-    # ==========================================================================
-    # TODO: Update user's tier in database
-    # ==========================================================================
-    # await update_user_tier(customer_id, new_tier)
+
+    # Update user's tier in database
+    await update_user_tier(customer_id, new_tier)
 
 
 async def handle_subscription_deleted(subscription: dict):
     """Handle subscription cancellation."""
     customer_id = subscription.get("customer")
-    
+
     logger.info(f"Subscription deleted: customer={customer_id}")
-    
-    # ==========================================================================
-    # TODO: Downgrade user to free tier or deactivate
-    # ==========================================================================
-    # await downgrade_user(customer_id)
+
+    # Downgrade user to beta tier
+    await downgrade_user(customer_id)
 
 
 async def handle_payment_succeeded(invoice: dict):
@@ -330,16 +336,29 @@ async def handle_payment_failed(invoice: dict):
     customer_email = invoice.get("customer_email")
     amount_due = invoice.get("amount_due", 0) / 100  # cents to dollars
     attempt_count = invoice.get("attempt_count", 1)
-    
+
     logger.warning(
         f"Payment failed: customer={customer_id}, email={customer_email}, "
         f"amount=${amount_due}, attempt={attempt_count}"
     )
-    
-    # ==========================================================================
-    # TODO: Notify user via email and/or Telegram
-    # ==========================================================================
-    # await notify_payment_failed(customer_email, amount_due, attempt_count)
+
+    # Notify user via Telegram (if linked)
+    # Note: In production, this would query database to get telegram_id
+    # For now, we log the notification attempt
+    logger.info(f"Would notify user {customer_email} about payment failure (${amount_due:.2f}, attempt {attempt_count})")
+
+    # TODO: Once database integration is complete, add:
+    # from agent_factory.database.session import get_db_session
+    # from agent_factory.database.models import RivetUser
+    # from sqlalchemy import select
+    #
+    # async with get_db_session() as session:
+    #     stmt = select(RivetUser).where(RivetUser.stripe_customer_id == customer_id)
+    #     result = await session.execute(stmt)
+    #     user = result.scalar_one_or_none()
+    #
+    #     if user and user.telegram_id:
+    #         await notify_payment_failed(user.telegram_id, customer_email, amount_due, attempt_count)
 
 
 # =============================================================================

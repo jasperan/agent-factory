@@ -20,55 +20,65 @@ export default function PricingPage() {
 
   const tiers: PricingTier[] = [
     {
-      name: "Basic",
-      price: "$20",
-      period: "/tech/month",
+      name: "Beta",
+      price: "Free",
+      period: "",
       features: [
-        "Voice work orders via Telegram",
-        "Up to 5 equipment prints",
+        "Voice & text commands",
+        "5 print uploads/month",
+        "Basic troubleshooting",
         "Email support"
       ],
-      cta: "Start Free Trial",
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_BASIC || "price_basic"
+      cta: "Join Beta",
+      priceId: "" // Empty priceId triggers Telegram redirect
     },
     {
       name: "Pro",
-      price: "$40",
-      period: "/tech/month",
+      price: "$29",
+      period: "/month",
       popular: true,
       features: [
-        "Everything in Basic",
-        "Unlimited prints",
-        "Chat with Print (AI Q&A)",
+        "Everything in Beta",
+        "Unlimited print uploads",
+        "Full manual library access",
+        "Work order creation",
         "Priority support"
       ],
-      cta: "Start Free Trial",
+      cta: "Start Trial",
       priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO || "price_pro"
     },
     {
-      name: "Enterprise",
+      name: "Team",
       price: "$99",
-      period: "/tech/month",
+      period: "/month",
       features: [
         "Everything in Pro",
-        "Predictive maintenance AI",
-        "API access",
-        "SSO/SAML",
-        "Dedicated support"
+        "Up to 10 users",
+        "Shared print library",
+        "Team work orders",
+        "Admin dashboard",
+        "Phone support"
       ],
       cta: "Contact Sales",
-      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE || "price_enterprise"
+      priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_TEAM || "price_team"
     }
   ];
 
   async function handleCheckout(tier: PricingTier) {
+    // Beta tier - no email required, redirect to Telegram
+    if (!tier.priceId) {
+      window.open(process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || "https://t.me/RivetCEO_bot", "_blank");
+      return;
+    }
+
     if (!email) {
       setError("Please enter your email address");
       return;
     }
 
-    if (tier.name === "Enterprise") {
-      window.location.href = `mailto:sales@rivet.com?subject=Enterprise Inquiry&body=Email: ${email}`;
+    // Team tier - contact sales
+    if (tier.name === "Team") {
+      window.location.href = `mailto:sales@rivet.com?subject=Team Plan Inquiry&body=Email: ${email}`;
       return;
     }
 
