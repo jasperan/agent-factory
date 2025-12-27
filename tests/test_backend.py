@@ -18,19 +18,24 @@ import pytest
 def test_database():
     """Test database operations"""
     print("Testing database...")
+    print("  [DEBUG] Importing RIVETProDatabase...")
     from agent_factory.rivet_pro.database import RIVETProDatabase
 
+    print("  [DEBUG] Creating database instance...")
     db = RIVETProDatabase()
+    print("  [DEBUG] Database instance created!")
 
     # Test machine creation
+    import uuid
+    test_user_id = str(uuid.uuid4())
     machine = db.create_machine(
-        "test-user-id",
+        test_user_id,
         "Test Lathe",
         "Test machine for backend validation"
     )
     print(f"  [OK] Created machine: {machine['name']}")
     assert machine['name'] == "Test Lathe"
-    assert machine['user_id'] == "test-user-id"
+    assert machine['user_id'] == test_user_id
 
     # Test manual gap logging
     gap = db.log_manual_gap("Allen-Bradley", "VFD", "PowerFlex 525")

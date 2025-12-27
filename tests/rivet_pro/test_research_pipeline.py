@@ -191,8 +191,12 @@ def test_research_pipeline_run(mock_fingerprint_exists, mock_search_all):
 
     intent = RivetIntent(
         vendor="Siemens",
-        equipment_type="S7-1200 PLC",
-        symptom="ethernet issue"
+        equipment_type="PLC",
+        symptom="ethernet issue",
+        context_source="text_only",
+        confidence=0.8,
+        kb_coverage="none",
+        raw_summary="User asking about Siemens PLC ethernet issue"
     )
 
     pipeline = ResearchPipeline()
@@ -304,8 +308,12 @@ def test_acceptance_criteria_end_to_end(mock_fingerprint_exists, mock_search_all
     # Create intent from user query
     intent = RivetIntent(
         vendor="Mitsubishi",
-        equipment_type="iQ-R PLC",
-        symptom="ethernet connection"
+        equipment_type="PLC",
+        symptom="ethernet connection",
+        context_source="text_only",
+        confidence=0.8,
+        kb_coverage="none",
+        raw_summary="User asking about Mitsubishi PLC ethernet connection"
     )
 
     # Execute research pipeline

@@ -23,8 +23,7 @@ from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
-from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage, SystemMessage
+# Lazy imports: ChatAnthropic, HumanMessage, SystemMessage imported in methods to avoid import-time hang
 
 # TAB 3 Phase 1: Context Extractor Integration
 from agent_factory.rivet_pro.context_extractor import ContextExtractor, ContextExtractionResult
@@ -134,6 +133,8 @@ class IntentDetector:
         self.llm_provider = llm_provider
 
         if llm_provider == "anthropic":
+            # Lazy import to avoid hanging on module load
+            from langchain_anthropic import ChatAnthropic
             self.llm = ChatAnthropic(model=model_name, temperature=0.0)
         else:
             raise ValueError(f"Unsupported LLM provider: {llm_provider}")
@@ -256,6 +257,9 @@ class IntentDetector:
 
         Uses Claude with structured output to extract comprehensive information.
         """
+        # Lazy import to avoid hanging on module load
+        from langchain_core.messages import HumanMessage, SystemMessage
+
         system_prompt = """You are an industrial maintenance expert analyzing troubleshooting questions.
 
 Extract the following information from the user's question:
