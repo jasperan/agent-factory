@@ -493,8 +493,11 @@ class RivetOrchestrator:
         response.trace["kb_coverage"] = decision.kb_coverage.level.value
         response.kb_enrichment_triggered = True
 
-        # TODO: Trigger enrichment pipeline (Phase 5 integration)
-        # enrichment_queue.add(topic=request.text, vendor=vendor)
+        # Trigger enrichment pipeline - log gap for background processing
+        if response.kb_enrichment_triggered:
+            asyncio.create_task(
+                self._log_enrichment_gap(request, decision, response)
+            )
 
         return response
 
@@ -949,6 +952,62 @@ class RivetOrchestrator:
                 f"Failed to trigger research pipeline: {e}",
                 exc_info=True
             )
+
+    async def _log_enrichment_gap(
+        self,
+        request: RivetRequest,
+        decision: RoutingDecision,
+        response: RivetResponse
+    ) -> None:
+        """Log Route B gap for background enrichment.
+
+        Args:
+            request: User query request
+            decision: Routing decision with vendor and KB coverage
+            response: Generated response with confidence
+        """
+        try:
+            gap_entry = {
+                "user_query": request.text,
+                "vendor": decision.vendor_detection.vendor.value,
+                "equipment_type": "unknown",  # Could enhance with NER
+                "symptom": request.text[:200] if request.text else "",
+                "route": "B_sme_enrich",
+                "confidence": response.confidence,
+                "kb_coverage": decision.kb_coverage.level.value,
+                "atom_count": decision.kb_coverage.atom_count,
+                "avg_relevance": decision.kb_coverage.avg_relevance,
+                "priority_score": self._calculate_enrichment_priority(decision),
+                "enrichment_type": "thin_coverage"
+            }
+
+            await self.kb_gap_logger.log_gap_async(gap_entry)
+            logger.info(f"Enrichment gap logged: {decision.vendor_detection.vendor.value}")
+        except Exception as e:
+            logger.warning(f"Failed to log enrichment gap: {e}")
+
+    def _calculate_enrichment_priority(self, decision: RoutingDecision) -> int:
+        """Calculate priority score for enrichment (0-100).
+
+        Args:
+            decision: Routing decision with KB coverage details
+
+        Returns:
+            Priority score 0-100 (higher = more important to enrich)
+        """
+        # Base priority for Route B
+        base = 40
+
+        # Boost for higher confidence (more users will benefit)
+        confidence_boost = int(decision.kb_coverage.confidence * 20)
+
+        # Boost for popular vendors
+        vendor_boost = 10 if decision.vendor_detection.vendor.value in ["siemens", "rockwell"] else 0
+
+        # Penalty for very low relevance (might not be useful)
+        relevance_penalty = -10 if decision.kb_coverage.avg_relevance < 0.05 else 0
+
+        return min(100, max(0, base + confidence_boost + vendor_boost + relevance_penalty))
 
     def get_routing_stats(self) -> Dict[str, int]:
         """Get routing statistics for monitoring.

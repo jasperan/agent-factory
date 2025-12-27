@@ -33,6 +33,7 @@ from telegram.ext import ContextTypes
 from telegram.constants import ParseMode
 
 from .permissions import require_access, require_admin
+from agent_factory.core.database_manager import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ class KBManager:
         """Initialize KB manager"""
         self.vps_host = os.getenv("VPS_KB_HOST", "72.60.175.144")
         self.vps_user = "root"
+        self.db = DatabaseManager()
         logger.info(f"KBManager initialized for VPS {self.vps_host}")
 
     @require_access
@@ -439,6 +441,46 @@ class KBManager:
         except Exception as e:
             logger.error(f"Failed to get ingestion queue: {e}")
             return []
+
+    @require_access
+    async def handle_kb_enrichment(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Handle /kb_enrichment command - show enrichment queue status.
+
+        Args:
+            update: Telegram update
+            context: Callback context
+        """
+        try:
+            # Query pending gaps
+            query = """
+                SELECT COUNT(*), AVG(priority_score), SUM(sources_queued)
+                FROM gap_requests
+                WHERE ingestion_completed = FALSE
+                  AND enrichment_type = 'thin_coverage'
+            """
+            result = self.db.execute_query(query)
+
+            if result and result[0][0] > 0:
+                count, avg_priority, total_sources = result[0]
+                msg = (
+                    f"📈 *KB Enrichment Queue*\n\n"
+                    f"*Pending Gaps:* {count}\n"
+                    f"*Avg Priority:* {avg_priority:.0f}/100\n"
+                    f"*Sources Queued:* {total_sources or 0}\n\n"
+                    f"Worker processes top 5 gaps hourly"
+                )
+            else:
+                msg = "📈 *KB Enrichment Queue*\n\nNo pending gaps ✓"
+
+            await update.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+
+        except Exception as e:
+            logger.error(f"Failed to get enrichment queue status: {e}")
+            await update.message.reply_text(
+                f"❌ Failed to get enrichment queue status: {e}",
+                parse_mode=ParseMode.MARKDOWN
+            )
 
     async def _format_kb_stats(self, stats: KBStats) -> str:
         """Format KB statistics for display"""

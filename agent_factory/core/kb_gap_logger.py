@@ -4,9 +4,10 @@ KB Gap Logger - Tracks knowledge base gaps when Route C is triggered.
 Logs queries that return 0 KB atoms to identify missing content,
 detect patterns, and measure gap resolution over time.
 """
+import asyncio
 import json
 import logging
-from typing import Optional
+from typing import Optional, Dict
 
 from agent_factory.core.database_manager import DatabaseManager
 from agent_factory.rivet_pro.models import RivetIntent, VendorType, EquipmentType
@@ -122,6 +123,110 @@ class KBGapLogger:
             logger.error(f"Failed to log gap request: {e}", exc_info=True)
             # Return -1 to indicate failure (caller can check)
             return -1
+
+    async def log_gap_async(self, gap_entry: Dict) -> Optional[int]:
+        """
+        Async version of log_gap for use in orchestrator.
+
+        Args:
+            gap_entry: Dictionary with gap information:
+                - user_query: Original user query
+                - vendor: Vendor string (e.g., "siemens", "rockwell")
+                - equipment_type: Equipment type string
+                - symptom: Symptom or description
+                - route: Route taken (e.g., "B_sme_enrich", "C_research")
+                - confidence: Confidence score
+                - kb_coverage: KB coverage level string
+                - atom_count: Number of atoms found
+                - avg_relevance: Average relevance score
+                - priority_score: Priority score for processing
+                - enrichment_type: Type of enrichment ("thin_coverage" or "no_coverage")
+
+        Returns:
+            gap_id: ID of the logged gap record, or None on failure
+        """
+        try:
+            # Extract fields from gap_entry
+            user_query = gap_entry.get("user_query", "")
+            vendor_str = gap_entry.get("vendor", "unknown")
+            equipment_str = gap_entry.get("equipment_type", "unknown")
+            route = gap_entry.get("route", "C")
+            confidence = gap_entry.get("confidence", 0.0)
+            atom_count = gap_entry.get("atom_count", 0)
+            priority_score = gap_entry.get("priority_score", 50)
+            enrichment_type = gap_entry.get("enrichment_type", "no_coverage")
+
+            # Build equipment_detected string
+            equipment_detected = f"{vendor_str}:{equipment_str}"
+
+            # Check for duplicate gap within 7 days
+            check_sql = """
+                SELECT id, request_count FROM gap_requests
+                WHERE equipment_detected = $1
+                AND last_requested_at > NOW() - INTERVAL '7 days'
+                AND ingestion_completed = FALSE
+                ORDER BY last_requested_at DESC LIMIT 1
+            """
+
+            result = await asyncio.to_thread(
+                self.db.execute_query, check_sql, (equipment_detected,)
+            )
+
+            if result:
+                # Increment request_count for existing gap
+                gap_id, req_count = result[0]
+                new_count = req_count + 1
+                new_priority = min(new_count * 10 + confidence * 100, 100.0)
+
+                update_sql = """
+                    UPDATE gap_requests
+                    SET request_count = $1, priority_score = $2, last_requested_at = NOW()
+                    WHERE id = $3
+                """
+                await asyncio.to_thread(
+                    self.db.execute_query, update_sql, (new_count, new_priority, gap_id), fetch_mode="none"
+                )
+                logger.info(
+                    f"Incremented gap request: gap_id={gap_id}, "
+                    f"enrichment_type={enrichment_type}, "
+                    f"request_count={new_count}, priority={new_priority:.1f}"
+                )
+                return gap_id
+            else:
+                # New gap - insert record with enrichment_type
+                insert_sql = """
+                    INSERT INTO gap_requests (
+                        user_id, query_text, equipment_detected, route,
+                        confidence, kb_atoms_found, priority_score, enrichment_type
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    RETURNING id
+                """
+                result = await asyncio.to_thread(
+                    self.db.execute_query,
+                    insert_sql,
+                    (
+                        0,  # user_id - will be set by orchestrator context
+                        user_query,
+                        equipment_detected,
+                        route,
+                        confidence,
+                        atom_count,
+                        priority_score,
+                        enrichment_type
+                    )
+                )
+                gap_id = result[0][0]
+                logger.info(
+                    f"Logged new enrichment gap: gap_id={gap_id}, "
+                    f"type={enrichment_type}, equipment={equipment_detected}, "
+                    f"query='{user_query[:50]}...', priority={priority_score:.1f}"
+                )
+                return gap_id
+
+        except Exception as e:
+            logger.error(f"Failed to log enrichment gap: {e}", exc_info=True)
+            return None
 
     def mark_resolved(self, gap_id: int, atom_ids: list[str]) -> bool:
         """

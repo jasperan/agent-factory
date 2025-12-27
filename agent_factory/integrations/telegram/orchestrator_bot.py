@@ -1009,6 +1009,7 @@ def main():
     app.add_handler(CommandHandler("kb_ingest", kb_manager.handle_kb_ingest))
     app.add_handler(CommandHandler("kb_search", kb_manager.handle_kb_search))
     app.add_handler(CommandHandler("kb_queue", kb_manager.handle_kb_queue))
+    app.add_handler(CommandHandler("kb_enrichment", kb_manager.handle_kb_enrichment))
 
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))  # Photo handler (BEFORE text)
 
