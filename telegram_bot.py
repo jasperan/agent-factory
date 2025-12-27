@@ -663,8 +663,10 @@ def main():
     )
 
     # Initialize TIER 0.1 handlers (CEO Command & Control)
+    # WS-3 Integration: Pass rivet_handlers for voice → RIVET Pro routing
     tier0_handlers = TIER0Handlers(
         storage=storage,
+        rivet_handlers=rivet_handlers,
         openai_api_key=os.getenv("OPENAI_API_KEY")
     )
 

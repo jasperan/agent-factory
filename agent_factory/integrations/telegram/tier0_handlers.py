@@ -27,6 +27,9 @@ from telegram.constants import ParseMode
 # OpenAI client for Whisper (voice) and Vision (OCR)
 from openai import AsyncOpenAI
 
+# WS-3 RIVET Pro integration
+from agent_factory.rivet_pro.intent_detector import IntentDetector, IntentType
+
 
 logger = logging.getLogger(__name__)
 
@@ -375,15 +378,17 @@ class TIER0Handlers:
     - Status formatting (stub)
     """
 
-    def __init__(self, storage, openai_api_key: str = None):
+    def __init__(self, storage, rivet_handlers=None, openai_api_key: str = None):
         """
         Initialize TIER0 handlers.
 
         Args:
             storage: SupabaseMemoryStorage instance
+            rivet_handlers: RIVETProHandlers instance for routing intents (WS-3)
             openai_api_key: OpenAI API key (for Whisper + Vision)
         """
         self.storage = storage
+        self.rivet_handlers = rivet_handlers
         self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
 
         if not self.openai_api_key:
@@ -391,7 +396,15 @@ class TIER0Handlers:
 
         # Initialize components
         self.session_manager = SessionManager(storage)
-        self.intent_decoder = IntentDecoderStub()
+
+        # Use real IntentDetector if RIVET handlers available, otherwise stub
+        if rivet_handlers:
+            self.intent_detector = IntentDetector()
+            logger.info("TIER0: Using real IntentDetector (WS-3 integration)")
+        else:
+            self.intent_detector = IntentDecoderStub()
+            logger.warning("TIER0: Using stub IntentDecoder (RIVET handlers not available)")
+
         self.status_pipeline = StatusPipelineStub()
 
         # OpenAI client (async)
@@ -514,39 +527,92 @@ class TIER0Handlers:
                     message_type="voice"
                 )
 
-                # Get session context
-                session = await self.session_manager.get_session(user_id)
-
-                # Decode intent (stub)
-                intent = await self.intent_decoder.decode_intent(
-                    message=transcript,
-                    message_type="voice",
-                    user_context=session["context"]
-                )
-
-                # Update processing message with transcript
-                confirmation = (
-                    f"🎤 *Voice Message Transcribed*\n\n"
-                    f"Transcript: _{transcript}_\n\n"
-                    f"Duration: {voice.duration}s\n\n"
-                    f"_Intent Decoder is analyzing your request..._\n\n"
-                    f"[TIER 0.1 Active - Full orchestration pending]"
-                )
-
+                # Acknowledge transcription to user
                 await processing_msg.edit_text(
-                    confirmation,
+                    f"🎤 *I heard:* \"{transcript}\"\n\n_Processing your request..._",
                     parse_mode=ParseMode.MARKDOWN
                 )
 
-                # Add assistant response to history
-                await self.session_manager.add_message(
-                    user_id=user_id,
-                    role="assistant",
-                    content=confirmation,
-                    message_type="text"
-                )
+                # Route to RIVET Pro handlers if available
+                if self.rivet_handlers:
+                    logger.info(f"Routing voice transcript to RIVET Pro: {transcript[:50]}...")
 
-                logger.info(f"Voice confirmation sent to user {user_id}")
+                    # Detect intent from transcribed text
+                    intent = await self.intent_detector.detect(transcript)
+
+                    # Add to conversation history (using conversation_manager if available)
+                    if hasattr(self.rivet_handlers, 'conversation_manager'):
+                        self.rivet_handlers.conversation_manager.add_message(
+                            user_id=user_id,
+                            role="user",
+                            content=transcript,
+                            metadata={"source": "voice", "intent": intent.to_dict()}
+                        )
+
+                    # Route based on intent type
+                    if intent.intent_type == IntentType.TROUBLESHOOTING:
+                        await self.rivet_handlers.handle_troubleshooting_question(
+                            update=update,
+                            context=context,
+                            question=transcript,
+                            intent=intent
+                        )
+
+                    elif intent.intent_type == IntentType.INFORMATION:
+                        await self.rivet_handlers.handle_information_query(
+                            update=update,
+                            context=context,
+                            question=transcript
+                        )
+
+                    elif intent.intent_type == IntentType.BOOKING:
+                        await update.message.reply_text(
+                            "📞 I see you want to book an expert call. "
+                            "Use /book_expert to schedule a session."
+                        )
+
+                    elif intent.intent_type == IntentType.ACCOUNT:
+                        await update.message.reply_text(
+                            "⚙️ For account management, use:\n"
+                            "/upgrade - Upgrade subscription\n"
+                            "/pro_stats - View usage stats\n"
+                            "/my_sessions - View history"
+                        )
+
+                    else:
+                        # Unknown intent - ask for clarification
+                        await update.message.reply_text(
+                            "🤔 I'm not sure what you need help with. "
+                            "Could you rephrase that? Or try:\n"
+                            "/troubleshoot - Technical support\n"
+                            "/book_expert - Schedule expert call"
+                        )
+
+                    logger.info(f"Voice routed to RIVET Pro: intent={intent.intent_type.value}")
+
+                else:
+                    # No RIVET handlers - send stub confirmation
+                    logger.warning("Voice transcribed but no RIVET handlers available")
+
+                    confirmation = (
+                        f"🎤 *Voice Message Transcribed*\n\n"
+                        f"Transcript: _{transcript}_\n\n"
+                        f"Duration: {voice.duration}s\n\n"
+                        f"_RIVET Pro handlers not available - using fallback mode_"
+                    )
+
+                    await processing_msg.edit_text(
+                        confirmation,
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+
+                    # Add to session history
+                    await self.session_manager.add_message(
+                        user_id=user_id,
+                        role="assistant",
+                        content=confirmation,
+                        message_type="text"
+                    )
 
             finally:
                 # Clean up temp file
