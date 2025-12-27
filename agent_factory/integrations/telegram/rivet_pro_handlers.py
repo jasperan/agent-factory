@@ -42,6 +42,15 @@ from agent_factory.rivet_pro.vps_kb_client import VPSKBClient
 from agent_factory.integrations.telegram.conversation_manager import ConversationManager
 from agent_factory.rivet_pro.clarification import IntentClarifier, ClarificationRequest
 from agent_factory.integrations.telegram.api_client import RivetAPIClient
+from agent_factory.integrations.telegram.onboarding_manager import OnboardingManager
+from agent_factory.integrations.telegram.feature_tour import FeatureTour
+from agent_factory.integrations.telegram.quick_reference import (
+    get_quickstart_message,
+    get_help_message,
+    get_about_message,
+    get_tier_comparison,
+    get_upgrade_prompt
+)
 
 
 class RIVETProHandlers:
@@ -64,6 +73,10 @@ class RIVETProHandlers:
         self.vps_client = VPSKBClient()  # VPS KB Factory connection
         self.api_client = RivetAPIClient()  # WS-3: Backend API for work orders
 
+        # Onboarding system
+        self.onboarding_manager = OnboardingManager(db=self.db)
+        self.feature_tour = FeatureTour()
+
         # Stripe config (test mode)
         self.stripe_api_key = os.getenv("STRIPE_API_KEY", "")
         self.stripe_publishable_key = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
@@ -75,58 +88,27 @@ class RIVETProHandlers:
 
     async def handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
-        /start command - Onboarding flow for new users.
+        /start command - Enhanced onboarding flow with API key authentication.
 
-        Creates user subscription record and explains tiers.
+        Usage:
+        - /start → Auto-provision beta user + onboarding
+        - /start <api_key> → Authenticate with landing page-generated key
         """
         user = update.effective_user
         user_id = str(user.id)
 
-        # Check if user exists
+        # Check for API key in args
+        if context.args and len(context.args) > 0:
+            api_key = context.args[0]
+            return await self.onboarding_manager.authenticate_with_api_key(
+                update, context, api_key
+            )
+
+        # Auto-provision flow (existing behavior)
         user_sub = await self._get_or_create_user(user_id, user.username or "unknown")
 
-        # Welcome message
-        welcome_text = f"""
-👋 **Welcome to RIVET Pro!**
-
-I'm your 24/7 industrial troubleshooting assistant, powered by **1,964+ validated maintenance atoms**.
-
-🤖 **What I Can Do:**
-• Answer troubleshooting questions instantly
-• Analyze equipment photos (Field Eye vision)
-• Connect you with expert technicians
-• Export troubleshooting reports (PDF)
-
-📊 **Your Plan:** {user_sub['tier'].upper()}
-
-🆓 **Free Tier:**
-• 5 questions/day
-• AI-powered answers
-• Community knowledge base
-
-💼 **Pro Tier ($29/mo):**
-• Unlimited questions
-• Priority support
-• Image analysis (Field Eye)
-• Export reports (PDF)
-
-🚀 **Ready to start?**
-
-Try asking me something like:
-• "Motor running hot and tripping"
-• "VFD showing E210 fault"
-• "How do I troubleshoot a PLC?"
-
-Or use these commands:
-/troubleshoot - Start troubleshooting
-/upgrade - Upgrade to Pro
-/help - See all commands
-"""
-
-        await update.message.reply_text(
-            text=welcome_text,
-            parse_mode=ParseMode.MARKDOWN
-        )
+        # Start onboarding system
+        await self.onboarding_manager.start_onboarding(update, context, user_sub)
 
     async def handle_troubleshoot(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -992,6 +974,134 @@ You've used all 5 free questions today.
                 parse_mode='Markdown'
             )
 
+    async def handle_tutorial(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        /tutorial command - Replay onboarding tutorial.
+
+        Allows users to re-experience onboarding anytime.
+        """
+        user = update.effective_user
+        user_id = str(user.id)
+
+        user_sub = await self._get_or_create_user(user_id, user.username or "unknown")
+
+        # Start onboarding from Step 1
+        await self.onboarding_manager.begin_step_1(update, context, user_sub)
+
+    async def handle_tour(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        /tour command - Show feature tour menu.
+
+        Interactive exploration of tier-specific features.
+        """
+        user = update.effective_user
+        user_id = str(user.id)
+
+        user_sub = await self._get_or_create_user(user_id, user.username or "unknown")
+
+        # Show feature tour menu
+        await self.feature_tour.show_tour_menu(update, user_sub)
+
+    async def handle_quickstart(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        /quickstart command - Show quick reference card.
+
+        Provides tier-specific command cheat sheet.
+        """
+        user = update.effective_user
+        user_id = str(user.id)
+
+        user_sub = await self._get_or_create_user(user_id, user.username or "unknown")
+        tier = user_sub.get("subscription_tier", "beta")
+
+        # Get quick reference message
+        quick_ref = get_quickstart_message(tier)
+
+        await update.message.reply_text(
+            text=quick_ref,
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    async def handle_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        /help command - Show comprehensive help message.
+
+        Lists all available commands based on user's tier.
+        """
+        user = update.effective_user
+        user_id = str(user.id)
+
+        user_sub = await self._get_or_create_user(user_id, user.username or "unknown")
+        tier = user_sub.get("subscription_tier", "beta")
+
+        # Get help message
+        help_text = get_help_message(tier)
+
+        await update.message.reply_text(
+            text=help_text,
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    async def handle_about(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        /about command - Show "About RIVET" information.
+
+        Explains what RIVET is, how it works, and pricing tiers.
+        """
+        about_text = get_about_message()
+
+        await update.message.reply_text(
+            text=about_text,
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    async def handle_pricing(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        /pricing command - Show tier comparison table.
+
+        Displays detailed pricing and feature comparison.
+        """
+        pricing_text = get_tier_comparison()
+
+        await update.message.reply_text(
+            text=pricing_text,
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+    async def handle_onboarding_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Handle inline button callbacks for onboarding flow.
+
+        Routes callbacks to appropriate onboarding step or tour handler.
+        """
+        query = update.callback_query
+        await query.answer()
+
+        user = update.effective_user
+        user_id = str(user.id)
+        user_sub = await self._get_or_create_user(user_id, user.username or "unknown")
+
+        data = query.data
+
+        # Route to onboarding handlers
+        if data.startswith("onboard_"):
+            if data == "onboard_step_2":
+                await self.onboarding_manager.begin_step_2(update, context, user_sub)
+            elif data == "onboard_step_3":
+                await self.onboarding_manager.begin_step_3(update, context, user_sub)
+            elif data == "onboard_step_4":
+                await self.onboarding_manager.begin_step_4(update, context, user_sub)
+            elif data == "onboard_step_5":
+                await self.onboarding_manager.begin_step_5(update, context, user_sub)
+            elif data == "onboard_skip":
+                await self.onboarding_manager.skip_onboarding(update, user_sub)
+            elif data == "onboard_about":
+                await self.onboarding_manager.show_about(update)
+
+        # Route to feature tour handlers
+        elif data.startswith("tour_"):
+            await self.feature_tour.handle_tour_callback(update, context, user_sub)
+
 
 # Singleton instance
 rivet_pro_handlers = RIVETProHandlers()
@@ -1024,3 +1134,31 @@ async def handle_pro_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_vps_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await rivet_pro_handlers.handle_vps_status(update, context)
+
+
+async def handle_tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await rivet_pro_handlers.handle_tutorial(update, context)
+
+
+async def handle_tour(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await rivet_pro_handlers.handle_tour(update, context)
+
+
+async def handle_quickstart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await rivet_pro_handlers.handle_quickstart(update, context)
+
+
+async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await rivet_pro_handlers.handle_help(update, context)
+
+
+async def handle_about(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await rivet_pro_handlers.handle_about(update, context)
+
+
+async def handle_pricing(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await rivet_pro_handlers.handle_pricing(update, context)
+
+
+async def handle_onboarding_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await rivet_pro_handlers.handle_onboarding_callback(update, context)
