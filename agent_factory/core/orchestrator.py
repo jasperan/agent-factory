@@ -7,7 +7,7 @@ Routes queries based on vendor detection and KB coverage evaluation:
 - Route D: Unclear intent → clarification request
 """
 
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import asyncio
 import time
 from agent_factory.rivet_pro.models import RivetRequest, RivetResponse, EquipmentType, AgentID, RouteType as ModelRouteType
@@ -453,7 +453,7 @@ class RivetOrchestrator:
     async def _route_b_thin_kb(
         self, request: RivetRequest, decision: RoutingDecision, trace: Optional[RequestTrace] = None
     ) -> RivetResponse:
-        """Route B: Thin KB coverage → answer + enrichment trigger.
+        """Route B: Thin KB coverage → answer + manual search + enrichment trigger.
 
         Args:
             request: User query request
@@ -461,13 +461,40 @@ class RivetOrchestrator:
             trace: Optional RequestTrace for debugging
 
         Returns:
-            RivetResponse with answer and enrichment flag set
+            RivetResponse with answer, manual URLs, and enrichment flag set
         """
         vendor = decision.vendor_detection.vendor
         agent = self.sme_agents[vendor]
 
-        # Get answer from SME agent with KB coverage
-        response = await agent.handle_query(request, decision.kb_coverage)
+        # PARALLEL EXECUTION: SME agent + manual search
+        sme_task = asyncio.create_task(
+            agent.handle_query(request, decision.kb_coverage)
+        )
+
+        manual_task = asyncio.create_task(
+            self._find_manual_async(request.text or "", vendor)
+        )
+
+        # Wait for both to complete
+        response, manuals = await asyncio.gather(sme_task, manual_task)
+
+        # Append manual URLs to response
+        if manuals:
+            response.links.extend([m["url"] for m in manuals])
+            response.cited_documents.extend([
+                {"title": m["title"], "url": m["url"], "page": "Web Search"}
+                for m in manuals
+            ])
+            response.trace["web_search_performed"] = True
+            response.trace["web_sources_found"] = len(manuals)
+
+            # Add manual reference to response text
+            if len(manuals) == 1:
+                response.text += f"\n\n📄 **Manual Found:** {manuals[0]['title']}\n{manuals[0]['url']}"
+            elif len(manuals) > 1:
+                response.text += f"\n\n📚 **Manuals Found:**\n" + "\n".join([
+                    f"• {m['title']}: {m['url']}" for m in manuals[:3]
+                ])
 
         # Trace agent reasoning
         if trace:
@@ -479,6 +506,7 @@ class RivetOrchestrator:
                     f"Detected vendor: {decision.vendor_detection.vendor.value}",
                     f"Retrieved {len(decision.kb_coverage.retrieved_docs)} KB atoms (thin coverage)",
                     f"Generated answer from partial KB coverage",
+                    f"Searched web for manuals (found {len(manuals)})",
                     f"Flagged for enrichment pipeline"
                 ],
                 confidence=response.confidence,
@@ -952,6 +980,25 @@ class RivetOrchestrator:
                 f"Failed to trigger research pipeline: {e}",
                 exc_info=True
             )
+
+    async def _find_manual_async(self, query: str, vendor: VendorType) -> List[Dict[str, str]]:
+        """Find manual via web search (async wrapper).
+
+        Args:
+            query: User query text
+            vendor: Detected vendor
+
+        Returns:
+            List of manual results with title, url, snippet
+        """
+        try:
+            from agent_factory.services.manual_finder import ManualFinder
+            finder = ManualFinder()
+            manuals = await finder.find_manual(query, vendor)
+            return manuals
+        except Exception as e:
+            logger.error(f"Manual search failed: {e}")
+            return []
 
     async def _log_enrichment_gap(
         self,
