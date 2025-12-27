@@ -45,6 +45,7 @@ class RequestTrace:
 
     def __init__(self, message_type: str, user_id: str, username: str = None, content: str = ""):
         self.request_id = str(uuid.uuid4())[:8]
+        self.trace_id = self.request_id  # Alias for compatibility
         self.message_type = message_type
         self.user_id = user_id
         self.username = username
@@ -52,6 +53,13 @@ class RequestTrace:
         self.start_time = time.time()
         self.events = []
         self.timings = {}
+
+        # Enhanced trace data (Phase 5.5 - Dec 2025)
+        self.decisions = []  # Routing decision points
+        self.agent_reasoning_data = None  # Agent thought process
+        self.research_pipeline_data = None  # Research pipeline status
+        self.langgraph_trace_data = None  # LangGraph workflow execution
+        self.kb_retrieval_data = None  # KB atom retrieval details
 
     def event(self, event_type: str, **data):
         """Log an event in this request's lifecycle."""
@@ -93,6 +101,142 @@ class RequestTrace:
         """Write error log entry to JSONL file."""
         with open(ERROR_FILE, "a") as f:
             f.write(json.dumps(entry) + "\n")
+
+    def decision(self, decision_point: str, outcome: str, reasoning: str,
+                 alternatives: dict = None, confidence: float = None, **extra_data):
+        """
+        Capture a routing decision point with alternatives considered.
+
+        Args:
+            decision_point: Name of decision (e.g., "kb_coverage_evaluation")
+            outcome: Selected outcome (e.g., "route_a")
+            reasoning: Why this outcome was chosen
+            alternatives: Dict of alternative outcomes with reasons
+            confidence: Decision confidence score (0.0-1.0)
+            **extra_data: Additional data (kb_atoms_found, top_atom_scores, etc.)
+        """
+        decision = {
+            "decision_point": decision_point,
+            "outcome": outcome,
+            "reasoning": reasoning,
+            "alternatives": alternatives or {},
+            "confidence": confidence,
+            **extra_data
+        }
+        self.decisions.append(decision)
+        self.event(f"DECISION_{decision_point.upper()}", **decision)
+
+    def agent_reasoning(self, agent: str, query: str, kb_atoms_used: list,
+                       kb_retrieval_scores: list = None, reasoning_steps: list = None,
+                       confidence: float = None, **extra_data):
+        """
+        Capture agent's internal reasoning process.
+
+        Args:
+            agent: Agent name (e.g., "SiemensAgent")
+            query: User query being processed
+            kb_atoms_used: List of atom IDs used
+            kb_retrieval_scores: List of (atom_id, score) tuples
+            reasoning_steps: List of reasoning step descriptions
+            confidence: Agent's confidence in response
+            **extra_data: Additional agent-specific data
+        """
+        self.agent_reasoning_data = {
+            "agent": agent,
+            "query": query,
+            "kb_atoms_used": kb_atoms_used,
+            "kb_retrieval_scores": kb_retrieval_scores or [],
+            "reasoning_steps": reasoning_steps or [],
+            "confidence": confidence,
+            **extra_data
+        }
+        self.event("AGENT_REASONING", agent=agent, atoms_used=len(kb_atoms_used))
+
+    def research_pipeline_status(self, triggered: bool, sources_found: list = None,
+                                 sources_queued: int = 0, estimated_completion: str = "N/A",
+                                 **extra_data):
+        """
+        Capture research pipeline execution status.
+
+        Args:
+            triggered: Whether research pipeline was triggered
+            sources_found: List of URLs discovered
+            sources_queued: Number of sources queued for ingestion
+            estimated_completion: Time estimate (e.g., "3-5 minutes")
+            **extra_data: Additional pipeline data
+        """
+        self.research_pipeline_data = {
+            "triggered": triggered,
+            "sources_found": sources_found or [],
+            "sources_queued": sources_queued,
+            "estimated_completion": estimated_completion,
+            **extra_data
+        }
+        self.event("RESEARCH_PIPELINE", triggered=triggered, sources=sources_queued)
+
+    def langgraph_execution(self, workflow_trace: dict):
+        """
+        Capture LangGraph workflow execution trace.
+
+        Args:
+            workflow_trace: Dict with workflow, nodes_executed, state_transitions,
+                          retry_count, quality_gate_results, total_duration_ms
+        """
+        self.langgraph_trace_data = workflow_trace
+        self.event("LANGGRAPH_WORKFLOW",
+                  workflow=workflow_trace.get("workflow"),
+                  nodes=len(workflow_trace.get("nodes_executed", [])),
+                  duration_ms=workflow_trace.get("total_duration_ms"))
+
+    def kb_retrieval(self, coverage: float, atoms_found: int, top_matches: list):
+        """
+        Capture KB atom retrieval details.
+
+        Args:
+            coverage: KB coverage score (0.0-1.0)
+            atoms_found: Total number of atoms found
+            top_matches: List of (atom_id, score) tuples for top matches
+        """
+        self.kb_retrieval_data = {
+            "coverage": coverage,
+            "atoms_found": atoms_found,
+            "top_matches": top_matches
+        }
+        self.event("KB_RETRIEVAL", coverage=coverage, atoms=atoms_found)
+
+    # Getter methods for trace data
+    def get_decisions(self) -> list:
+        """Get all decision points captured."""
+        return self.decisions
+
+    def get_agent_reasoning(self) -> dict:
+        """Get agent reasoning data."""
+        return self.agent_reasoning_data
+
+    def get_research_pipeline_status(self) -> dict:
+        """Get research pipeline status."""
+        return self.research_pipeline_data or {}
+
+    def get_langgraph_trace(self) -> dict:
+        """Get LangGraph workflow trace."""
+        return self.langgraph_trace_data
+
+    def get_kb_retrieval_info(self) -> dict:
+        """Get KB retrieval details."""
+        return self.kb_retrieval_data
+
+    def get_all_timings(self) -> dict:
+        """Get all performance timings."""
+        return self.timings
+
+    def get_errors(self) -> list:
+        """Get all errors logged in this trace."""
+        return [e for e in self.events if e.get("event") == "ERROR"]
+
+    @property
+    def total_duration_ms(self) -> int:
+        """Get total duration in milliseconds."""
+        return int((time.time() - self.start_time) * 1000)
 
     def summary(self) -> dict:
         """Return summary for admin message."""
