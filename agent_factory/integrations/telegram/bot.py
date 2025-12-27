@@ -40,6 +40,7 @@ from . import library
 from .voice.handler import VoiceHandler
 from .voice.transcriber import WhisperTranscriber
 from .rivet_pro_handlers import RIVETProHandlers
+from . import photo_handler
 
 
 class TelegramBot:
@@ -168,6 +169,14 @@ class TelegramBot:
             MessageHandler(
                 filters.VOICE,
                 self.voice_handler.handle_voice
+            )
+        )
+
+        # Photo handler for schematics/prints (NEW - WS3)
+        self.app.add_handler(
+            MessageHandler(
+                filters.PHOTO,
+                photo_handler.handle_photo
             )
         )
 
