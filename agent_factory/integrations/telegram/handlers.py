@@ -312,6 +312,18 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if bot_instance.config.typing_indicator:
         await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
 
+    # 🆕 WS-3: Check for pending clarification (highest priority)
+    if context.user_data.get("pending_clarification"):
+        # User is responding to a clarification question
+        if hasattr(bot_instance, 'rivet_handlers'):
+            handled = await bot_instance.rivet_handlers.handle_clarification_response(
+                update,
+                context,
+                message_text
+            )
+            if handled:
+                return
+
     # CHECK FOR ACTIVE MACHINE CONTEXT (Machine Library feature)
     active_machine = context.user_data.get('active_machine')
     if active_machine:

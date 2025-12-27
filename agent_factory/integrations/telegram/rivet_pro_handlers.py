@@ -40,6 +40,7 @@ from agent_factory.rivet_pro.confidence_scorer import ConfidenceScorer, AnswerAc
 from agent_factory.rivet_pro.database import RIVETProDatabase
 from agent_factory.rivet_pro.vps_kb_client import VPSKBClient
 from agent_factory.integrations.telegram.conversation_manager import ConversationManager
+from agent_factory.rivet_pro.clarification import IntentClarifier, ClarificationRequest
 
 
 class RIVETProHandlers:
@@ -56,6 +57,7 @@ class RIVETProHandlers:
         """Initialize handlers with dependencies"""
         self.intent_detector = IntentDetector()
         self.confidence_scorer = ConfidenceScorer()
+        self.clarifier = IntentClarifier()  # WS-3: Clarification system
         self.db = RIVETProDatabase()  # Uses DATABASE_PROVIDER from .env
         self.conversation_manager = ConversationManager(db=self.db)  # Phase 1: Memory
         self.vps_client = VPSKBClient()  # VPS KB Factory connection
@@ -181,6 +183,37 @@ Or use these commands:
         if conv_context.last_equipment_type and not intent.equipment_info.equipment_type:
             intent.equipment_info.equipment_type = conv_context.last_equipment_type
 
+        # 🆕 WS-3: Check if clarification is needed
+        if self.clarifier.needs_clarification(intent):
+            # Intent too unclear to proceed
+            if self.clarifier.is_too_unclear(intent):
+                await update.message.reply_text(
+                    "❌ I'm having trouble understanding your question. "
+                    "Could you please rephrase it with more details?\n\n"
+                    "Try including:\n"
+                    "• What equipment (motor, VFD, PLC, etc.)\n"
+                    "• What's happening (error, noise, stopped, etc.)\n"
+                    "• Any error codes"
+                )
+                return
+
+            # Generate clarification question
+            clarification = self.clarifier.generate_clarification(intent)
+
+            # Store clarification in user context
+            context.user_data["pending_clarification"] = {
+                "clarification": clarification,
+                "original_question": question
+            }
+
+            # Send clarification request
+            await update.message.reply_text(
+                clarification.to_telegram_message(),
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+            return  # Wait for user response
+
         # Handle non-troubleshooting intents
         if intent.intent_type == IntentType.BOOKING:
             await self._handle_booking_intent(update, context)
@@ -260,6 +293,87 @@ Or use these commands:
                 "urgency": intent.urgency_score,
             },
         )
+
+    async def handle_clarification_response(
+        self,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        user_response: str
+    ) -> bool:
+        """
+        Handle user's response to a clarification question.
+
+        Args:
+            update: Telegram update
+            context: Telegram context
+            user_response: User's clarification response
+
+        Returns:
+            True if clarification was processed, False if no pending clarification
+
+        This is called when a user responds after being asked for clarification.
+        It resolves the clarification and retries the original query.
+        """
+        pending = context.user_data.get("pending_clarification")
+
+        if not pending:
+            return False  # No pending clarification
+
+        clarification: ClarificationRequest = pending["clarification"]
+        original_question: str = pending["original_question"]
+
+        # Resolve clarification
+        resolution = self.clarifier.resolve_clarification(
+            clarification,
+            user_response
+        )
+
+        if not resolution["resolved"]:
+            await update.message.reply_text(
+                "❌ I didn't understand your response. Please try again."
+            )
+            return True
+
+        # Clear pending clarification
+        context.user_data.pop("pending_clarification", None)
+
+        # Rebuild question with clarified details
+        enhanced_question = original_question
+
+        # Add clarified details to question
+        if clarification.type.value == "equipment_ambiguous":
+            equipment_info = resolution["details"]
+            enhanced_question = (
+                f"{original_question}\n"
+                f"(Equipment: {equipment_info.get('manufacturer', '')} "
+                f"{equipment_info.get('model', equipment_info.get('equipment_freeform', ''))})"
+            )
+
+        elif clarification.type.value == "missing_details":
+            enhanced_question = (
+                f"{original_question}\n"
+                f"Additional info: {resolution['details'].get('additional_info', '')}"
+            )
+
+        elif clarification.type.value == "fault_description_vague":
+            enhanced_question = (
+                f"{original_question}\n"
+                f"Details: {resolution['details'].get('additional_info', '')}"
+            )
+
+        # Acknowledge clarification
+        await update.message.reply_text(
+            "✅ Got it! Let me help with that...",
+            parse_mode=ParseMode.MARKDOWN
+        )
+
+        # Retry with enhanced question
+        # Create a synthetic update with enhanced question
+        update.message.text = enhanced_question
+
+        await self.handle_troubleshooting_question(update, context)
+
+        return True
 
     async def handle_upgrade(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
