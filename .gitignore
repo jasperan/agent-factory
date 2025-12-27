@@ -166,3 +166,6 @@ neon_*.txt
 
 # Other sensitive files
 docs/FIXES_APPLIED_2025-12-23.md
+ENV_FILES_GUIDE.md
+DIAGNOSTIC_SESSION_*.md
+*FIXES_APPLIED*.md
