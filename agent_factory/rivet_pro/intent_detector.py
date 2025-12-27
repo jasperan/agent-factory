@@ -18,12 +18,16 @@ Example:
 """
 
 import re
+import os
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
+
+# TAB 3 Phase 1: Context Extractor Integration
+from agent_factory.rivet_pro.context_extractor import ContextExtractor, ContextExtractionResult
 
 
 class IntentType(Enum):
@@ -137,6 +141,11 @@ class IntentDetector:
         # Compile regex patterns for equipment extraction
         self._compile_patterns()
 
+        # TAB 3 Phase 1: Initialize Context Extractor (plugin)
+        # Only enable if feature flag is set (default: enabled)
+        enable_context_extractor = os.getenv("ENABLE_CONTEXT_EXTRACTOR", "true").lower() == "true"
+        self.context_extractor = ContextExtractor(enable_llm=enable_context_extractor) if enable_context_extractor else None
+
     def _compile_patterns(self):
         """Compile regex patterns for equipment extraction"""
         # Fault code patterns (e.g., E210, F001, A123)
@@ -169,6 +178,19 @@ class IntentDetector:
         # Merge results (LLM takes precedence)
         equipment_info = self._merge_equipment_info(quick_equipment, llm_result.get("equipment", {}))
 
+        # TAB 3 Phase 1: Deep extraction if needed (confidence low or multimodal input)
+        confidence = llm_result.get("confidence", 0.8)
+        if self.context_extractor and self._should_use_deep_extraction(confidence, context or {}):
+            try:
+                deep_result = self._run_deep_extraction(question, context or {})
+                equipment_info = self._merge_deep_extraction(equipment_info, deep_result)
+                # Boost confidence if deep extraction found more details
+                if deep_result.confidence > confidence:
+                    confidence = deep_result.confidence
+            except Exception as e:
+                # Graceful degradation if deep extraction fails
+                print(f"Deep extraction failed (continuing with standard extraction): {e}")
+
         # Classify intent type
         intent_type = self._classify_intent(question, llm_result)
 
@@ -180,7 +202,7 @@ class IntentDetector:
 
         return TroubleshootingIntent(
             intent_type=intent_type,
-            confidence=llm_result.get("confidence", 0.8),
+            confidence=confidence,
             equipment_info=equipment_info,
             urgency_score=urgency_score,
             urgency_reason=urgency_reason,
@@ -372,6 +394,113 @@ Extract information in JSON format:"""
         keywords.extend([term for term in troubleshooting_terms if term in text_lower])
 
         return list(set(keywords))
+
+    # TAB 3 Phase 1: Context Extractor Integration Methods
+
+    def _should_use_deep_extraction(self, confidence: float, context: Dict[str, Any]) -> bool:
+        """
+        Determine if deep context extraction should be used.
+
+        Deep extraction is triggered when:
+        - Confidence < 0.7 (uncertain extraction)
+        - Image present (OCR or vision caption available)
+        - Voice transcript (may have transcription errors)
+
+        Args:
+            confidence: LLM extraction confidence (0.0-1.0)
+            context: Context dict with image/voice flags
+
+        Returns:
+            True if deep extraction should run
+        """
+        # Trigger 1: Low confidence
+        if confidence < 0.7:
+            return True
+
+        # Trigger 2: Image present (OCR or vision available)
+        if context.get("has_image") or context.get("ocr_text") or context.get("vision_caption"):
+            return True
+
+        # Trigger 3: Voice transcript (may have errors)
+        if context.get("is_voice_transcript") or context.get("audio_transcription"):
+            return True
+
+        return False
+
+    def _run_deep_extraction(self, question: str, context: Dict[str, Any]) -> ContextExtractionResult:
+        """
+        Run deep context extraction using ContextExtractor.
+
+        Args:
+            question: User's question
+            context: Context dict with OCR/vision data
+
+        Returns:
+            ContextExtractionResult
+        """
+        import asyncio
+
+        # Extract OCR and vision caption from context
+        ocr_text = context.get("ocr_text")
+        vision_caption = context.get("vision_caption")
+
+        # Run async extraction (use asyncio.run if not in async context)
+        try:
+            result = asyncio.run(
+                self.context_extractor.extract(
+                    text=question,
+                    ocr_text=ocr_text,
+                    vision_caption=vision_caption
+                )
+            )
+            return result
+        except RuntimeError as e:
+            # If already in async context, create task
+            if "event loop" in str(e).lower():
+                loop = asyncio.get_event_loop()
+                return loop.run_until_complete(
+                    self.context_extractor.extract(
+                        text=question,
+                        ocr_text=ocr_text,
+                        vision_caption=vision_caption
+                    )
+                )
+            else:
+                raise
+
+    def _merge_deep_extraction(
+        self,
+        equipment_info: EquipmentInfo,
+        deep_result: ContextExtractionResult
+    ) -> EquipmentInfo:
+        """
+        Merge deep extraction results into EquipmentInfo.
+
+        Deep extraction takes precedence for fields it extracted with high confidence.
+
+        Args:
+            equipment_info: Existing equipment info from standard extraction
+            deep_result: Deep extraction result
+
+        Returns:
+            Enhanced EquipmentInfo
+        """
+        # Use deep extraction results if they're more complete
+        return EquipmentInfo(
+            equipment_type=deep_result.equipment_type or equipment_info.equipment_type,
+            manufacturer=deep_result.manufacturer or equipment_info.manufacturer,
+            model=deep_result.model_number or equipment_info.model,
+            # Combine fault codes from both sources
+            fault_codes=list(set(
+                deep_result.fault_codes + equipment_info.fault_codes
+            )),
+            # Combine symptoms from both sources
+            symptoms=list(set(
+                deep_result.symptoms + equipment_info.symptoms
+            )),
+            # Keep original raw text
+            raw_equipment_mention=equipment_info.raw_equipment_mention,
+        )
 
     def detect_batch(self, questions: List[str]) -> List[TroubleshootingIntent]:
         """

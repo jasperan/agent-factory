@@ -317,6 +317,307 @@ class RIVETProDatabase:
         result = self._call_function("get_rivet_pro_metrics", p_days=days)
         return json.loads(result) if result else {}
 
+    # =============================================================================
+    # Machines (TAB 1: Backend Infrastructure)
+    # =============================================================================
+
+    def create_machine(
+        self,
+        user_id: str,
+        name: str,
+        description: Optional[str] = None,
+        location: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Create or update machine (upsert on conflict)"""
+        return self._execute_one(
+            """
+            INSERT INTO machines (user_id, name, description, location)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (user_id, name) DO UPDATE
+            SET description = COALESCE(%s, machines.description),
+                location = COALESCE(%s, machines.location),
+                updated_at = NOW()
+            RETURNING *
+            """,
+            (user_id, name, description, location, description, location)
+        )
+
+    def get_user_machines(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all machines for a user"""
+        return self._execute(
+            "SELECT * FROM machines WHERE user_id = %s ORDER BY name",
+            (user_id,)
+        )
+
+    def get_machine_by_name(self, user_id: str, name: str) -> Optional[Dict[str, Any]]:
+        """Get machine by name (case-insensitive search)"""
+        return self._execute_one(
+            "SELECT * FROM machines WHERE user_id = %s AND name ILIKE %s",
+            (user_id, f"%{name}%")
+        )
+
+    def get_machine_by_id(self, machine_id: str) -> Optional[Dict[str, Any]]:
+        """Get machine by ID"""
+        return self._execute_one(
+            "SELECT * FROM machines WHERE id = %s",
+            (machine_id,)
+        )
+
+    # =============================================================================
+    # Prints (Electrical Prints/Schematics)
+    # =============================================================================
+
+    def create_print(
+        self,
+        machine_id: str,
+        user_id: str,
+        name: str,
+        file_path: str,
+        print_type: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Create new print record"""
+        return self._execute_one(
+            """
+            INSERT INTO prints (machine_id, user_id, name, file_path, print_type)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING *
+            """,
+            (machine_id, user_id, name, file_path, print_type)
+        )
+
+    def update_print_vectorized(
+        self,
+        print_id: str,
+        chunk_count: int,
+        collection_name: str
+    ) -> bool:
+        """Mark print as vectorized with metadata"""
+        self._execute_one(
+            """
+            UPDATE prints
+            SET vectorized = TRUE, chunk_count = %s, collection_name = %s, vectorized_at = NOW()
+            WHERE id = %s
+            """,
+            (chunk_count, collection_name, print_id)
+        )
+        return True
+
+    def get_machine_prints(self, machine_id: str) -> List[Dict[str, Any]]:
+        """Get all prints for a machine"""
+        return self._execute(
+            "SELECT * FROM prints WHERE machine_id = %s ORDER BY uploaded_at DESC",
+            (machine_id,)
+        )
+
+    def get_user_prints(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all prints for a user (across all machines)"""
+        return self._execute(
+            """
+            SELECT p.*, m.name as machine_name
+            FROM prints p
+            JOIN machines m ON p.machine_id = m.id
+            WHERE p.user_id = %s
+            ORDER BY p.uploaded_at DESC
+            """,
+            (user_id,)
+        )
+
+    # =============================================================================
+    # Equipment Manuals (OEM Documentation)
+    # =============================================================================
+
+    def create_manual(
+        self,
+        title: str,
+        manufacturer: str,
+        component_family: str,
+        file_path: str,
+        document_type: str = 'user_manual'
+    ) -> Dict[str, Any]:
+        """Create new equipment manual record"""
+        return self._execute_one(
+            """
+            INSERT INTO equipment_manuals
+            (title, manufacturer, component_family, file_path, document_type)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING *
+            """,
+            (title, manufacturer, component_family, file_path, document_type)
+        )
+
+    def update_manual_indexed(
+        self,
+        manual_id: str,
+        collection_name: str,
+        page_count: int
+    ) -> bool:
+        """Mark manual as indexed with metadata"""
+        self._execute_one(
+            """
+            UPDATE equipment_manuals
+            SET indexed = TRUE, collection_name = %s, page_count = %s, indexed_at = NOW()
+            WHERE id = %s
+            """,
+            (collection_name, page_count, manual_id)
+        )
+        return True
+
+    def search_manuals(
+        self,
+        manufacturer: Optional[str] = None,
+        component_family: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Search indexed manuals by manufacturer and/or component family"""
+        conditions = ["indexed = TRUE"]
+        params = []
+
+        if manufacturer:
+            params.append(f"%{manufacturer}%")
+            conditions.append(f"manufacturer ILIKE ${len(params)}")
+        if component_family:
+            params.append(f"%{component_family}%")
+            conditions.append(f"component_family ILIKE ${len(params)}")
+
+        query = f"SELECT * FROM equipment_manuals WHERE {' AND '.join(conditions)}"
+
+        # Convert $1, $2 placeholders to %s for psycopg2
+        query = query.replace("$1", "%s").replace("$2", "%s")
+
+        return self._execute(query, tuple(params))
+
+    def get_all_manuals(self) -> List[Dict[str, Any]]:
+        """Get all indexed manuals"""
+        return self._execute(
+            "SELECT * FROM equipment_manuals WHERE indexed = TRUE ORDER BY manufacturer, title"
+        )
+
+    # =============================================================================
+    # Print Chat History (Q&A Logs)
+    # =============================================================================
+
+    def save_chat(
+        self,
+        user_id: str,
+        machine_id: str,
+        question: str,
+        answer: str,
+        sources: Optional[List[str]] = None,
+        tokens_used: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Save chat interaction"""
+        return self._execute_one(
+            """
+            INSERT INTO print_chat_history
+            (user_id, machine_id, question, answer, sources, tokens_used)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING *
+            """,
+            (user_id, machine_id, question, answer, sources or [], tokens_used)
+        )
+
+    def get_chat_history(
+        self,
+        user_id: str,
+        machine_id: str,
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """Get recent chat history (reversed chronological order)"""
+        results = self._execute(
+            """
+            SELECT question, answer, sources, created_at
+            FROM print_chat_history
+            WHERE user_id = %s AND machine_id = %s
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (user_id, machine_id, limit)
+        )
+        # Reverse to get chronological order
+        return list(reversed(results))
+
+    # =============================================================================
+    # Context Extractions (Analytics)
+    # =============================================================================
+
+    def log_context_extraction(
+        self,
+        user_id: str,
+        telegram_id: int,
+        message: str,
+        context: dict,
+        confidence: float,
+        manuals_found: int
+    ) -> Dict[str, Any]:
+        """Log context extraction for analytics"""
+        return self._execute_one(
+            """
+            INSERT INTO context_extractions
+            (user_id, telegram_id, message_text, extracted_context, confidence,
+             component_name, component_family, manufacturer, fault_code,
+             issue_type, manuals_found)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+            """,
+            (
+                user_id, telegram_id, message, json.dumps(context), confidence,
+                context.get('component_name'),
+                context.get('component_family'),
+                context.get('manufacturer'),
+                context.get('fault_code'),
+                context.get('issue_type'),
+                manuals_found
+            )
+        )
+
+    # =============================================================================
+    # Manual Gaps (Track Missing Documentation)
+    # =============================================================================
+
+    def log_manual_gap(
+        self,
+        manufacturer: str,
+        component_family: str,
+        model_pattern: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Log missing manual (upsert to increment request count)"""
+        return self._execute_one(
+            """
+            INSERT INTO manual_gaps (manufacturer, component_family, model_pattern)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (manufacturer, component_family)
+            DO UPDATE SET
+                request_count = manual_gaps.request_count + 1,
+                last_requested = NOW(),
+                model_pattern = COALESCE(%s, manual_gaps.model_pattern)
+            RETURNING *
+            """,
+            (manufacturer, component_family, model_pattern or "", model_pattern)
+        )
+
+    def get_top_manual_gaps(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get most requested missing manuals"""
+        return self._execute(
+            """
+            SELECT * FROM manual_gaps
+            WHERE resolved = FALSE
+            ORDER BY request_count DESC
+            LIMIT %s
+            """,
+            (limit,)
+        )
+
+    def resolve_manual_gap(self, gap_id: str, manual_id: str) -> bool:
+        """Mark manual gap as resolved"""
+        self._execute_one(
+            """
+            UPDATE manual_gaps
+            SET resolved = TRUE, resolved_manual_id = %s
+            WHERE id = %s
+            """,
+            (manual_id, gap_id)
+        )
+        return True
+
     def close(self):
         """Close database connection"""
         if self.conn:
