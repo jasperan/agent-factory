@@ -38,6 +38,18 @@ from agent_factory.integrations.telegram.formatters import ResponseFormatter
 from agent_factory.integrations.telegram import library
 from agent_factory.integrations.telegram.admin.kb_manager import KBManager
 
+# Import admin modules
+from agent_factory.integrations.telegram.admin import (
+    AdminDashboard,
+    AgentManager,
+    ContentReviewer,
+    GitHubActions,
+    Analytics,
+    SystemControl,
+)
+from agent_factory.integrations.telegram.scaffold_handlers import ScaffoldHandlers
+from agent_factory.integrations.telegram.langgraph_handlers import LangGraphHandlers
+
 orchestrator = None
 kb_manager = None
 openai_client = None
@@ -993,6 +1005,30 @@ def main():
     kb_manager = KBManager()
     print("KB Manager initialized")
 
+    # Initialize Admin Panel handlers
+    admin_dashboard = AdminDashboard()
+    agent_manager = AgentManager()
+    content_reviewer = ContentReviewer()
+    github_actions = GitHubActions()
+    analytics = Analytics()
+    system_control = SystemControl()
+    print("Admin Panel initialized")
+
+    # Initialize SCAFFOLD handlers
+    project_root = Path(__file__).parent.parent.parent.parent  # agent_factory root
+    scaffold_handlers = ScaffoldHandlers(
+        repo_root=project_root,
+        anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+        max_cost=float(os.getenv("SCAFFOLD_MAX_COST", "5.0")),
+        max_time_hours=float(os.getenv("SCAFFOLD_MAX_TIME_HOURS", "2.0")),
+        dry_run=os.getenv("SCAFFOLD_DRY_RUN", "false").lower() == "true"
+    )
+    print("SCAFFOLD handlers initialized")
+
+    # Initialize LangGraph handlers
+    langgraph_handlers = LangGraphHandlers()
+    print("LangGraph handlers initialized")
+
     app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -1011,6 +1047,46 @@ def main():
     app.add_handler(CommandHandler("kb_queue", kb_manager.handle_kb_queue))
     app.add_handler(CommandHandler("kb_enrichment", kb_manager.handle_kb_enrichment))
 
+    # Admin Panel Commands
+    app.add_handler(CommandHandler("admin", admin_dashboard.handle_admin))
+    app.add_handler(CallbackQueryHandler(admin_dashboard.handle_callback, pattern="^menu_"))
+
+    # Agent Management
+    app.add_handler(CommandHandler("agents_admin", agent_manager.handle_agents))
+    app.add_handler(CommandHandler("agent", agent_manager.handle_agent_detail))
+    app.add_handler(CommandHandler("agent_logs", agent_manager.handle_agent_logs))
+
+    # Content Review
+    app.add_handler(CommandHandler("content", content_reviewer.handle_content))
+
+    # GitHub Actions
+    app.add_handler(CommandHandler("deploy", github_actions.handle_deploy))
+    app.add_handler(CommandHandler("workflow", github_actions.handle_workflow))
+    app.add_handler(CommandHandler("workflows", github_actions.handle_workflows))
+    app.add_handler(CommandHandler("workflow_status", github_actions.handle_workflow_status))
+    app.add_handler(CallbackQueryHandler(github_actions.handle_deploy_confirm, pattern="^deploy_confirm$"))
+
+    # Analytics
+    app.add_handler(CommandHandler("metrics_admin", analytics.handle_metrics))
+    app.add_handler(CommandHandler("costs", analytics.handle_costs))
+    app.add_handler(CommandHandler("revenue", analytics.handle_revenue))
+
+    # System Control
+    app.add_handler(CommandHandler("health", system_control.handle_health))
+    app.add_handler(CommandHandler("db_health", system_control.handle_db_health))
+    app.add_handler(CommandHandler("vps_status_admin", system_control.handle_vps_status))
+    app.add_handler(CommandHandler("restart", system_control.handle_restart))
+
+    # SCAFFOLD Commands
+    app.add_handler(CommandHandler("scaffold", scaffold_handlers.handle_scaffold_create))
+    app.add_handler(CommandHandler("scaffold_status", scaffold_handlers.handle_scaffold_status))
+    app.add_handler(CommandHandler("scaffold_history", scaffold_handlers.handle_scaffold_history))
+
+    # LangGraph Workflow Commands
+    app.add_handler(CommandHandler("research", langgraph_handlers.handle_research))
+    app.add_handler(CommandHandler("consensus", langgraph_handlers.handle_consensus))
+    app.add_handler(CommandHandler("analyze", langgraph_handlers.handle_analyze))
+
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))  # Photo handler (BEFORE text)
 
     # Voice message handler - Transcribe + Route through RivetOrchestrator
@@ -1018,7 +1094,34 @@ def main():
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Bot running. Ctrl+C to stop.")
+    # Startup summary
+    print("\n" + "=" * 70)
+    print("RivetCEO Bot - Admin Commands Available:")
+    print("=" * 70)
+    print("\nCore:")
+    print("  /start, /status, /trace, /library")
+    print("\nKnowledge Base:")
+    print("  /kb, /kb_ingest, /kb_search, /kb_queue, /kb_enrichment")
+    print("\nAdmin Panel:")
+    print("  /admin (dashboard)")
+    print("\nAgent Management:")
+    print("  /agents_admin, /agent, /agent_logs")
+    print("\nContent Review:")
+    print("  /content")
+    print("\nGitHub & Deployment:")
+    print("  /deploy, /workflow, /workflows, /workflow_status")
+    print("\nAnalytics:")
+    print("  /metrics_admin, /costs, /revenue")
+    print("\nSystem Control:")
+    print("  /health, /db_health, /vps_status_admin, /restart")
+    print("\nSCAFFOLD:")
+    print("  /scaffold, /scaffold_status, /scaffold_history")
+    print("\nLangGraph Workflows:")
+    print("  /research, /consensus, /analyze")
+    print("\n" + "=" * 70)
+    print("Authorization: Telegram ID 8445149012 only")
+    print("=" * 70)
+    print("\nBot running. Ctrl+C to stop.\n")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
