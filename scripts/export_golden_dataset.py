@@ -32,18 +32,18 @@ load_dotenv()
 
 
 def get_db_connection():
-    """Get database connection from environment."""
-    import psycopg2
-    
-    DATABASE_URL = os.getenv("DATABASE_URL")
-    if not DATABASE_URL:
+    """Get Supabase client (REST API - avoids PostgreSQL IPv6 issues)."""
+    from supabase import create_client
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    if not url or not key:
         raise ValueError(
-            "DATABASE_URL not set in environment.\n"
-            "Add it to your .env file:\n"
-            "DATABASE_URL=postgresql://user:pass@host:5432/dbname"
+            "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env"
         )
-    
-    return psycopg2.connect(DATABASE_URL)
+
+    return create_client(url, key)
 
 
 def extract_fault_code(content: str) -> str:
@@ -209,50 +209,48 @@ def export_golden_cases(
     Returns:
         List of exported cases
     """
-    conn = get_db_connection()
-    cur = conn.cursor()
-    
-    # Query for atoms with fault-related content
-    # Adjust this based on your actual schema
-    query = f"""
-    SELECT 
-        id,
-        content,
-        COALESCE(metadata, '{{}}')::json as metadata,
-        created_at
-    FROM {table_name}
-    WHERE 
-        content ILIKE '%fault%' 
-        OR content ILIKE '%error%'
-        OR content ILIKE '%alarm%'
-        OR content ILIKE '%troubleshoot%'
-        OR content ILIKE '%diagnosis%'
-        OR content ILIKE '%repair%'
-        OR metadata::text ILIKE '%fault_code%'
-    ORDER BY created_at DESC
-    """
-    
+    client = get_db_connection()
+
+    # Query for atoms with fault-related content using Supabase API
+    logger.info(f"Querying {table_name} via Supabase REST API...")
+
+    query = client.table(table_name).select("id,title,summary,content,created_at")
+
+    # Apply fault-related filters (OR conditions)
+    # Note: Supabase doesn't support multi-column OR in simple query, so we fetch and filter
     if limit:
-        query += f" LIMIT {limit}"
-    
-    logger.info(f"Querying {table_name}...")
-    cur.execute(query)
-    rows = cur.fetchall()
-    
-    logger.info(f"Found {len(rows)} potential golden cases")
+        query = query.limit(min(limit * 5, 500))  # Fetch extra to account for filtering
+    else:
+        query = query.limit(500)  # Reasonable default limit
+
+    result = query.execute()
+
+    # Client-side filtering for fault-related content
+    rows = []
+    for atom in result.data:
+        content = (atom.get('content') or '').lower()
+        title = (atom.get('title') or '').lower()
+        summary = (atom.get('summary') or '').lower()
+
+        if any(keyword in content or keyword in title or keyword in summary
+               for keyword in ['fault', 'error', 'alarm', 'troubleshoot', 'diagnosis', 'repair']):
+            rows.append(atom)
+            if limit and len(rows) >= limit:
+                break
+
+    logger.info(f"Found {len(rows)} fault-related atoms (filtered from {len(result.data)} total)")
     
     # Transform to golden dataset format
     cases = []
-    for row in rows:
-        atom_id, content, metadata, created_at = row
-        
-        # Handle metadata
-        if isinstance(metadata, str):
-            try:
-                metadata = json.loads(metadata)
-            except:
-                metadata = {}
-        metadata = metadata or {}
+    for atom in rows:
+        atom_id = atom.get('id')
+        title = atom.get('title', '')
+        summary = atom.get('summary', '')
+        content = atom.get('content', '')
+        created_at = atom.get('created_at')
+
+        # Metadata not typically stored separately in knowledge_atoms, extract from content
+        metadata = {}
         
         # Extract fields
         fault_code = extract_fault_code(content)
@@ -263,7 +261,7 @@ def export_golden_cases(
         
         case = {
             "test_case_id": f"atom_{atom_id}",
-            "source": "neon_knowledge_atoms",
+            "source": "supabase_knowledge_atoms",
             "equipment": {
                 "manufacturer": manufacturer,
                 "model": model,
@@ -271,7 +269,7 @@ def export_golden_cases(
             },
             "input": {
                 "fault_code": fault_code,
-                "fault_description": metadata.get("description", content[:200]),
+                "fault_description": summary or title or content[:200],
                 "sensor_data": metadata.get("sensor_data", {}),
                 "context": content[:1000]
             },
@@ -310,15 +308,13 @@ def export_golden_cases(
         manufacturers[mfr] = manufacturers.get(mfr, 0) + 1
         fault_codes[fc] = fault_codes.get(fc, 0) + 1
     
-    logger.info("\n📊 Export Summary:")
+    logger.info("\nExport Summary:")
     logger.info(f"  Total cases: {len(cases)}")
     logger.info(f"  By manufacturer: {dict(sorted(manufacturers.items(), key=lambda x: -x[1])[:5])}")
     logger.info(f"  Unique fault codes: {len(fault_codes)}")
     logger.info(f"  Top fault codes: {dict(sorted(fault_codes.items(), key=lambda x: -x[1])[:5])}")
-    
-    cur.close()
-    conn.close()
-    
+
+    # No need to close Supabase client
     return cases
 
 
