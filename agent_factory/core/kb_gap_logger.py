@@ -329,3 +329,153 @@ class KBGapLogger:
         except Exception as e:
             logger.error(f"Failed to get gap stats: {e}", exc_info=True)
             return {}
+
+    async def log_weakness_signal(
+        self,
+        weakness,  # WeaknessSignal from phoenix_trace_analyzer
+        user_id: Optional[str] = None
+    ) -> Optional[int]:
+        """
+        Log KB weakness detected from Phoenix trace.
+
+        Args:
+            weakness: WeaknessSignal from PhoenixTraceAnalyzer
+            user_id: User identifier (if available from trace)
+
+        Returns:
+            gap_id if logged, None if duplicate or failed
+        """
+        try:
+            # Extract equipment identifier
+            equipment_detected = weakness.equipment_detected
+
+            # Check for duplicate gap within 7 days
+            check_sql = """
+                SELECT id, request_count, priority_score FROM gap_requests
+                WHERE equipment_detected = $1
+                AND last_requested_at > NOW() - INTERVAL '7 days'
+                AND ingestion_completed = FALSE
+                ORDER BY last_requested_at DESC LIMIT 1
+            """
+            result = await asyncio.to_thread(
+                self.db.execute_query, check_sql, (equipment_detected,)
+            )
+
+            if result:
+                # Duplicate - increment count and boost priority
+                gap_id, req_count, current_priority = result[0]
+                new_count = req_count + 1
+                # Boost priority if weakness is critical
+                new_priority = max(
+                    current_priority,
+                    weakness.priority_score
+                )
+
+                update_sql = """
+                    UPDATE gap_requests
+                    SET request_count = $1, priority_score = $2,
+                        last_requested_at = NOW()
+                    WHERE id = $3
+                """
+                await asyncio.to_thread(
+                    self.db.execute_query, update_sql,
+                    (new_count, new_priority, gap_id),
+                    fetch_mode="none"
+                )
+
+                logger.info(
+                    f"Incremented gap: gap_id={gap_id}, "
+                    f"weakness={weakness.weakness_type.value}, "
+                    f"priority={new_priority}"
+                )
+
+                # Emit event for auto-research trigger
+                await self._emit_gap_event(gap_id, new_priority, weakness)
+
+                return gap_id
+            else:
+                # New gap - insert record
+                insert_sql = """
+                    INSERT INTO gap_requests (
+                        user_id, query_text, equipment_detected, route,
+                        confidence, kb_atoms_found, priority_score,
+                        enrichment_type, weakness_type, trace_id
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    RETURNING id
+                """
+                result = await asyncio.to_thread(
+                    self.db.execute_query,
+                    insert_sql,
+                    (
+                        int(user_id) if user_id and user_id.isdigit() else 0,
+                        weakness.query_text,
+                        equipment_detected,
+                        "AUTO",  # Automated detection route
+                        weakness.confidence,
+                        weakness.atoms_found,
+                        weakness.priority_score,
+                        weakness.weakness_type.value,  # Store weakness type
+                        weakness.weakness_type.value,
+                        weakness.trace_id
+                    )
+                )
+                gap_id = result[0][0]
+
+                logger.info(
+                    f"Logged new gap: gap_id={gap_id}, "
+                    f"weakness={weakness.weakness_type.value}, "
+                    f"priority={weakness.priority_score}"
+                )
+
+                # Emit event for auto-research trigger
+                await self._emit_gap_event(gap_id, weakness.priority_score, weakness)
+
+                return gap_id
+
+        except Exception as e:
+            logger.error(f"Failed to log weakness signal: {e}", exc_info=True)
+            return None
+
+    async def _emit_gap_event(
+        self,
+        gap_id: int,
+        priority: int,
+        weakness  # WeaknessSignal
+    ):
+        """
+        Emit kb_gap_detected event for auto-research trigger.
+
+        Uses direct trigger pattern (simpler for MVP).
+
+        Args:
+            gap_id: Gap ID in database
+            priority: Priority score (0-100)
+            weakness: WeaknessSignal object
+        """
+        try:
+            from datetime import datetime
+
+            event_data = {
+                "event": "kb_gap_detected",
+                "gap_id": gap_id,
+                "priority": priority,
+                "weakness_type": weakness.weakness_type.value,
+                "equipment": weakness.equipment_detected,
+                "query": weakness.query_text,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+            # Direct trigger (simpler for MVP)
+            # Import here to avoid circular dependency
+            try:
+                from agent_factory.rivet_pro.research.auto_research_trigger import trigger_research
+                await trigger_research(event_data)
+            except ImportError:
+                logger.warning(
+                    "auto_research_trigger not available yet - "
+                    "event logged but not triggered"
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to emit gap event: {e}", exc_info=True)
