@@ -67,7 +67,7 @@ export default function PricingPage() {
   async function handleCheckout(tier: PricingTier) {
     // Beta tier - no email required, redirect to Telegram
     if (!tier.priceId) {
-      window.open(process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || "https://t.me/RivetCEO_bot", "_blank");
+      window.open(process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || "https://t.me/RivetCMMS_bot", "_blank");
       return;
     }
 

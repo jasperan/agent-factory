@@ -28,7 +28,7 @@ export default function SuccessPage() {
                 2
               </span>
               <div>
-                <strong className="block text-lg mb-1">Search for <code className="bg-gray-100 px-2 py-1 rounded">@RivetCEO_bot</code></strong>
+                <strong className="block text-lg mb-1">Search for <code className="bg-gray-100 px-2 py-1 rounded">@RivetCMMS_bot</code></strong>
                 <p className="text-gray-600">Find the official Rivet bot</p>
               </div>
             </li>
@@ -54,7 +54,7 @@ export default function SuccessPage() {
         </div>
 
         <a
-          href="https://t.me/RivetCEO_bot"
+          href={process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || "https://t.me/RivetCMMS_bot"}
           className="inline-block bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition mb-4"
         >
           Open Telegram Bot →

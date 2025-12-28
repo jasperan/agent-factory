@@ -3,7 +3,7 @@ export default function HowItWorks() {
     {
       number: "1",
       title: "Open Telegram",
-      description: "Search @RivetCEO_bot in Telegram"
+      description: "Search @RivetCMMS_bot in Telegram"
     },
     {
       number: "2",
