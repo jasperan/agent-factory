@@ -190,7 +190,12 @@ def rate_limited(action_type: str, limit: int, window_minutes: int = 60):
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(update, context, *args, **kwargs):
-            # Get user_id from context (should be set by bot)
+            # BETA MODE: Skip rate limiting entirely
+            beta_mode = os.getenv("BETA_MODE", "true").lower() == "true"
+            if beta_mode:
+                return await func(update, context, *args, **kwargs)
+
+            # Normal rate limiting (post-beta)
             user_id = context.user_data.get('user_id')
             if not user_id:
                 await update.message.reply_text(

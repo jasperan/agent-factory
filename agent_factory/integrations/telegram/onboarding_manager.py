@@ -500,16 +500,31 @@ class OnboardingManager:
 
     def get_tier_welcome_message(self, tier: str) -> str:
         """Return tier-specific welcome message"""
+        # Check if beta mode is enabled
+        beta_mode = os.getenv("BETA_MODE", "true").lower() == "true"
+        beta_banner = ""
+        if beta_mode:
+            beta_banner = """🚀 **BETA ACCESS - UNLIMITED EVERYTHING!**
+
+━━━━━━━━━━━━━━━━━━━━━━━
+✨ No rate limits
+✨ All Pro features unlocked
+✨ Unlimited troubleshooting
+✨ Unlimited equipment tracking
+✨ Full manual library access
+━━━━━━━━━━━━━━━━━━━━━━━
+
+"""
+
         messages = {
-            "beta": """🎉 **Welcome to RIVET Beta!**
+            "beta": beta_banner + """🎉 **Welcome to RIVET Beta!**
 
 You're one of our early users! Here's what you get:
-✅ 5 AI-powered troubleshooting questions/day
+✅ AI-powered troubleshooting (unlimited during beta!)
 ✅ Access to 1,964+ validated maintenance solutions
 ✅ Community knowledge base
 ✅ Equipment library tracking
-
-During beta, you have FULL ACCESS to all features (no limits)!
+✅ Manual library with vector search
 
 Ready to get started? 🚀""",
 

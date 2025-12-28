@@ -104,6 +104,17 @@ if not TELEGRAM_BOT_TOKEN:
     print("Get token from @BotFather on Telegram")
     exit(1)
 
+# Beta Mode Configuration
+BETA_MODE = os.getenv("BETA_MODE", "true").lower() == "true"
+BETA_FULL_ACCESS = os.getenv("BETA_FULL_ACCESS", "true").lower() == "true"
+
+if BETA_MODE:
+    logger.info("=" * 70)
+    logger.info("🚀 BETA MODE ENABLED - Full access for all users")
+    logger.info("=" * 70)
+    if BETA_FULL_ACCESS:
+        logger.info("✨ BETA FULL ACCESS: No rate limits, unlimited features")
+
 # Daily Standup Time (24-hour format) - admin only
 STANDUP_HOUR = int(os.getenv("STANDUP_HOUR", "8"))
 STANDUP_MINUTE = int(os.getenv("STANDUP_MINUTE", "0"))
