@@ -1,17 +1,23 @@
-"""RIVET Pro SME Agents - Phase 3.
+"""
+RIVET Pro SME Agents
 
-Real SME agents that use KB atoms and LLM to generate informed responses.
-Replaced mock agents on 2025-12-23.
+Subject Matter Expert agents for industrial maintenance troubleshooting.
+
+Phase 3/8 of RIVET Pro Multi-Agent Backend.
+
+All agents inherit from BaseSMEAgent and use Groq for LLM inference.
 """
 
-from .generic_agent import GenericAgent
-from .siemens_agent import SiemensAgent
-from .rockwell_agent import RockwellAgent
-from .safety_agent import SafetyAgent
+from agent_factory.rivet_pro.agents.base_sme_agent import BaseSMEAgent
+from agent_factory.rivet_pro.agents.siemens_agent import SiemensAgent
+from agent_factory.rivet_pro.agents.rockwell_agent import RockwellAgent
+from agent_factory.rivet_pro.agents.generic_plc_agent import GenericPLCAgent
+from agent_factory.rivet_pro.agents.safety_agent import SafetyAgent
 
 __all__ = [
-    "GenericAgent",
+    "BaseSMEAgent",
     "SiemensAgent",
     "RockwellAgent",
-    "SafetyAgent",
+    "GenericPLCAgent",
+    "SafetyAgent"
 ]
