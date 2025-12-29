@@ -8,21 +8,287 @@
 <!-- BACKLOG_SYNC:CURRENT:BEGIN -->
 ## Current Task
 
-No tasks currently in progress.
+### task-86.7: BUILD: Generate 50-70 Knowledge Atoms with Embeddings
+
+**Priority:** High
+
+View task details: `backlog task view task-86.7`
+
+---
+
+### task-scaffold-documentation: BUILD: SCAFFOLD User Documentation
+
+**Priority:** Medium
+
+View task details: `backlog task view task-scaffold-documentation`
+
+---
+
+### task-41: REFACTOR Step 1: Remove dead files and cleanup root directory
+
+**Priority:** Medium
+
+View task details: `backlog task view task-41`
 
 <!-- BACKLOG_SYNC:CURRENT:END -->
 
 <!-- BACKLOG_SYNC:USER_ACTIONS:BEGIN -->
 ## User Actions
 
-No manual tasks requiring user execution.
+**Manual tasks requiring human execution:**
+
+### High Priority
+
+**[ACTION REQUIRED] task-88:** ACTION: Deploy KB Ingestion Chain Database Migration
+- Deploy the 5-table database migration to Supabase to unblock Week 2 development (KB ingestion chain operational).  **Why This is Critical:** - Blocks ALL Week 2 agent development (Research Agent, Scri...
+
+**View details:** `backlog task view task-88`
+
+---
 
 <!-- BACKLOG_SYNC:USER_ACTIONS:END -->
 
 <!-- BACKLOG_SYNC:BACKLOG:BEGIN -->
 ## Backlog
 
-No tasks in backlog.
+### High Priority
+
+**task-scaffold-validate-knowledge-base:** VALIDATE: Blog Post Generation (24 posts from transcripts)
+- View task details: `backlog task view task-scaffold-validate-knowledge-base`
+
+**task-scaffold-validate-parser-scale:** VALIDATE: Task Parsing at Scale (100+ tasks)
+- View task details: `backlog task view task-scaffold-validate-parser-scale`
+
+**task-scaffold-validate-scraper-clips:** VALIDATE: Video Extraction (24 clips from 100 hours)
+- View task details: `backlog task view task-scaffold-validate-scraper-clips`
+
+**task-scaffold-validate-scraper-metadata:** VALIDATE: Metadata Extraction (timestamps, topics, keywords)
+- View task details: `backlog task view task-scaffold-validate-scraper-metadata`
+
+**task-scaffold-validate-youtube-api:** VALIDATE: YouTube API Integration (schedule 24 videos)
+- View task details: `backlog task view task-scaffold-validate-youtube-api`
+
+**task-High.1:** AI Dev Control Loop Dashboard
+- View task details: `backlog task view task-High.1`
+
+**task-9:** BUILD: PLC Tutor Multi-Agent Orchestration
+- View task details: `backlog task view task-9`
+
+**task-10:** BUILD: YouTube Automation Pipeline
+- View task details: `backlog task view task-10`
+
+**task-38.5:** BUILD: Telegram Bot Foundation
+- View task details: `backlog task view task-38.5`
+
+**task-38.6:** BUILD: Intent Decoder - Ollama Mistral
+- View task details: `backlog task view task-38.6`
+
+**task-38.7:** BUILD: Orchestrator Core
+- View task details: `backlog task view task-38.7`
+
+**task-38.8:** BUILD: Agent Registration System
+- View task details: `backlog task view task-38.8`
+
+**task-38.9:** BUILD: 7 Specialized Team Lead Agents
+- View task details: `backlog task view task-38.9`
+
+**task-38.10:** BUILD: Status Reporting Pipeline
+- View task details: `backlog task view task-38.10`
+
+**task-38.11:** BUILD: Error Handling & Fallbacks
+- View task details: `backlog task view task-38.11`
+
+**task-38.12:** BUILD: TIER 0 Testing & Validation Suite
+- View task details: `backlog task view task-38.12`
+
+**task-39.1:** BUILD: Explorer 1 - Agentic Frameworks
+- View task details: `backlog task view task-39.1`
+
+**task-39.2:** BUILD: Explorer 2 - CI/CD Automation
+- View task details: `backlog task view task-39.2`
+
+**task-39.3:** BUILD: Explorer 3 - Local LLM Inference
+- View task details: `backlog task view task-39.3`
+
+**task-39.4:** BUILD: Explorer 4 - PLC & Industrial Automation
+- View task details: `backlog task view task-39.4`
+
+**task-39.5:** BUILD: Explorer 5 - Telegram & Remote Orchestration
+- View task details: `backlog task view task-39.5`
+
+**task-39.6:** BUILD: Source Verification Pipeline
+- View task details: `backlog task view task-39.6`
+
+**task-39.7:** BUILD: Research Manager Core
+- View task details: `backlog task view task-39.7`
+
+**task-40.3:** BUILD: Skunk Works Experiment Runner & Benchmarking
+- View task details: `backlog task view task-40.3`
+
+**task-40.4:** BUILD: Skunk Works Validator Quality Gates
+- View task details: `backlog task view task-40.4`
+
+**task-40.5:** BUILD: Skunk Works CEO Reporting Pipeline
+- View task details: `backlog task view task-40.5`
+
+**task-40.6:** BUILD: Skunk Works Scraper Infrastructure
+- View task details: `backlog task view task-40.6`
+
+**task-40.7:** BUILD: Skunk Works Sandbox Docker Environment
+- View task details: `backlog task view task-40.7`
+
+**task-42:** REFACTOR Step 6: Implement hybrid search (vector + keyword)
+- View task details: `backlog task view task-42`
+
+**task-43:** REFACTOR Step 7: Create SME agent template pattern
+- View task details: `backlog task view task-43`
+
+**task-44:** REFACTOR Step 10: Add RAG reranking to improve answer quality
+- View task details: `backlog task view task-44`
+
+**task-48:** AUDIT: Extract patterns from jarvis-core before archiving
+- View task details: `backlog task view task-48`
+
+**task-49:** AUDIT: Extract knowledge from Friday repo (voice assistant)
+- View task details: `backlog task view task-49`
+
+**task-51:** REFACTOR Step 8: Implement real Motor Control SME Agent (Phase 3)
+- View task details: `backlog task view task-51`
+
+**task-52:** REFACTOR Step 9: Implement remaining 3 SME agents (Phase 3)
+- View task details: `backlog task view task-52`
+
+**task-59:** TEST: Create unit tests for LLM cache module
+- View task details: `backlog task view task-59`
+
+**task-60:** TEST: Create integration tests for streaming support
+- View task details: `backlog task view task-60`
+
+**task-61:** VALIDATE: SME agent integration tests
+- View task details: `backlog task view task-61`
+
+**task-62:** VALIDATE: RIVET end-to-end workflow
+- View task details: `backlog task view task-62`
+
+**task-63:** DOCS: Production deployment guide for RIVET
+- View task details: `backlog task view task-63`
+
+**task-66:** REFACTOR: Implement MCP fallback mode for Backlog.md
+- View task details: `backlog task view task-66`
+
+**task-67:** REFACTOR: Add task validation layer to Backlog.md
+- View task details: `backlog task view task-67`
+
+**task-68:** REFACTOR: Fix N+1 dependency queries in Backlog.md
+- View task details: `backlog task view task-68`
+
+**task-69:** TEST: Integration tests for Backlog.md with real task files
+- View task details: `backlog task view task-69`
+
+**task-70:** FIX: Sync script brittleness in Backlog.md (use JSON not regex)
+- View task details: `backlog task view task-70`
+
+**task-86:** EPIC: Knowledge Extraction from CORE Repositories
+- View task details: `backlog task view task-86`
+
+**task-86.6:** DEPLOY: Ingest Atoms to Database & Validate Search Quality
+- View task details: `backlog task view task-86.6`
+
+**task-87:** BUILD CEO Agent Orchestrator
+- View task details: `backlog task view task-87`
+
+**task-88:** ACTION: Deploy KB Ingestion Chain Database Migration
+- View task details: `backlog task view task-88`
+
+### Medium Priority
+
+**task-scaffold-backlog-sync:** BUILD: Backlog Status Sync (PR to Backlog.md)
+
+**task-scaffold-validate-seo-rankings:** VALIDATE: SEO Rankings (organic page 1 results)
+
+**task-scaffold-validate-twitter-api:** VALIDATE: Twitter API Integration (post 24 threads)
+
+**task-11:** BUILD: Voice Clone Setup (ElevenLabs)
+
+**task-12:** BUILD: A-to-Z Curriculum Roadmap
+
+**task-13:** BUILD: Hybrid Search Implementation
+
+**task-14:** FIX: pgvector Extension for Local PostgreSQL 18
+
+**task-15:** FIX: Telegram Admin Panel Real Data Integration
+
+**task-16:** FIX: pytest Slow Execution Investigation
+
+**task-19:** TEST: Ingestion Chain Tests
+
+**task-21:** TEST: Autonomous System Tests
+
+**task-23.4:** BUILD: Simple dashboard (React/Telegram) (AI Dev Loop 5/6)
+
+**task-45:** REFACTOR Step 11: Optimize slow test execution (task-16)
+
+**task-46:** REFACTOR Step 12: Wire Langfuse integration for LLM observability
+
+**task-47:** AUDIT: Extract knowledge from Friday-2 repo
+
+**task-53:** BUILD: Create cross-repo knowledge consolidation map
+
+**task-54:** BUILD: Extract Voice & Audio Processing library from Friday variants
+
+**task-64:** REFACTOR Step 13: Add distributed tracing (OpenTelemetry)
+
+**task-65:** REFACTOR Step 14: Implement Prometheus metrics
+
+**task-71:** REFACTOR: Extend backlog/config.yml with SCAFFOLD settings
+
+**task-72:** OPTIMIZE: Cache dependency checks in Backlog.md
+
+**task-73:** OPTIMIZE: Batch MCP calls in Backlog.md where possible
+
+**task-74:** REFACTOR: Add proper exception handling to Backlog.md integration
+
+**task-78:** EXTRACT: Study pai-config hook/event system architecture
+
+**task-79:** BUILD: Implement agent_factory/core/hooks.py (event system)
+
+**task-80:** BUILD: Implement agent_factory/core/events.py (event dispatcher)
+
+**task-81:** BUILD: Multi-app context synchronization in SettingsService
+
+**task-82:** BUILD: Context versioning and sync protocol
+
+**task-83:** BUILD: agent_factory/integrations/windows/ module (PowerShell wrappers)
+
+**task-86.5:** DOCUMENT: Add Inline Documentation to Critical Files
+
+**task-86.9:** BUILD: Implement 3-6 Reusable Pattern Classes
+
+**task-scaffold-validate-e2e-pipeline:** VALIDATE: End-to-End Pipeline (recording to publishing)
+
+**task-scaffold-validate-parallel-execution:** VALIDATE: Parallel Execution (24 concurrent tasks)
+
+**task-1:** AUDIT: Inventory Agent Factory repo
+
+**task-22:** AI Dev Control Loop Dashboard
+
+### Low Priority
+
+**task-17:** CLEANUP: Update PROJECT_STRUCTURE.md
+
+**task-18:** CLEANUP: Audit Architecture Docs for Accuracy
+
+**task-20:** TEST: Agent Integration Tests
+
+**task-75:** MONITOR: Add metrics for MCP call counts and latencies
+
+**task-76:** MONITOR: Add metrics for task processing times
+
+**task-77:** DOCS: Create agent_factory/scaffold/ component README
+
+**task-84:** BUILD: Configuration versioning with rollback support
+
+**task-85:** BUILD: Agent hook registration system (subscribe to events)
 
 <!-- BACKLOG_SYNC:BACKLOG:END -->
 

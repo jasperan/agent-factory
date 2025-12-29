@@ -79,24 +79,12 @@ class AutoResearchTrigger:
             "raw_question": query
         }
 
-        # Trigger based on priority
-        if priority >= 70:
-            # CRITICAL/HIGH: Immediate
-            await self._trigger_immediate(gap_id, intent_data)
-        elif priority >= 40:
-            # MEDIUM: Batch hourly
-            self.medium_priority_batch.append((gap_id, intent_data))
-            logger.info(
-                f"Added to medium-priority batch: gap_id={gap_id}, "
-                f"batch_size={len(self.medium_priority_batch)}"
-            )
-        else:
-            # LOW: Batch daily
-            self.low_priority_batch.append((gap_id, intent_data))
-            logger.info(
-                f"Added to low-priority batch: gap_id={gap_id}, "
-                f"batch_size={len(self.low_priority_batch)}"
-            )
+        # ULTRA-AGGRESSIVE MODE: Trigger ALL priorities immediately
+        # No batching - research everything from day 1
+        logger.info(
+            f"AGGRESSIVE MODE: Triggering immediate research for ALL priorities"
+        )
+        await self._trigger_immediate(gap_id, intent_data)
 
     async def _trigger_immediate(self, gap_id: int, intent_data: Dict):
         """

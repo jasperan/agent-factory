@@ -3,19 +3,32 @@ Knowledge Gap Detector - Analyzes queries and triggers document ingestion.
 
 Detects equipment identifiers, checks KB coverage, and generates structured
 ingestion triggers for autonomous knowledge base enrichment.
+
+ULTRA-AGGRESSIVE MODE: Logs gaps on EVERY interaction and triggers immediate research.
 """
 import re
 import json
 import logging
+import asyncio
 from datetime import datetime
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from enum import Enum
+from dataclasses import dataclass
 
 from agent_factory.rivet_pro.models import RivetRequest, RivetIntent, VendorType, EquipmentType
 from agent_factory.routers.kb_evaluator import KBCoverageEvaluator
 from agent_factory.schemas.routing import CoverageLevel
 
 logger = logging.getLogger(__name__)
+
+# ULTRA-AGGRESSIVE MODE: Import research trigger components
+try:
+    from agent_factory.observability.phoenix_trace_analyzer import WeaknessType, WeaknessSignal
+    from agent_factory.core.kb_gap_logger import KBGapLogger
+    AGGRESSIVE_MODE_AVAILABLE = True
+except ImportError:
+    AGGRESSIVE_MODE_AVAILABLE = False
+    logger.warning("Ultra-aggressive mode unavailable - missing dependencies")
 
 
 class GapPriority(str, Enum):
@@ -308,3 +321,222 @@ class GapDetector:
             JSON string for storage
         """
         return json.dumps(trigger, indent=2)
+
+    # ========================================================================
+    # ULTRA-AGGRESSIVE MODE: Log gaps on EVERY interaction
+    # ========================================================================
+
+    async def detect_and_log_gap_aggressive(
+        self,
+        request: RivetRequest,
+        intent: RivetIntent,
+        kb_coverage: CoverageLevel,
+        atoms_found: int = 0,
+        confidence: float = 0.0,
+        context: Optional[Dict[str, Any]] = None
+    ) -> Optional[int]:
+        """
+        ULTRA-AGGRESSIVE MODE: Log gap for EVERY interaction.
+
+        Unlike analyze_query() which only triggers on NONE/THIN coverage,
+        this logs EVERY user interaction as a potential gap and triggers research.
+
+        Args:
+            request: Original user request
+            intent: Parsed intent
+            kb_coverage: Coverage level (logs regardless of value)
+            atoms_found: Number of atoms found in KB
+            confidence: Routing confidence score
+            context: Additional context
+
+        Returns:
+            gap_id if logged, None if failed
+        """
+        if not AGGRESSIVE_MODE_AVAILABLE:
+            logger.warning("Ultra-aggressive mode disabled - dependencies unavailable")
+            return None
+
+        try:
+            query_text = request.text or request.image_text or ""
+
+            # Determine weakness type
+            weakness_type = self._map_coverage_to_weakness(
+                kb_coverage, atoms_found, confidence
+            )
+
+            # Calculate priority score (0-100)
+            priority_score = self._calculate_priority_score(
+                weakness_type, kb_coverage, atoms_found, confidence
+            )
+
+            # Build equipment string
+            equipment = f"{intent.vendor.value if intent.vendor else 'unknown'}:{intent.equipment_type.value if intent.equipment_type else 'unknown'}"
+
+            # Create WeaknessSignal
+            weakness = WeaknessSignal(
+                weakness_type=weakness_type,
+                priority_score=priority_score,
+                query_text=query_text,
+                equipment_detected=equipment,
+                atoms_found=atoms_found,
+                confidence=confidence,
+                relevance_scores=[],  # Not available in this context
+                trace_id="",  # Not from Phoenix trace
+                timestamp=datetime.utcnow(),
+                context=context or {}
+            )
+
+            # Log to gap_requests (triggers auto-research)
+            gap_logger = KBGapLogger()
+            gap_id = await gap_logger.log_weakness_signal(weakness)
+
+            logger.info(
+                f"AGGRESSIVE MODE: Logged gap_id={gap_id}, "
+                f"weakness={weakness_type.value}, priority={priority_score}"
+            )
+
+            return gap_id
+
+        except Exception as e:
+            logger.error(f"Failed to log aggressive gap: {e}", exc_info=True)
+            return None
+
+    def _map_coverage_to_weakness(
+        self, kb_coverage: CoverageLevel, atoms_found: int, confidence: float
+    ) -> WeaknessType:
+        """Map KB coverage to WeaknessType enum."""
+        if kb_coverage == CoverageLevel.NONE or atoms_found == 0:
+            return WeaknessType.ZERO_ATOMS
+        elif kb_coverage == CoverageLevel.THIN or atoms_found < 3:
+            return WeaknessType.THIN_COVERAGE
+        elif confidence < 0.5:
+            return WeaknessType.LOW_RELEVANCE
+        else:
+            # Even with good coverage, log as thin_coverage to ensure research
+            return WeaknessType.THIN_COVERAGE
+
+    def _calculate_priority_score(
+        self,
+        weakness_type: WeaknessType,
+        kb_coverage: CoverageLevel,
+        atoms_found: int,
+        confidence: float
+    ) -> int:
+        """
+        Calculate priority score (0-100) for gap.
+
+        Higher priority = more urgent research needed.
+        """
+        base_priority = {
+            WeaknessType.ZERO_ATOMS: 100,
+            WeaknessType.HALLUCINATION_RISK: 95,
+            WeaknessType.THIN_COVERAGE: 70,
+            WeaknessType.LOW_RELEVANCE: 50,
+            WeaknessType.MISSING_CITATIONS: 40,
+            WeaknessType.HIGH_LATENCY: 30,
+        }.get(weakness_type, 50)
+
+        # Boost priority if confidence is very low
+        if confidence < 0.3:
+            base_priority = min(100, base_priority + 20)
+
+        # Boost priority if zero atoms
+        if atoms_found == 0:
+            base_priority = min(100, base_priority + 10)
+
+        return base_priority
+
+
+# ========================================================================
+# GLOBAL CONVENIENCE FUNCTIONS (for easy integration)
+# ========================================================================
+
+async def log_every_interaction(
+    user_query: str,
+    vendor: str = "unknown",
+    equipment_type: str = "unknown",
+    atoms_found: int = 0,
+    confidence: float = 0.0,
+    kb_coverage: str = "none",
+    context: Optional[Dict[str, Any]] = None
+) -> Optional[int]:
+    """
+    ULTRA-AGGRESSIVE MODE: Log EVERY user interaction as potential gap.
+
+    Call this after EVERY agent interaction to ensure comprehensive research.
+
+    Args:
+        user_query: User's query text
+        vendor: Vendor name (e.g., "siemens", "rockwell")
+        equipment_type: Equipment type (e.g., "plc", "drive")
+        atoms_found: Number of KB atoms found
+        confidence: Routing confidence (0.0-1.0)
+        kb_coverage: Coverage level ("none", "thin", "partial", "good")
+        context: Additional context
+
+    Returns:
+        gap_id if logged, None if failed
+
+    Example:
+        gap_id = await log_every_interaction(
+            user_query="How to reset S7-1200 fault F0003?",
+            vendor="siemens",
+            equipment_type="plc",
+            atoms_found=2,
+            confidence=0.4,
+            kb_coverage="thin"
+        )
+    """
+    if not AGGRESSIVE_MODE_AVAILABLE:
+        logger.warning("Aggressive mode unavailable - skipping gap log")
+        return None
+
+    try:
+        # Build RivetRequest
+        request = RivetRequest(text=user_query, source="aggressive_mode")
+
+        # Build RivetIntent
+        try:
+            vendor_enum = VendorType(vendor.lower())
+        except ValueError:
+            vendor_enum = VendorType.GENERIC
+
+        try:
+            equipment_enum = EquipmentType(equipment_type.lower())
+        except ValueError:
+            equipment_enum = EquipmentType.UNKNOWN
+
+        intent = RivetIntent(
+            vendor=vendor_enum,
+            equipment_type=equipment_enum,
+            symptom=user_query[:200],
+            raw_question=user_query
+        )
+
+        # Map coverage string to enum
+        coverage_map = {
+            "none": CoverageLevel.NONE,
+            "thin": CoverageLevel.THIN,
+            "partial": CoverageLevel.PARTIAL,
+            "good": CoverageLevel.GOOD,
+        }
+        kb_coverage_enum = coverage_map.get(kb_coverage.lower(), CoverageLevel.NONE)
+
+        # Create detector (with mock evaluator since we don't need it)
+        detector = GapDetector(kb_evaluator=None)  # type: ignore
+
+        # Log gap
+        gap_id = await detector.detect_and_log_gap_aggressive(
+            request=request,
+            intent=intent,
+            kb_coverage=kb_coverage_enum,
+            atoms_found=atoms_found,
+            confidence=confidence,
+            context=context
+        )
+
+        return gap_id
+
+    except Exception as e:
+        logger.error(f"Failed to log interaction gap: {e}", exc_info=True)
+        return None

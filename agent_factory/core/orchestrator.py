@@ -45,6 +45,13 @@ from examples.embedder import CaseEmbedder
 # TAB 3 Phase 2: Response Synthesizer Integration (2025-12-27)
 from agent_factory.rivet_pro.response_synthesizer import ResponseSynthesizer
 
+# Phase 6: Trace Persistence (2025-12-29)
+from agent_factory.rivet_pro.trace_persistence import TracePersistence
+from agent_factory.rivet_pro.trace_cost_helper import extract_cost_from_tracker
+
+# Phase 8: Vision/OCR Integration (2025-12-29)
+from agent_factory.rivet_pro.vision_intent_enhancer import VisionIntentEnhancer
+
 
 class RivetOrchestrator:
     """4-route orchestrator for RIVET Pro queries.
@@ -102,6 +109,18 @@ class RivetOrchestrator:
         self.response_synthesizer = ResponseSynthesizer()
         logger.info("Response Synthesizer initialized (TAB 3 Phase 2)")
 
+        # Initialize Trace Persistence (Phase 6 - 2025-12-29)
+        self.trace_persistence = TracePersistence()
+        logger.info("Trace Persistence initialized (Phase 6)")
+
+        # Initialize Vision Intent Enhancer (Phase 8 - 2025-12-29)
+        self.vision_enhancer = None
+        try:
+            self.vision_enhancer = VisionIntentEnhancer()
+            logger.info("Vision Intent Enhancer initialized (Phase 8)")
+        except Exception as e:
+            logger.warning(f"Vision enhancer initialization failed (continuing without it): {e}")
+
         # Initialize KB gap logger (Phase 1: KB gap tracking)
         self.kb_gap_logger = None
         # Initialize gap detector (Phase 2: Auto-trigger ingestion)
@@ -156,6 +175,29 @@ class RivetOrchestrator:
         Returns:
             RivetResponse from appropriate route handler
         """
+        # Track start time for processing duration (Phase 6)
+        start_time = time.time()
+
+        # Phase 8: Process image if IMAGE or TEXT_WITH_IMAGE message type
+        if self.vision_enhancer and request.image_path:
+            from agent_factory.rivet_pro.models import MessageType
+            if request.message_type in [MessageType.IMAGE, MessageType.TEXT_WITH_IMAGE]:
+                try:
+                    logger.info(f"Processing image with vision enhancer: {request.image_path}")
+                    # Enhance request with vision data (modifies request in-place)
+                    request = self.vision_enhancer.enhance_request_with_vision(
+                        request=request,
+                        image_path=request.image_path,
+                        image_type="auto"  # Auto-detect image type
+                    )
+                    logger.info(
+                        f"Vision processing complete: "
+                        f"confidence={request.metadata.get('vision_confidence', 'unknown')}"
+                    )
+                except Exception as e:
+                    logger.error(f"Vision processing failed: {e}", exc_info=True)
+                    # Continue without vision enhancement
+
         # Step 1: Detect vendor from query
         vendor_detection = self.vendor_detector.detect(request.text or "")
 
@@ -196,14 +238,35 @@ class RivetOrchestrator:
         )
 
         # Step 4: Execute appropriate route
+        response = None
+        route_str = ""
+        agent_id_str = ""
+
         if routing_decision.route == RouteType.ROUTE_A:
-            return await self._route_a_strong_kb(request, routing_decision, trace)
+            response = await self._route_a_strong_kb(request, routing_decision, trace)
+            route_str = "A_direct_sme"
+            agent_id_str = routing_decision.sme_agent.value if routing_decision.sme_agent else "siemens_agent"
         elif routing_decision.route == RouteType.ROUTE_B:
-            return await self._route_b_thin_kb(request, routing_decision, trace)
+            response = await self._route_b_thin_kb(request, routing_decision, trace)
+            route_str = "B_sme_enrich"
+            agent_id_str = routing_decision.sme_agent.value if routing_decision.sme_agent else "siemens_agent"
         elif routing_decision.route == RouteType.ROUTE_C:
-            return await self._route_c_no_kb(request, routing_decision, trace)
+            response = await self._route_c_no_kb(request, routing_decision, trace)
+            route_str = "C_research"
+            agent_id_str = "research_agent"
         else:  # ROUTE_D
-            return await self._route_d_unclear(request, routing_decision, trace)
+            response = await self._route_d_unclear(request, routing_decision, trace)
+            route_str = "D_clarification"
+            agent_id_str = "clarification_agent"
+
+        # Phase 6: Persist trace to Supabase (async, non-blocking)
+        processing_time_ms = int((time.time() - start_time) * 1000)
+        asyncio.create_task(self._persist_trace_async(
+            request, response, route_str, agent_id_str,
+            kb_coverage, processing_time_ms, trace
+        ))
+
+        return response
 
     def _make_routing_decision(
         self,
@@ -463,6 +526,11 @@ class RivetOrchestrator:
             request=request
         )
 
+        # ULTRA-AGGRESSIVE MODE: Log gap for EVERY interaction (fire-and-forget)
+        asyncio.create_task(
+            self._log_gap_aggressive_mode(request, decision, enhanced_response)
+        )
+
         return enhanced_response
 
     async def _route_b_thin_kb(
@@ -542,6 +610,11 @@ class RivetOrchestrator:
             kb_coverage=decision.kb_coverage.level,
             vendor=vendor,
             request=request
+        )
+
+        # ULTRA-AGGRESSIVE MODE: Log gap for EVERY interaction (fire-and-forget)
+        asyncio.create_task(
+            self._log_gap_aggressive_mode(request, decision, enhanced_response)
         )
 
         # Trigger enrichment pipeline - log gap for background processing
@@ -666,6 +739,11 @@ class RivetOrchestrator:
             request=request
         )
 
+        # ULTRA-AGGRESSIVE MODE: Log gap for EVERY interaction (fire-and-forget)
+        asyncio.create_task(
+            self._log_gap_aggressive_mode(request, decision, enhanced_response)
+        )
+
         return enhanced_response
 
     async def _route_d_unclear(
@@ -705,7 +783,7 @@ class RivetOrchestrator:
                 requires_clarification=True
             )
 
-        return RivetResponse(
+        response = RivetResponse(
             text=response_text,
             agent_id=self._get_agent_id(decision.vendor_detection.vendor),
             route_taken=self._get_model_route_type(RouteType.ROUTE_D),
@@ -720,6 +798,13 @@ class RivetOrchestrator:
                 "llm_generated": confidence > 0.0,
             }
         )
+
+        # ULTRA-AGGRESSIVE MODE: Log gap for EVERY interaction (fire-and-forget)
+        asyncio.create_task(
+            self._log_gap_aggressive_mode(request, decision, response)
+        )
+
+        return response
 
     @timed_operation("gap_detection")
     async def _analyze_gap_async(
@@ -1115,6 +1200,64 @@ class RivetOrchestrator:
 
         return min(100, max(0, base + confidence_boost + vendor_boost + relevance_penalty))
 
+    # ========================================================================
+    # ULTRA-AGGRESSIVE MODE: Log gaps on EVERY interaction
+    # ========================================================================
+
+    async def _log_gap_aggressive_mode(
+        self,
+        request: RivetRequest,
+        decision: RoutingDecision,
+        response: RivetResponse
+    ) -> None:
+        """
+        ULTRA-AGGRESSIVE MODE: Log gap for EVERY user interaction.
+
+        This runs in background after user receives response (fire-and-forget).
+        Triggers immediate research for ALL priorities (no batching).
+
+        Args:
+            request: User query request
+            decision: Routing decision with vendor and coverage
+            response: Agent's response
+        """
+        try:
+            # Import aggressive gap logging function
+            from agent_factory.core.gap_detector import log_every_interaction
+
+            # Extract data
+            vendor = decision.vendor_detection.vendor.value
+            kb_coverage = decision.kb_coverage.level.value
+            atoms_found = decision.kb_coverage.atom_count
+            confidence = response.confidence
+
+            # Log gap (triggers auto-research via WeaknessSignal → KBGapLogger → AutoResearchTrigger)
+            gap_id = await log_every_interaction(
+                user_query=request.text or "",
+                vendor=vendor,
+                equipment_type="unknown",  # TODO: Parse from request
+                atoms_found=atoms_found,
+                confidence=confidence,
+                kb_coverage=kb_coverage,
+                context={
+                    "route": response.route_taken.value if response.route_taken else "unknown",
+                    "user_id": request.user_id,
+                    "trace_id": response.trace.get("trace_id", "")
+                }
+            )
+
+            if gap_id:
+                logger.info(
+                    f"AGGRESSIVE MODE: Logged gap_id={gap_id} for query "
+                    f"(route={response.route_taken.value if response.route_taken else 'unknown'}, "
+                    f"atoms={atoms_found}, confidence={confidence:.2f})"
+                )
+            else:
+                logger.warning("AGGRESSIVE MODE: Gap logging returned None")
+
+        except Exception as e:
+            logger.error(f"AGGRESSIVE MODE: Failed to log gap: {e}", exc_info=True)
+
     def get_routing_stats(self) -> Dict[str, int]:
         """Get routing statistics for monitoring.
 
@@ -1128,3 +1271,98 @@ class RivetOrchestrator:
             "route_d_count": self._route_counts[RouteType.ROUTE_D],
             "total_queries": sum(self._route_counts.values()),
         }
+
+    async def _persist_trace_async(
+        self,
+        request: RivetRequest,
+        response: RivetResponse,
+        route_str: str,
+        agent_id_str: str,
+        kb_coverage: KBCoverage,
+        processing_time_ms: int,
+        trace: Optional[RequestTrace] = None
+    ):
+        """Persist trace to Supabase (Phase 6).
+
+        Runs asynchronously to avoid blocking the response.
+
+        Args:
+            request: Original user request
+            response: Generated response
+            route_str: Route taken (A_direct_sme, B_sme_enrich, C_research, D_clarification)
+            agent_id_str: Agent that handled the request
+            kb_coverage: KB coverage evaluation results
+            processing_time_ms: Total processing time
+            trace: Optional RequestTrace for additional context
+        """
+        try:
+            from agent_factory.rivet_pro.models import AgentTrace, ChannelType, MessageType, RouteType, AgentID, RivetIntent
+
+            # Build RivetIntent from request
+            intent = RivetIntent(
+                equipment_type=request.equipment_type or "unknown",
+                fault_code=None,
+                fault_description=request.text[:200] if request.text else "",
+                symptoms=[],
+                desired_outcome=request.text[:100] if request.text else ""
+            )
+
+            # Map route string to RouteType enum
+            route_map = {
+                "A_direct_sme": RouteType.ROUTE_A,
+                "B_sme_enrich": RouteType.ROUTE_B,
+                "C_research": RouteType.ROUTE_C,
+                "D_clarification": RouteType.ROUTE_D,
+            }
+            route_enum = route_map.get(route_str, RouteType.ROUTE_A)
+
+            # Map agent string to AgentID enum
+            agent_map = {
+                "siemens_agent": AgentID.SIEMENS,
+                "rockwell_agent": AgentID.ROCKWELL,
+                "abb_agent": AgentID.ABB,
+                "generic_plc_agent": AgentID.GENERIC_PLC,
+                "safety_agent": AgentID.SIEMENS,  # Fallback
+                "research_agent": AgentID.GENERIC_PLC,  # Fallback
+                "clarification_agent": AgentID.GENERIC_PLC,  # Fallback
+            }
+            agent_enum = agent_map.get(agent_id_str, AgentID.GENERIC_PLC)
+
+            # Extract doc sources from KB coverage
+            doc_sources = [
+                doc.get('source_document', doc.get('atom_id', 'unknown'))
+                for doc in kb_coverage.retrieved_docs[:5]
+            ]
+
+            # Create AgentTrace
+            agent_trace = AgentTrace(
+                request_id=trace.request_id if trace else f"req_{int(time.time() * 1000)}",
+                user_id=request.user_id,
+                channel=request.channel,
+                message_type=request.message_type,
+                intent=intent,
+                route=route_enum,
+                agent_id=agent_enum,
+                response_text=response.response_text[:1000],  # Truncate to 1000 chars
+                docs_retrieved=kb_coverage.atom_count,
+                doc_sources=doc_sources,
+                processing_time_ms=processing_time_ms,
+                llm_calls=len(self.llm_router.tracker.calls) if self.llm_router.tracker else 1,
+                research_triggered=(route_str == "C_research"),
+                kb_enrichment_triggered=(route_str == "B_sme_enrich"),
+                error=None
+            )
+
+            # Extract cost data from LLM tracker
+            tokens, cost = extract_cost_from_tracker(self.llm_router.tracker if hasattr(self.llm_router, 'tracker') else None)
+
+            # Save to Supabase
+            success = self.trace_persistence.save_trace(agent_trace, tokens_used=tokens, estimated_cost_usd=cost)
+
+            if success:
+                logger.debug(f"Trace persisted: {agent_trace.request_id} (route={route_str}, cost=${cost:.6f})")
+            else:
+                logger.warning(f"Failed to persist trace: {agent_trace.request_id}")
+
+        except Exception as e:
+            logger.error(f"Error persisting trace: {e}", exc_info=True)
