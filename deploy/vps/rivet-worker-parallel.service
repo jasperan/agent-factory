@@ -1,0 +1,37 @@
+[Unit]
+Description=RIVET KB Ingestion Worker (PARALLEL - 3x Throughput)
+Documentation=https://github.com/yourusername/agent-factory
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/Agent-Factory
+
+# Environment
+Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin
+EnvironmentFile=/root/Agent-Factory/.env
+
+# Parallel worker with 3 threads (configurable via WORKER_CONCURRENCY)
+ExecStart=/root/.local/bin/poetry run python scripts/rivet_worker_parallel.py
+
+# Auto-restart on failure
+Restart=always
+RestartSec=10
+
+# Resource limits (higher than single-threaded worker)
+MemoryMax=1G
+CPUQuota=150%
+
+# Graceful shutdown
+TimeoutStopSec=60
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rivet-worker-parallel
+
+[Install]
+WantedBy=multi-user.target

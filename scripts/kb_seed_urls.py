@@ -106,6 +106,59 @@ FUJI_ELECTRIC_URLS = [
 ]
 
 # =============================================================================
+# YASKAWA
+# =============================================================================
+YASKAWA_URLS = [
+    # A1000 Series Drives
+    "https://www.yaskawa.com/downloads/download/7261/A1000_TechnicalManual.pdf",  # A1000 Technical Manual
+    "https://www.yaskawa.com/downloads/download/7265/A1000_QuickStartGuide.pdf",  # A1000 Quick Start
+
+    # V1000 Series Drives
+    "https://www.yaskawa.com/downloads/download/7367/V1000_TechnicalManual.pdf",  # V1000 Technical Manual
+
+    # GA700 Series Drives
+    "https://www.yaskawa.com/downloads/download/8912/GA700_TechnicalManual.pdf",  # GA700 Technical Manual
+
+    # MP3300iec Machine Controller
+    "https://www.yaskawa.com/downloads/download/9245/MP3300iec_ProgrammingManual.pdf",  # MP3300iec Programming
+]
+
+# =============================================================================
+# DANFOSS
+# =============================================================================
+DANFOSS_URLS = [
+    # VLT FC 300 Series
+    "https://assets.danfoss.com/documents/DOC353817433665/DOC353817433665.pdf",  # FC 300 Design Guide
+    "https://assets.danfoss.com/documents/DOC116786436895/DOC116786436895.pdf",  # FC 300 Operating Instructions
+
+    # VLT FC 302 Series
+    "https://assets.danfoss.com/documents/DOC352889436638/DOC352889436638.pdf",  # FC 302 Programming Guide
+
+    # VLT HVAC Drive
+    "https://assets.danfoss.com/documents/DOC344618436596/DOC344618436596.pdf",  # VLT HVAC Drive Operating Instructions
+
+    # VLT Automation Drive FC 360
+    "https://assets.danfoss.com/documents/DOC375318437064/DOC375318437064.pdf",  # FC 360 Design Guide
+]
+
+# =============================================================================
+# LENZE
+# =============================================================================
+LENZE_URLS = [
+    # 8400 Inverter Drives
+    "https://www.lenze.com/fileadmin/DE/downloads/Frequenzumrichter/8400/8400_EN_v6-2.pdf",  # 8400 Operating Instructions
+
+    # i550 Servo Inverter
+    "https://www.lenze.com/fileadmin/DE/downloads/Frequenzumrichter/i550/i550_EN_v4-0.pdf",  # i550 Technical Manual
+
+    # 9400 Servo Drives
+    "https://www.lenze.com/fileadmin/DE/downloads/Servoantriebe/9400/9400_EN_v3-1.pdf",  # 9400 Operating Manual
+
+    # Smart Motor M550
+    "https://www.lenze.com/fileadmin/DE/downloads/Smart_Motor/m550_EN_v2-0.pdf",  # m550 User Manual
+]
+
+# =============================================================================
 # COMBINED LIST
 # =============================================================================
 SEED_URLS = (
@@ -115,7 +168,10 @@ SEED_URLS = (
     OMRON_URLS +
     SCHNEIDER_URLS +
     ABB_URLS +
-    FUJI_ELECTRIC_URLS
+    FUJI_ELECTRIC_URLS +
+    YASKAWA_URLS +
+    DANFOSS_URLS +
+    LENZE_URLS
 )
 
 # Metadata for tracking
@@ -127,6 +183,9 @@ URL_METADATA = {
     "schneider": len(SCHNEIDER_URLS),
     "abb": len(ABB_URLS),
     "fuji_electric": len(FUJI_ELECTRIC_URLS),
+    "yaskawa": len(YASKAWA_URLS),
+    "danfoss": len(DANFOSS_URLS),
+    "lenze": len(LENZE_URLS),
     "total": len(SEED_URLS),
 }
 
