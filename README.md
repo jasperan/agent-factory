@@ -15,6 +15,28 @@ Agent Factory is not just a framework—it's the **orchestration engine** poweri
 
 ## 📝 Latest Updates
 
+**2025-12-30 07:14:13 UTC**
+- Fixed Fix orchestrator routing validation errors (simulator)
+- base_sme_agent.py: Added complete RivetIntent creation with all required fields
+- vendor, equipment_type, context_source, confidence, kb_coverage, raw_summary
+- Fixed ContextSource enum values (TEXT_AND_IMAGE â†’ IMAGE_TEXT, VOICE â†’ AUDIO_TRANSCRIPTION)
+- Fixed KBCoverage enum value (UNKNOWN â†’ NONE)
+- equipment_matcher.py: Fixed execute_query() parameter format (7 locations)
+- Changed from individual args to tuple format: execute_query(sql, (param1, param2))
+- rivet_pro_handlers.py: Lazy initialization to prevent import-time database crashes
+- Changed eager RIVETProHandlers() instantiation to get_rivet_pro_handlers() pattern
+- filters.py: Added isinstance checks for enum .value access (6 locations)
+- trace_persistence.py: Added isinstance checks for enum .value access (4 locations)
+- âœ… No more RivetIntent validation errors
+- âœ… No more TEXT_AND_IMAGE/VOICE/UNKNOWN enum errors
+- âœ… No import-time database connection crashes
+- âœ… Test runs to completion (300+ seconds)
+- Enum .value issues in orchestrator.py, response_formatters.py
+- RivetRequest missing message_type field
+- Database connection pool exhaustion
+- **Metrics:** Files: 6 | Lines: +595/-37 | KB Atoms: (unavailable)
+
+
 **2025-12-26 23:13:41 UTC**
 - Add Rivet MVP parallel sprint setup
 - 6 workstream prompts for parallel Claude CLI development
@@ -233,8 +255,6 @@ AGENT FACTORY - SYSTEM MAP
 ------------------------------------------------------------
 BUILT: 7/7 major components (100%)
 ```
-
----
 
 ## 🎯 Recent Session Accomplishments (2025-12-27)
 
