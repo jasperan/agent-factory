@@ -1,0 +1,85 @@
+CMMS SIMULATOR SMOKE TEST - PROGRESS REPORT
+============================================
+Date: 2025-12-30
+Test File: test_simulator_quick.py
+Duration: ~300 seconds per run
+
+PROBLEM STATEMENT:
+Knowledge Amplification Simulator creates 0 CMMS database entries
+- Equipment Created: 0 (should be 8-15)
+- Work Orders Created: 0 (should be 40-75)
+
+ROOT CAUSE ANALYSIS:
+1. ❌ RivetIntent validation errors (6 fields missing)
+2. ❌ ContextSource enum mismatch (TEXT_AND_IMAGE doesn't exist)
+3. ❌ KBCoverage enum mismatch (UNKNOWN doesn't exist)
+4. ❌ Enum .value access on string values (orchestrator.py, formatters.py)
+5. ❌ RivetRequest missing message_type field
+6. ❌ Database connection pool exhaustion
+
+FIXES APPLIED:
+=============
+
+Fix #1 - RivetIntent Creation (base_sme_agent.py line 100-111)
+- Added vendor: VendorType.UNKNOWN
+- Added equipment_type: EquipmentType.UNKNOWN
+- Added context_source: Mapped from message_type
+- Added confidence: 0.8 (default)
+- Added kb_coverage: KBCoverage.NONE
+- Added raw_summary: request.text
+- Added detected_fault_codes: []
+- Added detected_model: None
+- Added detected_symptoms: []
+
+STATUS: ✅ COMPLETE - No more RivetIntent validation errors
+
+Fix #2 - ContextSource Enum Values (base_sme_agent.py line 86-91)
+BEFORE:
+    MessageType.IMAGE: ContextSource.TEXT_AND_IMAGE  ❌
+    MessageType.AUDIO: ContextSource.VOICE ❌
+
+AFTER:
+    MessageType.IMAGE: ContextSource.IMAGE_TEXT ✅
+    MessageType.AUDIO: ContextSource.AUDIO_TRANSCRIPTION ✅
+
+STATUS: ✅ COMPLETE - No more TEXT_AND_IMAGE/VOICE errors
+
+Fix #3 - KBCoverage Enum Value (base_sme_agent.py line 106)
+BEFORE: kb_coverage=KBCoverage.UNKNOWN ❌
+AFTER: kb_coverage=KBCoverage.NONE ✅
+
+STATUS: ✅ COMPLETE - No more UNKNOWN errors
+
+REMAINING ISSUES:
+===============
+
+Issue #1: Enum .value Access on Strings
+ERROR: AttributeError: 'str' object has no attribute 'value'
+LOCATION: orchestrator.py, response_formatters.py (needs isinstance checks)
+EXAMPLE FIX: value = field if isinstance(field, str) else field.value
+
+Issue #2: RivetRequest Validation Errors
+ERROR: ValidationError: 3 validation errors for RivetRequest - message_type field required
+LOCATION: Simulator creating incomplete RivetRequest objects
+FIX NEEDED: Add message_type when creating RivetRequest in simulator code
+
+Issue #3: Database Connection Pool Exhaustion
+ERROR: PoolTimeout: couldn't get a connection after 15.00 sec
+LOCATION: EquipmentMatcher.match_or_create_equipment()
+CAUSE: Too many concurrent database operations, connections not released
+FIX NEEDED: Review connection management, add connection pooling config
+
+NEXT STEPS:
+==========
+1. Fix remaining enum .value issues in orchestrator.py and response_formatters.py
+2. Fix RivetRequest creation to include message_type field
+3. Investigate database connection pool configuration
+4. Re-run test to verify CMMS entries are created
+
+EXPECTED OUTCOME AFTER ALL FIXES:
+=================================
+- Equipment Created: 8-15 entries
+- Work Orders Created: 40-75 entries
+- Database Verified: True
+- No validation errors
+- No routing errors

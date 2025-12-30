@@ -1103,62 +1103,69 @@ You've used all 5 free questions today.
             await self.feature_tour.handle_tour_callback(update, context, user_sub)
 
 
-# Singleton instance
-rivet_pro_handlers = RIVETProHandlers()
+# Lazy singleton instance (avoid database connection at import time)
+_rivet_pro_handlers_instance = None
+
+def get_rivet_pro_handlers():
+    """Get or create singleton RIVETProHandlers instance."""
+    global _rivet_pro_handlers_instance
+    if _rivet_pro_handlers_instance is None:
+        _rivet_pro_handlers_instance = RIVETProHandlers()
+    return _rivet_pro_handlers_instance
 
 
 # Export handler functions for registration
 async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_start(update, context)
+    await get_rivet_pro_handlers().handle_start(update, context)
 
 
 async def handle_troubleshoot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_troubleshoot(update, context)
+    await get_rivet_pro_handlers().handle_troubleshoot(update, context)
 
 
 async def handle_upgrade(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_upgrade(update, context)
+    await get_rivet_pro_handlers().handle_upgrade(update, context)
 
 
 async def handle_book_expert(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_book_expert(update, context)
+    await get_rivet_pro_handlers().handle_book_expert(update, context)
 
 
 async def handle_my_sessions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_my_sessions(update, context)
+    await get_rivet_pro_handlers().handle_my_sessions(update, context)
 
 
 async def handle_pro_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_pro_stats(update, context)
+    await get_rivet_pro_handlers().handle_pro_stats(update, context)
 
 
 async def handle_vps_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_vps_status(update, context)
+    await get_rivet_pro_handlers().handle_vps_status(update, context)
 
 
 async def handle_tutorial(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_tutorial(update, context)
+    await get_rivet_pro_handlers().handle_tutorial(update, context)
 
 
 async def handle_tour(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_tour(update, context)
+    await get_rivet_pro_handlers().handle_tour(update, context)
 
 
 async def handle_quickstart(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_quickstart(update, context)
+    await get_rivet_pro_handlers().handle_quickstart(update, context)
 
 
 async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_help(update, context)
+    await get_rivet_pro_handlers().handle_help(update, context)
 
 
 async def handle_about(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_about(update, context)
+    await get_rivet_pro_handlers().handle_about(update, context)
 
 
 async def handle_pricing(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_pricing(update, context)
+    await get_rivet_pro_handlers().handle_pricing(update, context)
 
 
 async def handle_onboarding_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await rivet_pro_handlers.handle_onboarding_callback(update, context)
+    await get_rivet_pro_handlers().handle_onboarding_callback(update, context)

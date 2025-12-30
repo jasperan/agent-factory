@@ -23,14 +23,16 @@ def build_metadata_filter(intent: RivetIntent) -> Dict[str, Any]:
 
     # Vendor filter
     if intent.vendor and intent.vendor != VendorType.UNKNOWN:
+        vendor_str = intent.vendor if isinstance(intent.vendor, str) else intent.vendor.value
         filters["vendor"] = {
-            "$eq": intent.vendor.value
+            "$eq": vendor_str
         }
 
     # Equipment type filter
     if intent.equipment_type and intent.equipment_type != EquipmentType.UNKNOWN:
+        equip_str = intent.equipment_type if isinstance(intent.equipment_type, str) else intent.equipment_type.value
         filters["equipment_type"] = {
-            "$eq": intent.equipment_type.value
+            "$eq": equip_str
         }
 
     # Fault code filter (if detected)
@@ -137,11 +139,13 @@ def extract_search_keywords(intent: RivetIntent) -> List[str]:
 
     # Add vendor name
     if intent.vendor and intent.vendor != VendorType.UNKNOWN:
-        keywords.append(intent.vendor.value)
+        vendor_str = intent.vendor if isinstance(intent.vendor, str) else intent.vendor.value
+        keywords.append(vendor_str)
 
     # Add equipment type
     if intent.equipment_type and intent.equipment_type != EquipmentType.UNKNOWN:
-        keywords.append(intent.equipment_type.value)
+        equip_str = intent.equipment_type if isinstance(intent.equipment_type, str) else intent.equipment_type.value
+        keywords.append(equip_str)
 
     # Add fault codes
     if intent.detected_fault_codes:
@@ -153,7 +157,8 @@ def extract_search_keywords(intent: RivetIntent) -> List[str]:
 
     # Add application context
     if intent.application:
-        keywords.append(intent.application.value)
+        app_str = intent.application if isinstance(intent.application, str) else intent.application.value
+        keywords.append(app_str)
 
     # Add symptom keywords (extract nouns from raw_summary)
     if intent.raw_summary:

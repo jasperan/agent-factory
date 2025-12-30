@@ -145,12 +145,12 @@ class EquipmentMatcher:
             Equipment record if found, None otherwise
         """
         try:
-            result = await self.db.execute("""
+            result = await self.db.execute_query("""
                 SELECT id, manufacturer, model_number, equipment_number
                 FROM cmms_equipment
                 WHERE serial_number = $1
                 LIMIT 1
-            """, serial_number)
+            """, (serial_number,))
 
             return result[0] if result else None
 
@@ -184,11 +184,11 @@ class EquipmentMatcher:
         """
         try:
             # Get all equipment from same manufacturer
-            candidates = await self.db.execute("""
+            candidates = await self.db.execute_query("""
                 SELECT id, manufacturer, model_number, equipment_number
                 FROM cmms_equipment
                 WHERE LOWER(manufacturer) = LOWER($1)
-            """, manufacturer)
+            """, (manufacturer,))
 
             if not candidates:
                 return None
@@ -239,12 +239,12 @@ class EquipmentMatcher:
             Equipment record if found, None otherwise
         """
         try:
-            result = await self.db.execute("""
+            result = await self.db.execute_query("""
                 SELECT id, manufacturer, model_number, equipment_number
                 FROM cmms_equipment
                 WHERE machine_id = $1
                 LIMIT 1
-            """, machine_id)
+            """, (machine_id,))
 
             return result[0] if result else None
 
@@ -281,7 +281,7 @@ class EquipmentMatcher:
             Exception if creation fails
         """
         try:
-            result = await self.db.execute("""
+            result = await self.db.execute_query("""
                 INSERT INTO cmms_equipment (
                     manufacturer,
                     model_number,
@@ -295,14 +295,14 @@ class EquipmentMatcher:
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0)
                 RETURNING id, equipment_number
             """,
-                manufacturer,
+                (manufacturer,
                 model_number,
                 serial_number,
                 equipment_type,
                 location,
                 owned_by_user_id,
                 machine_id,
-                owned_by_user_id
+                owned_by_user_id)
             )
 
             equipment_id = result[0]["id"]
@@ -336,13 +336,13 @@ class EquipmentMatcher:
         """
         try:
             if fault_code:
-                await self.db.execute("""
+                await self.db.execute_query("""
                     UPDATE cmms_equipment
                     SET
                         last_reported_fault = $2,
                         updated_at = NOW()
                     WHERE id = $1
-                """, equipment_id, fault_code)
+                """, (equipment_id, fault_code))
 
                 logger.debug(
                     f"Updated equipment {equipment_id} with fault code: {fault_code}"
@@ -363,7 +363,7 @@ class EquipmentMatcher:
             Equipment record if found, None otherwise
         """
         try:
-            result = await self.db.execute("""
+            result = await self.db.execute_query("""
                 SELECT
                     id,
                     equipment_number,
@@ -378,7 +378,7 @@ class EquipmentMatcher:
                     created_at
                 FROM cmms_equipment
                 WHERE id = $1
-            """, equipment_id)
+            """, (equipment_id,))
 
             return result[0] if result else None
 
@@ -402,7 +402,7 @@ class EquipmentMatcher:
             List of equipment records
         """
         try:
-            results = await self.db.execute("""
+            results = await self.db.execute_query("""
                 SELECT
                     id,
                     equipment_number,
@@ -418,7 +418,7 @@ class EquipmentMatcher:
                 WHERE owned_by_user_id = $1
                 ORDER BY created_at DESC
                 LIMIT $2
-            """, user_id, limit)
+            """, (user_id, limit))
 
             return results or []
 

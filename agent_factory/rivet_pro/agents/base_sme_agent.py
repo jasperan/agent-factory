@@ -17,7 +17,12 @@ from agent_factory.rivet_pro.models import (
     RivetIntent,
     RivetResponse,
     AgentID,
-    RouteType
+    RouteType,
+    VendorType,
+    EquipmentType,
+    ContextSource,
+    KBCoverage,
+    MessageType
 )
 from agent_factory.rivet_pro.rag import search_docs, RetrievedDoc
 from agent_factory.llm.router import LLMRouter
@@ -59,6 +64,54 @@ class BaseSMEAgent(ABC):
     ) -> str:
         """Build user prompt from intent and retrieved docs."""
         pass
+
+    async def handle_query(
+        self,
+        request: RivetRequest,
+        kb_coverage: Optional[float] = None,
+        fewshot_context: Optional[str] = None
+    ) -> RivetResponse:
+        """
+        Handle query - async wrapper for orchestrator compatibility.
+
+        Args:
+            request: Original user request
+            kb_coverage: Knowledge base coverage metric (unused)
+            fewshot_context: Few-shot examples context (unused)
+
+        Returns:
+            RivetResponse with answer
+        """
+        # Map message_type to context_source
+        context_source_map = {
+            MessageType.TEXT: ContextSource.TEXT_ONLY,
+            MessageType.IMAGE: ContextSource.IMAGE_TEXT,
+            MessageType.AUDIO: ContextSource.AUDIO_TRANSCRIPTION,
+            MessageType.VIDEO: ContextSource.IMAGE_TEXT,
+        }
+
+        # Get message type (handle both enum and string)
+        msg_type = request.message_type
+        if isinstance(msg_type, str):
+            msg_type = MessageType(msg_type)
+
+        context_source = context_source_map.get(msg_type, ContextSource.TEXT_ONLY)
+
+        # Create complete RivetIntent with all required fields
+        intent = RivetIntent(
+            vendor=self.vendor_type if hasattr(self, 'vendor_type') else VendorType.UNKNOWN,
+            equipment_type=EquipmentType.UNKNOWN,  # SME agents don't extract equipment type
+            context_source=context_source,
+            confidence=0.8,  # Default confidence for SME agent handling
+            kb_coverage=KBCoverage.NONE,  # SME agents don't evaluate KB coverage
+            raw_summary=request.text or "",  # Use request text as summary
+            detected_fault_codes=[],  # SME agents don't extract fault codes in wrapper
+            detected_model=None,
+            detected_symptoms=[]
+        )
+
+        # Call synchronous handle method
+        return self.handle(request, intent, RouteType.ROUTE_A)
 
     def handle(
         self,
