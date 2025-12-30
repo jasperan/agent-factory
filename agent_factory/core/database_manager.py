@@ -46,7 +46,7 @@ import logging
 import os
 import time
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 from dotenv import load_dotenv
 
@@ -509,7 +509,9 @@ class DatabaseManager:
 
         if supabase_url and supabase_db_password and supabase_db_host:
             # Build connection string for direct PostgreSQL access
-            conn_str = f"postgresql://postgres:{supabase_db_password}@{supabase_db_host}:5432/postgres"
+            # URL-encode password to handle special characters ($, !, #, etc.)
+            encoded_password = quote(supabase_db_password, safe='')
+            conn_str = f"postgresql://postgres:{encoded_password}@{supabase_db_host}:5432/postgres"
             self.providers["supabase"] = DatabaseProvider("supabase", conn_str)
             logger.info("Initialized Supabase provider")
         else:
