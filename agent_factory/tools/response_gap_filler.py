@@ -664,6 +664,11 @@ class KnowledgeGapFiller:
                         getattr(atom, 'equipment_type', None) or \
                         'Unknown'
 
+        # DEBUG: Log SQL and params
+        logger.info(f"INSERT SQL length: {len(sql)}")
+        logger.info(f"INSERT SQL repr: {repr(sql[:100])}")
+        logger.info(f"Params count: 14")
+
         await asyncio.to_thread(
             db.execute_query,
             sql,
