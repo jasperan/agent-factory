@@ -1,0 +1,99 @@
+# Machine/Scene Configuration for Agent Factory Phase 2
+# Maps Factory.io scenes to Telegram chats with I/O monitoring and control
+
+machines:
+  # Example 1: Sorting System
+  - machine_id: scene1_sorting
+    scene_name: "Sorting System"
+    factory_io_url: "http://localhost:7410"
+    telegram_chat_id: -1001234567890  # Replace with your Telegram group ID
+    telegram_chat_name: "Factory Ops - Sorting"
+    poll_interval_seconds: 5
+
+    # Input tags to monitor (read-only)
+    monitored_inputs:
+      - tag: "at_entry"
+        label: "Part at Entry"
+        emoji: "📦"
+      - tag: "at_exit"
+        label: "Part at Exit"
+        emoji: "📤"
+      - tag: "sensor_height"
+        label: "Height Sensor"
+        emoji: "📏"
+
+    # Output tags with control buttons
+    controllable_outputs:
+      - tag: "conveyor_running"
+        label: "Conveyor"
+        emoji: "▶️"
+      - tag: "pusher_extend"
+        label: "Pusher"
+        emoji: "👋"
+      - tag: "sorter_1"
+        label: "Sorter 1"
+        emoji: "🔀"
+      - tag: "sorter_2"
+        label: "Sorter 2"
+        emoji: "🔀"
+
+    # Tags to set to False on emergency stop
+    emergency_stop_tags:
+      - "conveyor_running"
+      - "pusher_extend"
+      - "sorter_1"
+      - "sorter_2"
+
+    # Tags that should never be controllable (even if they're outputs)
+    read_only_tags:
+      - "sensor_height"
+
+  # Example 2: Bottling Station
+  - machine_id: scene2_bottling
+    scene_name: "Bottling Station"
+    factory_io_url: "http://localhost:7410"
+    telegram_chat_id: -1001234567890  # Replace with your Telegram group ID (can be same or different)
+    telegram_chat_name: "Factory Ops - Bottling"
+    poll_interval_seconds: 5
+
+    # Input tags to monitor
+    monitored_inputs:
+      - tag: "bottle_at_fill"
+        label: "Bottle at Fill"
+        emoji: "🍾"
+      - tag: "bottle_at_cap"
+        label: "Bottle at Cap"
+        emoji: "🧢"
+      - tag: "level_sensor"
+        label: "Level OK"
+        emoji: "📊"
+
+    # Output tags with control buttons
+    controllable_outputs:
+      - tag: "conveyor_fill"
+        label: "Fill Conveyor"
+        emoji: "▶️"
+      - tag: "fill_valve"
+        label: "Fill Valve"
+        emoji: "💧"
+      - tag: "capper_motor"
+        label: "Capper"
+        emoji: "🔧"
+
+    # Emergency stop tags
+    emergency_stop_tags:
+      - "conveyor_fill"
+      - "fill_valve"
+      - "capper_motor"
+
+    # Read-only tags
+    read_only_tags:
+      - "level_sensor"
+
+# Configuration Notes:
+# 1. telegram_chat_id: Get your chat ID by adding @userinfobot to your group
+# 2. factory_io_url: Default is localhost:7410 (Factory.io Web API default port)
+# 3. poll_interval_seconds: 5 seconds is recommended (1-60 seconds allowed)
+# 4. Tag names must match exactly what's in your Factory.io scene
+# 5. emergency_stop_tags: All these outputs will be set to False on emergency stop
+# 6. read_only_tags: These tags won't have control buttons (even if they're outputs)
