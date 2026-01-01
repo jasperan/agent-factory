@@ -15,6 +15,64 @@ Agent Factory is not just a framework—it's the **orchestration engine** poweri
 
 ## 📝 Latest Updates
 
+**2026-01-01 17:37:19 UTC**
+- Added Phase 2.1 & 2.2 - Universal Types + Configuration Loader (platform)
+- **IOTagStatus**: I/O tag state (tag_name, value, type, last_updated)
+- **ControlButton**: UI control buttons (label, action, target_value, emoji)
+- **PlatformMessage**: Universal message format (title, I/O status, controls, alerts)
+- **AlertMessage**: Notifications (text, level, timestamp)
+- Dataclass-based with automatic timestamp tracking
+- Callback data generation for Telegram buttons (max 64 chars)
+- Helper methods: get_inputs(), get_outputs(), add_alert()
+- Type-safe with Literal types for enums
+- 22 tests covering all data structures
+- Edge cases: empty tags, long callback data, datetime auto-set
+- 100% passing
+- Files Created:**
+- `agent_factory/platform/__init__.py`
+- `agent_factory/platform/types.py` (158 lines)
+- `agent_factory/platform/state/__init__.py`
+- `agent_factory/platform/adapters/__init__.py`
+- `tests/test_platform_types.py` (280 lines, 22 tests)
+- **TagConfig**: Tag definition (tag, label, emoji)
+- **MachineConfig**: Complete machine configuration
+- machine_id, scene_name, telegram_chat_id
+- monitored_inputs, controllable_outputs
+- emergency_stop_tags, read_only_tags
+- poll_interval_seconds (clamped to 1-60)
+- **MachineConfigList**: Container with lookup methods
+- Example config with 2 machines (sorting, bottling)
+- Clear structure for I/O tag definitions
+- Environment variable support (MACHINES_CONFIG_PATH)
+- Pydantic V2 field validators (@field_validator)
+- machine_id must be alphanumeric with underscores
+- poll_interval clamped to reasonable range (1-60s)
+- Empty tag names rejected
+- Comprehensive error messages
+- 23 tests covering all scenarios
+- YAML parsing (valid, invalid, empty)
+- Pydantic validation (structure, types, constraints)
+- File I/O (temp files with UTF-8 encoding)
+- Lookup methods (by ID, by chat_id)
+- 100% passing
+- Files Created:**
+- `agent_factory/platform/config.py` (218 lines)
+- `agent_factory/config/machines.yaml` (93 lines)
+- `tests/test_platform_config.py` (347 lines, 23 tests)
+- Total: 59 passed, 1 skipped**
+- Phase 1 (Factory.io tools): 14 passed, 1 skipped âœ“
+- Phase 2.1 (Universal types): 22 passed âœ“
+- Phase 2.2 (Configuration): 23 passed âœ“
+- Backward Compatibility:** All Phase 1 tests still pass
+- Background polling with asyncio
+- State caching & change detection
+- Subscription system (Observer pattern)
+- Circuit breaker for Factory.io disconnects
+- Async/sync boundary (asyncio.to_thread)
+- Estimated: 6 hours**
+- **Metrics:** Files: 8 | Lines: +1168/-0 | KB Atoms: (unavailable)
+
+
 **2025-12-30 15:40:17 UTC**
 - Added Slack Supervisor production deployment complete
 - Real-time agent observability via Slack checkpoints
