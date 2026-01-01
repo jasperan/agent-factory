@@ -1,0 +1,120 @@
+Welcome to the console. Type print_help() to print a list of available commands.
+>>> print_help
+
+>>> print_help()
+
+app.is_user_admin                         : Checks if the current user is a system administrator.
+app.log_to_console                        : Logs all errors and warnings to the console.
+app.print_args()                          : Prints args passed during launch.
+app.print_system_info()                   : Prints information about the graphics card, processor and OS.
+app.run_in_background                     : Sets the application to run in background when the window loses focus.
+app.online                                : Allows the application access to the internet.
+app.local_feed                            : Loads Welcome Window contents from local resources.
+app.copy_log()                            : Copies the previous log file to '..\Documents\Factory IO'.
+app.web_server                            : Runs a web server in the background.
+app.web_server_url                        : Url for the web server. Must be set before starting the server.
+app.quit()                                : Quits the application.
+app.force_quit()                          : Forces the application to quit without prompting the user about possible lost changes.
+
+audio.enabled                             : Turns the audio on or off.
+audio.volume                              : Sets the audio volume.
+
+camera.fp_detected                        : Sets a flag that indicates if the first person camera is detected by sensors.
+camera.fov                                : Sets the camera field of view.
+camera.look_invert_x                      : Inverts the camera look on the X axis.
+camera.look_invert_y                      : Inverts the camera look on the Y axis.
+camera.look_sensitivity                   : Sets the camera look sensitivity.
+camera.move_sensitivity                   : Sets the camera move sensitivity.
+camera.auto_focus                         : Enables orbit camera auto focus.
+camera.lock_mouse_on_rotation             : Locks the mouse tho the center of the window when rotating the camera.
+camera.restrict_to_environment            : Keeps orbit camera inside the warehouse.
+camera.vertical_obliqueness               : Sets the vertical obliqueness of the camera frustum.
+camera.position_index                     : Moves the camera to one of the saved positions.
+camera.position_cycle_interval            : Cycle between saved camera positions when in RUN mode.
+
+console.clear()                           : Clears the console.
+console.opacity                           : Sets the console opacity.
+console.set_window(int left, int top,     : Sets the location and size of the console window.
+   int width, int height)
+
+drivers.apply_current_mapping_to_all()    : Applies tags mapping of the current driver to all drivers.
+drivers.export_mapping(string filename)   : Exports mapping of scene tags and driver I/O points.
+
+input.bind_key(string action,             : Binds an action to the desired key.
+   string primary_key)
+input.print_inputs()                      : Prints the list of actions and bound keys.
+input.force_alternative_mouse_data        : Alternative method for calculating mouse movement. Fixes mouse behavior in virtual machines or remote desktop.
+
+instructor.is_locked                      : Indicates if the current scene has any locked features.
+instructor.lock_scene(string password,    : Locks a scene with a password.
+   bool lock_current_parts,
+   bool run_mode_only, bool hide_failures)
+instructor.unlock_scene(string password)  : Unlocks a scene with a password.
+
+license.print_host_ids()                  : Prints a list of host IDs.
+license.host                              : Prints the computer name.
+license.clear_trial()                     : Deletes the trial license.
+license.set_proxy(string host,            : Sets the proxy information required for license activation/deactivation.
+   string port, string user, string pass)
+license.clear_proxy()                     : Clears the proxy information.
+license.broadcast                         : Enables broadcast to find a license server.
+license.log_enabled                       : Enables logging.
+license.sharecode                         : Sets a license share code.
+license.use_legacy                        : Uses legacy licensing system. Set this flag to true when using on-premise license servers.
+
+physics.timestep                          : The amount of time to step the simulation by (in seconds). 
+Default is 1.0/120.0
+physics.max_substeps                      : Maximum number of steps the physics simulation is allowed to take during each frame.
+physics.solver_iterations                 : Number of iterations for the constraint solver for contact and joint constraints.
+
+scene.capture_screenshot(string filename, : Captures a png screenshot.
+   bool hide_console)
+scene.capture_screenshot(string filename, : Captures a screenshot using a size multiplier (integer between 1 and 10).
+   int size, bool hide_console)
+scene.debug_emitter_remover               : Display emitter and remover visuals in Run mode.
+scene.debug_sensor_range                  : Display sensors range in Run mode with a dashed line.
+scene.current_item_count                  : Number of emitted items currently in the scene. Read only.
+scene.load_from_path(string scene_path)   : Loads a scene from a path. Use two backslashes when specifying the scene's path.
+scene.max_item_count                      : Maximum number of items that can be emitted.
+scene.my_scenes_path                      : Sets the "My Scenes" path.
+scene.print_saves()                       : Prints the scenes list.
+scene.time_scale                          : Sets the time scale used for slow motion (use with care, may create instability in the physics simulation).
+scene.start_in_run_mode                   : Starts a scene in run mode.
+scene.export_tags()                       : Exports all tags in the scene to a plain text file named 'Tags_xxx.txt'.
+scene.export_tags(string filename)        : Exports all tags in the scene to a plain text file with the given name.
+scene.export_tags_csv()                   : Exports all tags in the scene to a comma-separated values file named 'Tags_xxx.csv'.
+scene.export_tags_csv(string filename)    : Exports all tags in the scene to a comma-separated values file with the given name.
+scene.start_tag_export(float interval)    : Start exporting tags to a comma-separated values file (csv) at repeated intervals.
+scene.start_tag_export(string filename, float interval) : Start exporting tags to a comma-separated values file (csv) at repeated intervals.
+scene.stop_tag_export()                   : Stop tag export operation.
+
+stats.reset()                             : Resets the performance statistics.
+stats.visible                             : Shows the performance statistics.
+
+video.print_supported_res()               : Prints the supported screen resolutions.
+video.print_available_qualities()         : Prints the available video qualities.
+video.keep()                              : Accepts the current settings.
+video.position                            : Sets the application window position.
+video.maximized                           : Sets the application window state to maximized.
+video.fullscreen                          : Sets the application to run in fullscreen. Call video.keep() to accept it.
+video.resolution                          : Sets the screen resolution. Call video.keep() to accept it.
+video.quality                             : Sets the video quality ('Very Low', 'Low', 'Medium', 'High', 'Very High').
+video.motion_blur                         : Turns the motion blur effect on or off.
+video.grain                               : Turns the grain effect on or off. Applied by default on very high quality.
+video.ssao                                : Turns the screen space ambient occlusion on or off. Applied by default on very high quality.
+video.aa                                  : Sets the anti-aliasing value (0, 2, 4 or 8).
+video.target_fps                          : How many times the video is rendered per second. Setting to 0 makes the video render as fast as possible.
+video.vsync                               : Sets the number of VSyncs that should pass between each frame (0 to not wait for VSync).
+video.post_processing                     : Turns all post-processing effects on or off.
+video.background_color                    : Sets the background color.
+video.draw_environment                    : Turns the warehouse environment on or off.
+
+ui.show_camera_navigation                 : Shows the camera navigation gizmo.
+ui.show_sensors                           : Shows the sensors tags.
+ui.show_actuators                         : Shows the actuators tags.
+ui.show_addresses                         : Shows the addresses of the sensors and actuators tags.
+ui.show_welcome_window                    : Shows the welcome screen at startup.
+ui.scene_list_order_by                    : Criterium for ordering scenes in the Open and Save windows ('name', 'date').
+ui.scene_list_reverse_order               : Reverse scene ordering in the Open and Save windows.
+ui.enabled                                : Shows the user interface.
+

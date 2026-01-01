@@ -1,0 +1,630 @@
+Web API¶
+Requirements
+
+Ultimate Edition
+Web server in Factory I/O must be activated with the app.web_server = True console command
+The web server in Factory I/O uses conventional HTTP response codes to indicate the success or failure of a request. In general, codes in the 2xx range indicate success, codes in the 4xx range indicate a problem with the request, and codes in the 5xx range indicate an error in Factory I/O.
+
+By default the server listens on port 7410, which can be changed with the app.web_server_url command.
+
+Tags¶
+Tag - object representing a tag in the Factory I/O scene.
+
+Field	Type	Description
+name	string	Name for the tag.
+id	string	Unique identifier for the tag.
+address	integer	Tag address.
+type	string	Data type of the tag's value. Possible values are bit, int, float.
+kind	string	Kind of tag from the controller point of view. Can be either input or output.
+value	boolean / number	Tag value.
+openCircuit	boolean	Whether the tag has an always off failure.
+shortCircuit	boolean	Whether the tag has an always on failure.
+isForced	boolean	Whether the tag is forced.
+forcedValue	boolean / number	Tag value when forced.
+Endpoints	 
+GET /api/tags	List all tags in the scene.
+GET /api/tags/{id}	Get information for a single tag, identified by id.
+GET /api/tags/by-name/{name}	Get information for tags whose name matches name.
+List all tags: GET /api/tags¶
+Returns a list of all tags in the scene.
+
+Parameters¶
+Query
+name (optional) - a case-insensitive filter on the list based on the tag's name. Value must be string. Can use * and ? wildcard characters.
+type (optional) - a filter on the list based on the data type of the tag's value. Value must be one of bit, int, float.
+kind (optional) - a filter on the list based on the kind of tag from the controller point of view. Value must be one of input, output.
+Example Request¶
+GET /api/tags?name=*reset*
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "FACTORY I\/O (Reset)",
+    "id": "01936c60-0201-4d54-aad2-0734eb391d35",
+    "address": 498,
+    "type": "Bit",
+    "kind": "Output",
+    "value": false,
+    "openCircuit": false,
+    "shortCircuit": false,
+    "isForced": false,
+    "forcedValue": false
+  },
+  {
+    "name": "FACTORY I\/O (Reset)",
+    "id": "12d66936-6f23-4979-90ee-cb151204d00a",
+    "address": 498,
+    "type": "Bit",
+    "kind": "Input",
+    "value": false,
+    "openCircuit": false,
+    "shortCircuit": false,
+    "isForced": false,
+    "forcedValue": false
+  },
+  {
+    "name": "Reset",
+    "id": "2e59772f-877b-4206-834b-67a4a6e6bdbb",
+    "address": 9,
+    "type": "Bit",
+    "kind": "Input",
+    "value": false,
+    "openCircuit": false,
+    "shortCircuit": false,
+    "isForced": false,
+    "forcedValue": false
+  },
+  {
+    "name": "Reset light",
+    "id": "55a717c5-0bfc-4398-a3b0-f9855cad38e9",
+    "address": 15,
+    "type": "Bit",
+    "kind": "Output",
+    "value": false,
+    "openCircuit": false,
+    "shortCircuit": false,
+    "isForced": false,
+    "forcedValue": false
+  }
+]
+Get tag: GET /api/tags/{id}¶
+Returns a single tag identified by id.
+
+Example Request¶
+GET /api/tags/b61dc29b-650d-4145-be65-4fea9cffc802
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+{
+  "name": "Left conveyor",
+  "id": "b61dc29b-650d-4145-be65-4fea9cffc802",
+  "address": 8,
+  "type": "Bit",
+  "kind": "Output",
+  "value": true,
+  "openCircuit": false,
+  "shortCircuit": true,
+  "isForced": false,
+  "forcedValue": false
+}
+Get tags by name: GET /api/tags/by-name/{name}¶
+Return tags whose name matches name. Might return more than one tag as tag names are not unique in Factory I/O.
+
+Example Request¶
+GET /api/tags/by-name/FACTORY I%2FO (Reset)
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "FACTORY I\/O (Reset)",
+    "id": "01936c60-0201-4d54-aad2-0734eb391d35",
+    "address": 498,
+    "type": "Bit",
+    "kind": "Output",
+    "value": false,
+    "openCircuit": false,
+    "shortCircuit": false,
+    "isForced": false,
+    "forcedValue": false
+  },
+  {
+    "name": "FACTORY I\/O (Reset)",
+    "id": "12d66936-6f23-4979-90ee-cb151204d00a",
+    "address": 498,
+    "type": "Bit",
+    "kind": "Input",
+    "value": false,
+    "openCircuit": false,
+    "shortCircuit": false,
+    "isForced": false,
+    "forcedValue": false
+  }
+]
+Tag Values¶
+Tag Value - object representing the value of a tag in the Factory I/O scene. The object also needs to identify the tag, which is done by either the name or id field.
+
+Field	Type	Description
+id	string	Unique identifier for the tag.
+value	boolean / numeric	Tag value.
+or
+
+Field	Type	Description
+name	string	Name for the tag.
+value	boolean / numeric	Tag value.
+Endpoints	 
+GET /api/tag/values	Get the value of tags.
+PUT /api/tag/values	Set the value of tags.
+PUT /api/tag/values-force	Set the forced value of tags.
+PUT /api/tag/values-release	Release forced tags.
+PUT /api/tag/values-alwaysoff	Set the Always Off value of tags.
+PUT /api/tag/values-alwayson	Set the Always On value of tags.
+GET /api/tag/values/by-name	Get the value of tags (tags specified by name).
+PUT /api/tag/values/by-name	Set the value of tags (tags specified by name).
+PUT /api/tag/values-force/by-name	Set the forced value of tags (tags specified by name).
+PUT /api/tag/values-release/by-name	Release forced tags (tags specified by name).
+PUT /api/tag/values-alwaysoff/by-name	Set the Always Off value of tags (tags specified by name).
+PUT /api/tag/values-alwayson/by-name	Set the Always On value of tags (tags specified by name).
+Get tag values: GET /api/tag/values¶
+Get the values of selected tags.
+
+Parameters¶
+Body
+Array of tag ids. When not set returns the value of all tags in the scene.
+
+[
+  "id0",
+  "id1"
+]
+Example Request¶
+GET api/tag/values
+Content-Type: application/json
+[
+    "fc6bb6c4-d307-4fdc-bc70-bc3a808c4098",
+    "b61dc29b-650d-4145-be65-4fea9cffc802",
+    "df43b72e-992a-4936-9d46-32764400b933",
+    "32614ed5-621b-4de5-af97-503d95243ec8",
+    "77740bcd-b3a0-4d5f-a175-90889ecc6cea"
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "id": "fc6bb6c4-d307-4fdc-bc70-bc3a808c4098",
+    "value": false
+  },
+  {
+    "id": "b61dc29b-650d-4145-be65-4fea9cffc802",
+    "value": true
+  },
+  {
+    "id": "df43b72e-992a-4936-9d46-32764400b933",
+    "code": 404,
+    "error": "Tag with id 'df43b72e-992a-4936-9d46-32764400b933' not found."
+  },
+  {
+    "id": "32614ed5-621b-4de5-af97-503d95243ec8",
+    "value": 4
+  },
+  {
+    "id": "77740bcd-b3a0-4d5f-a175-90889ecc6cea",
+    "value": 8.496892
+  }
+]
+Set tag values: PUT /api/tag/values¶
+Set the value of tags in the scene.
+
+Parameters¶
+Body
+Array of tag value objects
+
+{
+  "id": "string",
+  "value": number
+}
+Example Request¶
+PUT /api/tag/values
+Content-Type: application/json
+[
+  {
+    "id": "a32d5732-18aa-4700-a4c7-c00d7cd18f41",
+    "value": true
+  },
+  {
+    "id": "7177772a-0db3-4303-af9b-9bbcdcc14581",
+    "value": false
+  },
+  {
+    "id": "4995ead4-ab3d-4f83-abc6-959524433087",
+    "value": 3.141
+  },
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "id": "7177772a-0db3-4303-af9b-9bbcdcc14581",
+    "code": 406,
+    "error": "Not allowed to set value of an input tag."
+  }
+]
+Set tag forced values: PUT /api/tag/values-force¶
+Set the forced value of tags in the scene.
+
+Parameters¶
+Body
+Array of tag value objects
+
+{
+  "id": "string",
+  "value": number
+}
+Example Request¶
+PUT /api/tag/values-force
+Content-Type: application/json
+[
+  {
+    "id": "a32d5732-18aa-4700-a4c7-c00d7cd18f41",
+    "value": true
+  },
+  {
+    "id": "7177772a-0db3-4303-af9b-9bbcdcc14581",
+    "value": 3.141
+  },
+  {
+    "id": "4995ead4-ab3d-4f83-abc6-959524433087",
+    "value": 3.141
+  },
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "id": "7177772a-0db3-4303-af9b-9bbcdcc14581",
+    "code": 406,
+    "error": "Could not convert value to the tag data type: Bit."
+  }
+]
+Set tag release values: PUT /api/tag/values-release¶
+Release the forced value of tags in the scene.
+
+Parameters¶
+Body
+Array of tag value ids
+
+[
+    "id0",
+    "id1"
+]
+Example Request¶
+PUT /api/tag/values-release
+Content-Type: application/json
+[
+  "a32d5732-18aa-4700-a4c7-c00d7cd18f41",
+  "7177772a-0db3-4303-af9b-9bbcdcc14581",
+  "4995ead4-ab3d-4f83-abc6-959524433087"
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "id": "7177772a-0db3-4303-af9b-9bbcdcc14581",
+    "code": 404,
+    "error": "Tag with id '7177772a-0db3-4303-af9b-9bbcdcc14581' not found."
+  }
+]
+Set Always Off tag values: PUT /api/tag/values-alwaysoff¶
+Set the Always Off value of tags in the scene.
+
+Parameters¶
+Body
+Array of tag value objects
+
+{
+  "id": "string",
+  "value": number
+}
+Example Request¶
+PUT /api/tag/values-alwaysoff
+Content-Type: application/json
+[
+  {
+    "id": "a32d5732-18aa-4700-a4c7-c00d7cd18f41",
+    "value": true
+  },
+  {
+    "id": "7177772a-0db3-4303-af9b-9bbcdcc14581",
+    "value": false
+  },
+  {
+    "id": "4995ead4-ab3d-4f83-abc6-959524433087",
+    "value": 3.141
+  },
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "id": "4995ead4-ab3d-4f83-abc6-959524433087",
+    "code": 400,
+    "error": "Could not convert value to bool data type"
+  }
+]
+Set Always On tag values: PUT /api/tag/values-alwayson¶
+Set the Always On value of tags in the scene.
+
+Parameters¶
+Body
+Array of tag value objects
+
+{
+  "id": "string",
+  "value": number
+}
+Example Request¶
+PUT /api/tag/values-alwayson
+Content-Type: application/json
+[
+  {
+    "id": "a32d5732-18aa-4700-a4c7-c00d7cd18f41",
+    "value": true
+  },
+  {
+    "id": "7177772a-0db3-4303-af9b-9bbcdcc14581",
+    "value": false
+  },
+  {
+    "id": "4995ead4-ab3d-4f83-abc6-959524433087",
+    "value": 3.141
+  },
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "id": "4995ead4-ab3d-4f83-abc6-959524433087",
+    "code": 400,
+    "error": "Could not convert value to bool data type"
+  }
+]
+Get tag values by name: GET /api/tag/values/by-name¶
+Get the values of tags in the scene identified by name. A name might return more than one tag as tag names are not unique in Factory I/O.
+
+Parameters¶
+Body
+Array of tag names. When not set returns the value of all tags in the scene.
+
+[
+  "name0",
+  "name1"
+]
+Example Request¶
+GET /api/tag/values/by-name
+Content-Type: application/json
+[
+    "At left entry",
+    "Left conveyor",
+    "Name of non-existing tag",
+    "Left count",
+    "Weight"
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "At left entry",
+    "value": false
+  },
+  {
+    "name": "Left conveyor",
+    "value": true
+  },
+  {
+    "name": "Name of non-existing tag",
+    "code": 404,
+    "error": "Tag named 'Name of non-existing tag' not found."
+  },
+  {
+    "name": "Left count",
+    "value": 0
+  },
+  {
+    "name": "Weight",
+    "value": 2.217
+  },
+  {
+    "name": "Weight",
+    "value": 0
+  }
+]
+Set tag values by name: PUT /api/tag/values/by-name¶
+Set the value of tags in the scene using the name to identify tags.
+
+Parameters¶
+Body
+Array of tag value objects
+
+{
+  "name": "string",
+  "value": number
+}
+Example Request¶
+PUT /api/tag/values/by-name
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "Front conveyor",
+    "value": true
+  },
+  {
+    "name": "At scale entry",
+    "value": false
+  },
+  {
+    "name": "Entry conveyor (V)",
+    "value": 3.141
+  }
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "At scale entry",
+    "code": 406,
+    "error": "Not allowed to set value of an input tag."
+  }
+]
+Set tag forced values: PUT /api/tag/values-force/by-name¶
+Set the forced value of tags in the scene using the name to identify tags.
+
+Parameters¶
+Body
+Array of tag value objects
+
+{
+  "name": "string",
+  "value": number
+}
+Example Request¶
+PUT /api/tag/values-force/by-name
+Content-Type: application/json
+[
+  {
+    "name": "Front conveyor",
+    "value": true
+  },
+  {
+    "name": "At scale entry",
+    "value": 3.14
+  },
+  {
+    "name": "Entry conveyor (V)",
+    "value": 3.141
+  }
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "At scale entry",
+    "code": 406,
+    "error": "Could not convert value to the tag data type: Bit."
+  }
+]
+Set tag release values: PUT /api/tag/values-release/by-name¶
+Release forced value of tags in the scene using the name to identify tags.
+
+Parameters¶
+Body
+Array of tag names.
+
+[
+  "name0",
+  "name1"
+]
+Example Request¶
+PUT /api/tag/values-release/by-name
+Content-Type: application/json
+[
+  "Front conveyor",
+  "At scale entry",
+  "Entry conveyor (V)"
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "At scale entry",
+    "code": 404,
+    "error": "Tag named 'At scale entry' not found."
+  }
+]
+Set Always Off tag values: PUT /api/tag/values-alwaysoff/by-name¶
+Set the Always Off value of tags in the scene using the name to identify tags.
+
+Parameters¶
+Body
+Array of tag value objects
+
+{
+  "name": "string",
+  "value": number
+}
+Example Request¶
+PUT /api/tag/values-alwaysoff/by-name
+Content-Type: application/json
+[
+  {
+    "name": "Front conveyor",
+    "value": true
+  },
+  {
+    "name": "At scale entry1",
+    "value": false
+  },
+  {
+    "name": "Entry conveyor (V)",
+    "value": 3.141
+  },
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "Entry conveyor (V)",
+    "code": 400,
+    "error": "Could not convert value to bool data type"
+  }
+]
+Set Always On tag values: PUT /api/tag/values-alwayson/by-name¶
+Set the Always On value of tags in the scene using the name to identify tags.
+
+Parameters¶
+Body
+Array of tag value objects
+
+{
+  "name": "string",
+  "value": number
+}
+Example Request¶
+PUT /api/tag/values-alwayson/by-name
+Content-Type: application/json
+[
+  {
+    "name": "Front conveyor",
+    "value": true
+  },
+  {
+    "name": "At scale entry1",
+    "value": false
+  },
+  {
+    "name": "Entry conveyor (V)",
+    "value": 3.141
+  },
+]
+Example Response¶
+HTTP/1.0 200 OK
+Content-Type: application/json; charset=utf-8
+[
+  {
+    "name": "Entry conveyor (V)",
+    "code": 400,
+    "error": "Could not convert value to bool data type"
+  }
+]
+ Back to top
+© 2006-Present Real Games All rights reserved.
