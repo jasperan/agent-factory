@@ -1132,6 +1132,13 @@ async def _ingest_source_monitored(url: str, monitor: IngestionMonitor) -> Dict[
             if atoms_created > 0:
                 success = True
                 logger.info(f"Ingestion complete: {atoms_created} atoms created, {atoms_failed} failed")
+
+                # Notify gap tracker that ingestion is complete
+                try:
+                    from agent_factory.rivet_pro.research.gap_ingestion_tracker import mark_ingestion_complete
+                    await mark_ingestion_complete(url, atoms_created)
+                except Exception as e:
+                    logger.warning(f"Failed to mark gap ingestion complete: {e}")
             elif errors:
                 success = False
                 logger.warning(f"Ingestion failed: 0 atoms created, {len(errors)} errors")

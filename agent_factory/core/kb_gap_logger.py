@@ -330,6 +330,51 @@ class KBGapLogger:
             logger.error(f"Failed to get gap stats: {e}", exc_info=True)
             return {}
 
+    async def mark_gap_completed(
+        self,
+        gap_id: int,
+        atoms_created: int
+    ) -> bool:
+        """
+        Mark gap as completed after successful ingestion.
+
+        Updates:
+        - ingestion_completed = TRUE
+        - ingestion_completed_at = NOW()
+        - atoms_created = N
+
+        Args:
+            gap_id: Gap ID to mark completed
+            atoms_created: Number of atoms created from ingestion
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            sql = """
+                UPDATE gap_requests
+                SET ingestion_completed = TRUE,
+                    ingestion_completed_at = NOW(),
+                    atoms_created = $1
+                WHERE id = $2
+            """
+
+            await asyncio.to_thread(
+                self.db.execute_query,
+                sql,
+                (atoms_created, gap_id),
+                fetch_mode="none"
+            )
+
+            logger.info(
+                f"Marked gap completed: gap_id={gap_id}, atoms_created={atoms_created}"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to mark gap completed: {e}", exc_info=True)
+            return False
+
     async def log_weakness_signal(
         self,
         weakness,  # WeaknessSignal from phoenix_trace_analyzer

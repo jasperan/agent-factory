@@ -142,6 +142,19 @@ class AutoResearchTrigger:
                     f"sources_queued={result.sources_queued}"
                 )
 
+                # Register sources with gap tracker if sources queued
+                if result.sources_queued > 0:
+                    # Register source URLs with gap tracker so ingestion can mark gap completed
+                    from agent_factory.rivet_pro.research.gap_ingestion_tracker import get_gap_tracker
+
+                    tracker = get_gap_tracker()
+                    tracker.register_gap_sources(gap_id, result.sources_found)
+
+                    logger.info(
+                        f"Registered {len(result.sources_found)} sources for gap_id={gap_id}: "
+                        f"{result.sources_found}"
+                    )
+
             except Exception as e:
                 logger.error(
                     f"Research pipeline failed for gap_id={gap_id}: {e}",

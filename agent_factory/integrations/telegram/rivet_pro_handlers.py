@@ -44,6 +44,9 @@ from agent_factory.rivet_pro.clarification import IntentClarifier, Clarification
 from agent_factory.integrations.telegram.api_client import RivetAPIClient
 from agent_factory.integrations.telegram.onboarding_manager import OnboardingManager
 from agent_factory.integrations.telegram.feature_tour import FeatureTour
+from agent_factory.services.work_order_service import WorkOrderService
+from agent_factory.services.equipment_matcher import EquipmentMatcher
+from agent_factory.core.database_manager import DatabaseManager
 from agent_factory.integrations.telegram.quick_reference import (
     get_quickstart_message,
     get_help_message,
@@ -72,6 +75,11 @@ class RIVETProHandlers:
         self.conversation_manager = ConversationManager(db=self.db)  # Phase 1: Memory
         self.vps_client = VPSKBClient()  # VPS KB Factory connection
         self.api_client = RivetAPIClient()  # WS-3: Backend API for work orders
+
+        # CMMS services (work order creation)
+        self.db_manager = DatabaseManager()  # Multi-provider database manager
+        self.equipment_matcher = EquipmentMatcher(self.db_manager)
+        self.work_order_service = WorkOrderService(self.db_manager, self.equipment_matcher)
 
         # Onboarding system
         self.onboarding_manager = OnboardingManager(db=self.db)
@@ -166,6 +174,12 @@ class RIVETProHandlers:
         # If user says "what about bearings?" we know they're still talking about motors
         if conv_context.last_equipment_type and not intent.equipment_info.equipment_type:
             intent.equipment_info.equipment_type = conv_context.last_equipment_type
+
+        # Store equipment info for research request button
+        equipment_vendor = getattr(intent.equipment_info, 'manufacturer', 'unknown')
+        equipment_type = intent.equipment_info.equipment_type or 'unknown'
+        context.user_data["equipment_detected"] = f"{equipment_vendor}:{equipment_type}"
+        context.user_data["last_question"] = question
 
         # 🆕 WS-3: Check if clarification is needed
         if self.clarifier.needs_clarification(intent):
@@ -266,6 +280,47 @@ class RIVETProHandlers:
 
         # 🆕 Phase 1: Persist conversation session to database
         self.conversation_manager.save_session(session)
+
+        # 🆕 CMMS: Create work order from troubleshooting interaction
+        try:
+            # Build RivetRequest-like object from intent and question
+            from agent_factory.rivet_pro.models import RivetRequest, RivetResponse, MessageType
+            from uuid import UUID
+
+            request = RivetRequest(
+                user_id=str(user_id),
+                text=question,
+                message_type=MessageType.TEXT,
+                metadata={"username": update.effective_user.username}
+            )
+
+            response = RivetResponse(
+                text=bot_response,
+                confidence=quality.overall_confidence,
+                route_taken=quality.routing_decision,
+                agent_id="telegram_bot",
+                cited_documents=[],
+                suggested_actions=[],
+                safety_warnings=[],
+                links=[]
+            )
+
+            # Create work order in Neon database
+            work_order = await self.work_order_service.create_from_telegram_interaction(
+                request=request,
+                response=response,
+                ocr_result=None,  # Future: OCR from photos
+                machine_id=None,  # Future: Link to user's machine library
+                conversation_id=UUID(session_id) if session_id else None
+            )
+
+            # Log work order creation
+            print(f"[CMMS] Work order created: {work_order['work_order_number']} "
+                  f"for equipment {work_order['equipment_number']}")
+
+        except Exception as e:
+            # Don't fail the whole request if work order creation fails
+            print(f"[CMMS] Failed to create work order: {e}")
 
         # Log conversion event
         await self._log_conversion_event(
@@ -794,7 +849,7 @@ Need help? Reply /help
         )
 
     async def _send_expert_required(self, update: Update, question: str, intent: Any, quality: Any) -> str:
-        """Send expert call required message and return the text"""
+        """Send expert call required message with research request option"""
         message = f"""
 ⚠️ **Complex Issue Detected**
 
@@ -808,12 +863,23 @@ This appears to require expert assistance.
 • 30-60 minute sessions
 • Post-call summary report
 
-[Book Now](/book_expert) [Try AI Answer Anyway](/force_answer)
+🔬 **Request Research** - FREE
+• We'll research and add this to our knowledge base
+• Check back in 5-10 minutes for results
+• Helps improve AI for everyone
 """
+
+        # Create inline keyboard with action buttons
+        keyboard = [
+            [InlineKeyboardButton("📞 Book Expert ($75/hr)", callback_data="book_expert")],
+            [InlineKeyboardButton("🔬 Request Research (FREE)", callback_data=f"request_research:{question[:100]}")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text(
             text=message,
             parse_mode=ParseMode.MARKDOWN,
+            reply_markup=reply_markup
         )
 
         return message  # Return for conversation history
@@ -1068,6 +1134,72 @@ You've used all 5 free questions today.
             parse_mode=ParseMode.MARKDOWN
         )
 
+    async def handle_request_research_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Handle 'Request Research' button click.
+
+        Creates a manual gap request with HIGH priority for user-requested research.
+        """
+        query = update.callback_query
+        await query.answer()
+
+        user = update.effective_user
+        user_id = str(user.id)
+
+        # Parse callback data (format: "request_research:question")
+        data = query.data
+        if ":" in data:
+            _, question = data.split(":", 1)
+        else:
+            question = context.user_data.get("last_question", "Unknown request")
+
+        # Get equipment detected from user data (stored during troubleshoot)
+        equipment_detected = context.user_data.get("equipment_detected", "unknown:unknown")
+
+        # Log manual gap request with HIGH priority
+        try:
+            from agent_factory.core.kb_gap_logger import KBGapLogger
+
+            gap_logger = KBGapLogger(self.db_manager)
+            gap_id = await gap_logger.log_gap_async({
+                "user_query": question,
+                "vendor": equipment_detected.split(":")[0] if ":" in equipment_detected else "unknown",
+                "equipment_type": equipment_detected.split(":")[1] if ":" in equipment_detected else "unknown",
+                "symptom": question[:200],
+                "route": "MANUAL_REQUEST",
+                "confidence": 0.0,
+                "kb_coverage": "none",
+                "atom_count": 0,
+                "avg_relevance": 0.0,
+                "priority_score": 85,  # HIGH priority for manual requests
+                "enrichment_type": "user_requested"
+            })
+
+            # Send confirmation
+            confirmation = f"""
+✅ **Research Request Submitted**
+
+Request ID: {gap_id}
+Equipment: {equipment_detected}
+
+We're researching your question and will update our knowledge base.
+Check back in **5-10 minutes** for results!
+
+You can ask other questions while we research this one.
+"""
+
+            await query.edit_message_text(
+                text=confirmation,
+                parse_mode=ParseMode.MARKDOWN
+            )
+
+        except Exception as e:
+            # Send error message
+            await query.edit_message_text(
+                text=f"❌ Failed to submit research request: {str(e)}\n\nPlease try again or contact support.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+
     async def handle_onboarding_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Handle inline button callbacks for onboarding flow.
@@ -1082,6 +1214,11 @@ You've used all 5 free questions today.
         user_sub = await self._get_or_create_user(user_id, user.username or "unknown")
 
         data = query.data
+
+        # Route to research request handler
+        if data.startswith("request_research:"):
+            await self.handle_request_research_callback(update, context)
+            return
 
         # Route to onboarding handlers
         if data.startswith("onboard_"):
