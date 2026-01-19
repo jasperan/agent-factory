@@ -6,75 +6,105 @@
 > - [Free LLM Guide](docs/OPENHANDS_FREE_LLM_GUIDE.md)
 > - [Create New Repo Guide](docs/guides/CREATE_NEW_REPO.md)
 
-## OverviewnHands and local LLMs.**
+## 🚀 Zero-Cost Autonomous Coding
 
-## 🚀 Main Feature: Run entirely for $0
+Run autonomous coding agents **100% locally** using OpenHands + Ollama. No API costs, no subscriptions.
 
-Stop paying for expensive API credits. Agent Factory allows you to run autonomous coding agents 100% locally using Ollama.
-
-
-This guide covers:
-- Installing Ollama
-- Setting up DeepSeek Coder (6.7B/33B)
-- Running your first autonomous coding task for free
+| Solution | Cost/Month |
+|----------|------------|
+| **Agent Factory + Ollama** | **$0** |
+| Claude Code Subscription | $200 |
+| Claude/GPT API | $100-300 |
 
 ## ⚡ Quick Start
 
 ### 1. Prerequisites
-- [Ollama](https://ollama.com) installed
-- Python 3.12+ (Python 3.12.3 recommended)
-- [uv](https://astral.sh/uv/) for Python tool management
-- Docker (still required for the OpenHands sandbox runtime)
-- Local OpenHands installation
+- [Ollama](https://ollama.com) installed and running
+- Python 3.12+
+- Docker (for OpenHands sandbox)
 
-### 2. Setup
+### 2. Install
 ```bash
-# Clone the repository
+# Clone and install
 git clone https://github.com/jasperan/agent-factory.git
 cd agent-factory
-
-# Install Agent Factory dependencies
 pip install -r requirements.txt
 
-# Install OpenHands locally using uv (required)
+# Install OpenHands
 uv tool install openhands --python 3.12
 
-# Configure Environment
-cp .env.example .env
-# Edit .env to set USE_OLLAMA=true and OLLAMA_BASE_URL=http://localhost:11434
+# Pull a coding model
+ollama pull deepseek-coder:6.7b
 ```
 
-### 3. Run the Agent
+### 3. Run Autonomous Mode (Default)
 
-**Option A: Interactive CLI (Recommended)**
+```bash
+USE_OLLAMA=true python agentcli.py autonomous
+```
+
+This will:
+- Read tasks from `backlog/tasks/*.md`
+- Execute each task using OpenHands + Ollama
+- Run continuously until stopped (Ctrl+C)
+
+**Options:**
+```bash
+# Dry run (no actual execution)
+USE_OLLAMA=true python agentcli.py autonomous --dry-run
+
+# Custom interval (seconds between cycles)
+USE_OLLAMA=true python agentcli.py autonomous --interval 120
+
+# Limit tasks per cycle
+USE_OLLAMA=true python agentcli.py autonomous --max-tasks 5
+```
+
+### Alternative: Interactive CLI
 ```bash
 python cli.py start
 ```
-*Follow the prompts to select your repo, task, and model.*
 
-**Option B: Web GUI**
+### Alternative: Web GUI
 ```bash
 python gui.py
 ```
-*Opens a web interface at http://0.0.0.0:7860*
 
-**Option D: Autonomous 24/7 Mode (SCAFFOLD)**
-```bash
-python agentcli.py autonomous --mode BACKLOG --interval 60
-```
-*Run agents in a continuous loop to solve issues from `Backlog.md` autonomously.*
+## 📁 Task Format
 
-**Option E: Autonomous GitHub Mode**
-```bash
-python agentcli.py autonomous --mode GITHUB --interval 300
+Create task files in `backlog/tasks/`:
+
+```markdown
+---
+id: task-42
+title: Add user authentication
+status: To Do
+priority: high
+---
+
+## Description
+Implement JWT-based authentication for the API.
+
+## Acceptance Criteria
+- [ ] Login endpoint returns JWT token
+- [ ] Protected routes require valid token
+- [ ] Unit tests pass
 ```
-*Poll and solve GitHub issues automatically.*
+
+## 🔧 Configuration
+
+Add to `.env`:
+```bash
+USE_OLLAMA=true
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=deepseek-coder:6.7b
+```
 
 ## 📚 Documentation
 
-- **[Create a New Repository](docs/guides/CREATE_NEW_REPO.md)**: How to use the Agent Factory to scaffold and build new projects from scratch.
-- **[Project History](docs/PROJECT_HISTORY.md)**: detailed logs and history of the Agent Factory development.
-- **[Architecture](docs/SYSTEM_MAP.md)**: System map and components.
+- **[Free LLM Guide](docs/OPENHANDS_FREE_LLM_GUIDE.md)**: Full Ollama setup guide
+- **[Create a New Repository](docs/guides/CREATE_NEW_REPO.md)**: Scaffold new projects
+- **[Architecture](docs/SYSTEM_MAP.md)**: System overview
 
 ## 🤝 Contributing
 Open issues or submit PRs to improve the factory!
