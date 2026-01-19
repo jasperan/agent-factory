@@ -41,10 +41,23 @@ cp .env.example .env
 # Edit .env to set USE_OLLAMA=true and OLLAMA_BASE_URL=http://localhost:11434
 ```
 
-### 3. Verify Setup
-Run the included demo to confirm your free local LLM is working:
+### 3. Run the Agent
+
+**Option A: Interactive CLI (Recommended)**
 ```bash
-python3 examples/openhands_ollama_demo.py
+python cli.py start
+```
+*Follow the prompts to select your repo, task, and model.*
+
+**Option B: Web GUI**
+```bash
+python gui.py
+```
+*Opens a web interface at http://0.0.0.0:7860*
+
+**Option C: Legacy Script**
+```bash
+python examples/openhands_ollama_demo.py
 ```
 
 ## 📚 Documentation

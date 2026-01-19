@@ -25,6 +25,12 @@ from .types import LLMConfig, LLMProvider, ModelCapability, LLMResponse
 from .config import get_cheapest_model, DEFAULT_MODELS
 from .tracker import get_global_tracker
 
+# Pydantic V2/V1 shim
+try:
+    from pydantic import ConfigDict
+except ImportError:
+    ConfigDict = None
+
 
 class RoutedChatModel(BaseChatModel):
     """
@@ -61,12 +67,14 @@ class RoutedChatModel(BaseChatModel):
 
     # Internal state
     _router: Optional[LLMRouter] = None
-    _last_model_used: Optional[str] = None
     _last_cost: float = 0.0
 
-    class Config:
-        """Pydantic config for extra attributes."""
-        arbitrary_types_allowed = True
+    if ConfigDict:
+        model_config = ConfigDict(arbitrary_types_allowed=True)
+    else:
+        class Config:
+            """Pydantic config for extra attributes."""
+            arbitrary_types_allowed = True
 
     def __init__(self, **kwargs):
         """Initialize routed chat model."""

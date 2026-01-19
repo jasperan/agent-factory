@@ -35,7 +35,9 @@ try:
     AGGRESSIVE_MODE_AVAILABLE = True
 except ImportError:
     AGGRESSIVE_MODE_AVAILABLE = False
-    logger.warning("Ultra-aggressive mode unavailable - missing dependencies")
+    # Only log as debug/info to avoid scaring CLI users
+    # logger.warning("Ultra-aggressive mode unavailable - missing dependencies")
+    logger.debug("Ultra-aggressive mode unavailable - missing dependencies (phoenix)")
     
     # Fallback definitions to prevent NameError in type hints and methods
     class WeaknessType(str, Enum):

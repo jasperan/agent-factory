@@ -23,3 +23,8 @@ anthropic>=0.7.0
 fastapi>=0.100.0
 uvicorn>=0.20.0
 python-multipart>=0.0.6
+
+# UI & CLI
+gradio>=4.0.0
+questionary>=2.0.0
+
