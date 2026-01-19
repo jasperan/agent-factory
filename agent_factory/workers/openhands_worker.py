@@ -117,31 +117,12 @@ class OpenHandsWorker:
         ollama_base_url: str = None,  # Auto-detect from env if None
     ):
         """
-        Initialize OpenHands worker (doesn't start container yet).
-
-        PARAMETERS:
-            model: Which LLM OpenHands should use
-                FREE: deepseek-coder:6.7b, codellama:7b, llama3.1:8b
-                PAID: claude-3-5-sonnet, gpt-4, gemini-2.0-flash, etc.
-            port: HTTP port for OpenHands API (default 3000)
-            workspace_dir: Local directory OpenHands can access
-                If None, creates temp directory per task
-            use_ollama: Use FREE local Ollama instead of paid APIs
-                If None, reads USE_OLLAMA from environment
-            ollama_base_url: Ollama API endpoint (default: http://localhost:11434)
-                If None, reads OLLAMA_BASE_URL from environment
+        Initialize OpenHands worker (uses local installation).
 
         WHAT HAPPENS:
-            - Validates Docker is installed
             - Auto-detects Ollama configuration from .env
             - Stores configuration
-            - Does NOT start container (that happens in run_task)
-
-        OLLAMA SETUP:
-            1. Install Ollama: winget install Ollama.Ollama
-            2. Pull model: ollama pull deepseek-coder:6.7b
-            3. Set USE_OLLAMA=true in .env
-            4. Run tasks for FREE!
+            - Uses local 'openhands' CLI (no Docker required for controller)
         """
         import os
 
@@ -163,22 +144,15 @@ class OpenHandsWorker:
         self.use_ollama = use_ollama
         self.ollama_base_url = ollama_base_url
         
-        # Hardcoded to use Docker based on user environment
-        self.container_engine = "docker"
-        self.docker_socket = "/var/run/docker.sock"
+        # Local binary path
+        self.openhands_bin = os.path.expanduser("~/.local/bin/openhands")
         
-        # Validate Container Engine is available
-        try:
-            subprocess.run(
-                [self.container_engine, "--version"],
-                check=True,
-                capture_output=True,
-                timeout=5
-            )
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+        # Validate openhands is installed
+        if not os.path.exists(self.openhands_bin):
             raise RuntimeError(
-                f"{self.container_engine} not found or not running. Please install Docker Desktop.\n"
-                f"Error: {e}"
+                f"OpenHands binary not found at {self.openhands_bin}.\n"
+                "Please install it using:\n"
+                "  uv tool install openhands --python 3.12"
             )
 
         # Validate Ollama if enabled
@@ -189,27 +163,17 @@ class OpenHandsWorker:
         self,
         task: str,
         timeout: int = 300,  # 5 minutes default
-        cleanup: bool = True,  # Remove container when done?
+        cleanup: bool = True,  # Remove workspace files when done?
         on_log: Optional[Any] = None  # Callback for streaming logs
     ) -> OpenHandsResult:
         """
-        Run a coding task with OpenHands using CLI.
+        Run a coding task with local OpenHands CLI.
 
         WHAT THIS DOES (Step-by-Step):
             1. VALIDATE: Check task is not empty
-            2. START: Spin up OpenHands Docker container (if not running)
-            3. EXECUTE: Run task via 'docker exec' CLI inside container
-            4. CLEANUP: Stop and remove container (if cleanup=True)
-            5. RETURN: Structured result object
-
-        PARAMETERS:
-            task: What you want coded (e.g., "Fix bug in login.py")
-            timeout: Max seconds to wait before giving up
-            cleanup: Should we delete container after? (True = yes)
-            on_log: Optional function(str) to receive streaming logs
-
-        RETURNS:
-            OpenHandsResult object with success status and outputs
+            2. PREPARE: Ensure workspace directory exists
+            3. EXECUTE: Run 'openhands -t "task"' locally
+            4. RETURN: Structured result object
         """
         start_time = time.time()
 
@@ -222,21 +186,15 @@ class OpenHandsWorker:
             )
 
         try:
-            # STEP 2: START CONTAINER
-            msg = f"[OpenHands] Starting container for task: {task[:50]}..."
+            # STEP 2: PREPARE WORKSPACE
+            msg = f"[OpenHands] Preparing local task: {task[:50]}..."
             print(msg)
             if on_log: on_log(msg)
             
             self._start_container()
             
-            # Helper to ensure workspace is writable
-            subprocess.run(
-                [self.container_engine, "exec", "-u", "root", self.container_name, "chmod", "777", "/opt/workspace_base"],
-                check=False, capture_output=True
-            )
-
             # STEP 3: EXECUTE TASK VIA CLI
-            msg = f"[OpenHands] Executing task via CLI..."
+            msg = f"[OpenHands] Executing task locally..."
             print(msg)
             if on_log: on_log(msg)
             
@@ -254,115 +212,39 @@ class OpenHandsWorker:
             )
 
         finally:
-            # STEP 4: CLEANUP
+            # STEP 4: CLEANUP (Optional for local)
             if cleanup:
-                print(f"[OpenHands] Cleaning up container...")
-                self._stop_container()
+                pass # For now keep workspace for debugging
 
     def _start_container(self) -> None:
-        # First, try to stop any existing container
-        try:
-            subprocess.run(
-                [self.container_engine, "stop", self.container_name],
-                capture_output=True,
-                timeout=10
-            )
-            subprocess.run(
-                [self.container_engine, "rm", self.container_name],
-                capture_output=True,
-                timeout=10
-            )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            pass
-
+        """Prepare workspace for local task."""
         # Ensure workspace exists
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
-
-        # Build Docker/Podman command
-        cmd = [
-            self.container_engine, "run",
-            "-d",
-            "--privileged",  # Required for OpenHands to spawn sandbox containers
-            "--name", self.container_name,
-            # MOUNT DOCKET SOCKET (Critical for OpenHands sandbox)
-            "-v", "/var/run/docker.sock:/var/run/docker.sock",
-            # MOUNT PATCHED DOCKER RUNTIME
-            "-v", "/home/ubuntu/git/agent-factory/docker_runtime_patch.py:/app/openhands/runtime/impl/docker/docker_runtime.py",
-            # MOUNT WORKSPACE
-            "-v", f"{self.workspace_dir.resolve()}:/opt/workspace_base",
-            "--network=host", # Use host networking to avoid bridge routing issues
-            # Map host.docker.internal to localhost so OpenHands can find the runtime
-            "--add-host", "host.docker.internal:127.0.0.1",
-        ]
-        
-        if self.use_ollama:
-            # With --network host, we can access localhost directly
-            api_base = self.ollama_base_url
-            # No need to replace localhost with host.docker.internal
-            
-            cmd.extend([
-                "-e", f"LLM_MODEL={self.model}",
-                "-e", f"LLM_BASE_URL={api_base}",
-                "-e", f"LLM_API_BASE={api_base}",
-                "-e", "LLM_PROVIDER=ollama",
-                "-e", f"LLM_PROVIDER=ollama",
-                # Using 0.20-nikolaik as primary, with fallback to latest
-                # docker pull ghcr.io/all-hands-ai/runtime:0.20-nikolaik
-                # os.environ["SANDBOX_RUNTIME_CONTAINER_IMAGE"] = "python:3.12" 
-                "-e", "SANDBOX_RUNTIME_CONTAINER_IMAGE=ubuntu:22.04",
-                "-e", "SANDBOX_USE_HOST_NETWORK=true",
-                "-e", "WORKSPACE_BASE=/opt/workspace_base",
-                # Env vars for the controller (to configure sandbox)
-                "-e", "SANDBOX_ENV_PYTHONPATH=/openhands/code",
-                "-e", "SANDBOX_ENV_API_HOSTNAME=0.0.0.0",
-                "-e", "SANDBOX_ENV_UVICORN_HOST=0.0.0.0",
-                "-e", "SANDBOX_ENV_API_ALLOWED_ORIGINS=*",
-                # Env vars for the controller itself
-                "-e", "API_HOSTNAME=0.0.0.0",
-                "-e", "SANDBOX_API_HOSTNAME=localhost",
-                "-e", "API_ALLOWED_ORIGINS=*",
-                "-e", "UVICORN_HOST=0.0.0.0",
-            ])
-        if not self.use_ollama:
-            cmd.extend([
-                "-e", f"LLM_API_KEY={self.api_key}",
-                "-e", f"LLM_MODEL={self.model}",
-            ])
-            
-        # Hardening: Check if container exists and remove it
-        try:
-            subprocess.run([self.container_engine, "rm", "-f", self.container_name], 
-                         check=False, capture_output=True)
-        except Exception:
-            pass
-
-        print(f"[OpenHands] Starting with {'FREE Ollama' if self.use_ollama else 'API'} ({self.model})...")
-        
-        try:
-            cmd.append("ghcr.io/all-hands-ai/openhands:0.20")
-            subprocess.run(cmd, check=True, capture_output=True)
-            # wait for container to be ready
-            self._wait_for_ready()
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to start OpenHands container: {e.stderr.decode()}")
-        
-        # Wait a bit for container to stay up
-        time.sleep(5)
+        print(f"[OpenHands] Workspace ready at {self.workspace_dir.resolve()}")
 
     def _run_task_cli(self, task: str, timeout: int, on_log: Optional[Any] = None) -> OpenHandsResult:
         """
-        Run task using the internal CLI of the OpenHands container.
+        Run task using local OpenHands CLI.
         """
-        # Command to run inside container: python -m openhands.core.main -t "task"
+        import os
         
-        docker_cmd = [
-            self.container_engine, "exec",
-            "-u", "0", # Run as root to avoid permission issues with socket
-            self.container_name,
-            "python", "-u", "-m", "openhands.core.main",
+        env = os.environ.copy()
+        env.update({
+            "LLM_MODEL": self.model,
+            "LLM_BASE_URL": self.ollama_base_url if self.use_ollama else env.get("LLM_BASE_URL", ""),
+            "LLM_API_BASE": self.ollama_base_url if self.use_ollama else env.get("LLM_API_BASE", ""),
+            "LLM_PROVIDER": "ollama" if self.use_ollama else env.get("LLM_PROVIDER", "openai"),
+            "SANDBOX_RUNTIME_CONTAINER_IMAGE": "ubuntu:22.04", # Stick to user requested image
+            "SANDBOX_USE_HOST_NETWORK": "true",
+            "WORKSPACE_BASE": str(self.workspace_dir.resolve()),
+        })
+
+        cmd = [
+            self.openhands_bin,
             "-t", task,
-            "--max-iterations", "10", # Limit iterations to prevent infinite loops
-            "--no-auto-continue", # We want it to just run
+            "--headless",
+            "--json",
+            "--always-approve"
         ]
 
         logs = []
@@ -371,12 +253,13 @@ class OpenHandsWorker:
         try:
             # Run with Popen for streaming
             process = subprocess.Popen(
-                docker_cmd,
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                env=env
             )
             
             # Reads logs line by line
@@ -403,25 +286,24 @@ class OpenHandsWorker:
             success = returncode == 0
             full_logs = "".join(logs)
             
-            # Attempt to extract code or meaningful output from workspace or logs
+            # Attempt to extract code or meaningful output from workspace
             files_changed = []
             code = ""
             
-            if success:
-                # Check for created files in workspace
-                for file in self.workspace_dir.glob("**/*"):
-                     if file.is_file():
-                        files_changed.append(file.name)
-                        # Optionally read the content if it's small (e.g. .py file)
-                        if file.suffix in [".py", ".md", ".txt"]:
-                            try:
-                                code += f"\n# File: {file.name}\n{file.read_text()}\n"
-                            except:
-                                pass
+            # Check for created files in workspace
+            for file in self.workspace_dir.glob("**/*"):
+                 if file.is_file() and not str(file).startswith(str(self.workspace_dir / ".openhands")):
+                    files_changed.append(str(file.relative_to(self.workspace_dir)))
+                    # Optionally read the content if it's small
+                    if file.suffix in [".py", ".md", ".txt"]:
+                        try:
+                            code += f"\n# File: {file.name}\n{file.read_text()}\n"
+                        except:
+                            pass
             
             return OpenHandsResult(
                 success=success,
-                message="Task completed via CLI" if success else "Task failed via CLI",
+                message="Task completed locally" if success else "Task failed locally",
                 logs=full_logs,
                 code=code if code else None,
                 files_changed=files_changed
@@ -430,44 +312,16 @@ class OpenHandsWorker:
         except Exception as e:
             return OpenHandsResult(
                 success=False,
-                message=f"Error running CLI: {str(e)}",
+                message=f"Error running local CLI: {str(e)}",
                 logs=str(e)
             )
 
     def _wait_for_ready(self, timeout: int = 90) -> bool:
-        # Not strictly needed for CLI execution, but good check
-        # Reuse existing implementation or just simplify
         return True
 
     def _stop_container(self) -> None:
-        """
-        Stop and remove OpenHands container.
-
-        WHAT THIS DOES:
-            Gracefully shuts down container and cleans up.
-            Like PLC shutdown sequence - stop motor, release resources.
-
-        WHY WE DO THIS:
-            - Free up system resources
-            - Free up port 3000 for next task
-            - Clean slate for next run
-
-        ERROR HANDLING:
-            Ignores errors (container might already be stopped)
-        """
-        try:
-            subprocess.run(
-                [self.container_engine, "stop", self.container_name],
-                capture_output=True,
-                timeout=10
-            )
-            subprocess.run(
-                [self.container_engine, "rm", self.container_name],
-                capture_output=True,
-                timeout=10
-            )
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            pass  # Already stopped/removed, that's fine
+        """No-op for local setup."""
+        pass
 
     def _validate_ollama(self) -> None:
         """
@@ -492,13 +346,18 @@ class OpenHandsWorker:
             # Check if model is available
             data = response.json()
             available_models = [m["name"] for m in data.get("models", [])]
+            
+            # Handle ollama/ prefix for validation
+            check_model = self.model
+            if check_model.startswith("ollama/"):
+                check_model = check_model.replace("ollama/", "")
 
-            if self.model not in available_models:
+            if check_model not in available_models and self.model not in available_models:
                 raise RuntimeError(
                     f"Ollama model '{self.model}' not found.\n"
                     f"Available models: {', '.join(available_models)}\n\n"
                     f"To fix, run:\n"
-                    f"  ollama pull {self.model}\n"
+                    f"  ollama pull {check_model}\n"
                 )
 
             print(f"[OpenHands] ✓ Using FREE Ollama model: {self.model}")

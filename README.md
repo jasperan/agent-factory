@@ -22,8 +22,10 @@ This guide covers:
 
 ### 1. Prerequisites
 - [Ollama](https://ollama.com) installed
-- Python 3.11+
-- Docker (for OpenHands isolation)
+- Python 3.12+ (Python 3.12.3 recommended)
+- [uv](https://astral.sh/uv/) for Python tool management
+- Docker (still required for the OpenHands sandbox runtime)
+- Local OpenHands installation
 
 ### 2. Setup
 ```bash
@@ -31,10 +33,11 @@ This guide covers:
 git clone https://github.com/jasperan/agent-factory.git
 cd agent-factory
 
-# Install dependencies
+# Install Agent Factory dependencies
 pip install -r requirements.txt
-# OR if you have Poetry
-poetry install
+
+# Install OpenHands locally using uv (required)
+uv tool install openhands --python 3.12
 
 # Configure Environment
 cp .env.example .env

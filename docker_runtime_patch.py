@@ -277,9 +277,13 @@ class DockerRuntime(ActionExecutionClient):
         # This will run every time, which is slow but requested by user.
         bootstrap_cmd = (
             'apt-get update && '
-            'DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip git wget && '
-            'ln -sf /usr/bin/python3 /usr/bin/python && '
-            'pip3 install termcolor psutil && ' + cmd_str
+            'DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common wget curl git && '
+            'add-apt-repository -y ppa:deadsnakes/ppa && '
+            'apt-get update && '
+            'DEBIAN_FRONTEND=noninteractive apt-get install -y python3.12 python3.12-venv python3.12-dev && '
+            'curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 && '
+            'ln -sf /usr/bin/python3.12 /usr/bin/python && '
+            'python3.12 -m pip install termcolor psutil openhands-ai poetry && ' + cmd_str
         )
         command = ['/bin/sh', '-c', bootstrap_cmd]
 
