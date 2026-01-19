@@ -122,7 +122,7 @@ class BacklogParser:
         self._mcp_available = self._check_mcp_available()
 
         if not self._mcp_available:
-            logger.warning("MCP backlog tools not available - using fallback mode")
+            logger.debug("Using markdown fallback mode (MCP disabled)")
 
     def list_tasks(
         self,

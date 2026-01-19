@@ -109,49 +109,19 @@ class ResultProcessor:
             logger.info(f"[DRY RUN] Would update {task_id} status to Blocked")
 
     def _create_pr(self, task_id: str, result: Dict) -> Optional[str]:
-        """Create draft PR via PRCreator.
+        """Simplified: Log PR creation (no GitHub integration).
 
         Args:
             task_id: Task identifier
             result: Execution result
 
         Returns:
-            PR URL (None if creation failed)
+            None (PR creation disabled)
         """
-        try:
-            # Lazy import PRCreator
-            if not self._pr_creator:
-                import sys
-                from pathlib import Path
-                project_root = Path(__file__).parent.parent.parent
-                project_root_str = str(project_root)
-                if project_root_str not in sys.path:
-                    sys.path.insert(0, project_root_str)
-                from scripts.autonomous.pr_creator import PRCreator
-                self._pr_creator = PRCreator()
-
-            # Extract issue number from task_id
-            # Simple heuristic: use hash for now
-            # TODO: Improve mapping task_id → GitHub issue number
-            issue_number = abs(hash(task_id)) % 10000
-
-            # Create PR
-            pr_url = self._pr_creator.create_draft_pr(
-                issue_number=issue_number,
-                claude_result=result
-            )
-
-            logger.info(f"PR created: {pr_url}")
-            return pr_url
-
-        except ImportError:
-            logger.warning("PRCreator not available - skipping PR creation")
-            return None
-
-        except Exception as e:
-            logger.exception(f"Failed to create PR for {task_id}: {e}")
-            # Continue anyway - don't block on PR failures
-            return None
+        # PRCreator/GitHub integration disabled for simplicity
+        # Just log that task completed
+        logger.info(f"Task {task_id} completed - PR creation disabled (local mode)")
+        return None
 
     def _update_backlog_status(
         self,
@@ -159,32 +129,17 @@ class ResultProcessor:
         status: str,
         notes: str
     ):
-        """Update Backlog.md task status via MCP.
+        """Simplified: Log status update (no MCP integration).
 
         Args:
             task_id: Task identifier
             status: New status ("Done" or "Blocked")
-            notes: Implementation notes to append
+            notes: Implementation notes
         """
-        try:
-            # Import MCP tool
-            from mcp import mcp__backlog__task_edit
-
-            # Update task
-            mcp__backlog__task_edit(
-                id=task_id,
-                status=status,
-                implementation_notes=notes
-            )
-
-            logger.info(f"Backlog.md updated: {task_id} → {status}")
-
-        except ImportError:
-            logger.warning("MCP backlog tools not available - skipping Backlog update")
-
-        except Exception as e:
-            logger.exception(f"Failed to update Backlog.md for {task_id}: {e}")
-            # Continue anyway - don't block on Backlog failures
+        # MCP integration disabled for simplicity
+        # Just log the status update
+        logger.info(f"Task {task_id} status: {status}")
+        logger.debug(f"Notes: {notes}")
 
     def _format_success_notes(
         self,

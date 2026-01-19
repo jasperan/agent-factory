@@ -3,10 +3,12 @@
 Routes tasks to appropriate handlers based on labels and context.
 
 Handlers:
-- ClaudeCodeHandler: Executes via Claude Code CLI (default)
+- OpenHandsHandler: Executes via OpenHands + Ollama (default when USE_OLLAMA=true)
+- ClaudeCodeHandler: Executes via Claude Code CLI
 - ManualActionHandler: Flags for user intervention
 """
 
+import os
 import time
 import re
 import logging
@@ -38,7 +40,11 @@ class TaskRouter:
 
     def __init__(self):
         """Initialize TaskRouter with handler registry."""
+        # Check if Ollama should be used
+        self.use_ollama = os.getenv("USE_OLLAMA", "false").lower() == "true"
+        
         self.handlers = {
+            "openhands": OpenHandsHandler(),
             "claude-code": ClaudeCodeHandler(),
             "manual": ManualActionHandler()
         }
@@ -59,7 +65,12 @@ class TaskRouter:
             logger.info(f"Task {task['id']}: Routing to manual handler")
             return "manual"
 
-        # Default: Claude Code CLI
+        # Use OpenHands with Ollama if enabled
+        if self.use_ollama:
+            logger.info(f"Task {task['id']}: Routing to openhands handler (Ollama)")
+            return "openhands"
+
+        # Fallback: Claude Code CLI
         logger.info(f"Task {task['id']}: Routing to claude-code handler")
         return "claude-code"
 
@@ -302,3 +313,88 @@ class ManualActionHandler:
             "duration_sec": 0.0,
             "files_changed": []
         }
+
+
+class OpenHandsHandler:
+    """Execute tasks via OpenHands with Ollama (free local LLMs).
+
+    Uses OpenHandsWorker to execute coding tasks with local Ollama models.
+    Zero API cost - runs 100% locally.
+    """
+
+    def __init__(self):
+        """Initialize OpenHands handler with Ollama configuration."""
+        self.worker = None  # Lazy initialization
+
+    def _get_worker(self):
+        """Lazy-load OpenHandsWorker to avoid import issues."""
+        if self.worker is None:
+            try:
+                from agent_factory.workers.openhands_worker import OpenHandsWorker
+                self.worker = OpenHandsWorker(use_ollama=True)
+            except Exception as e:
+                logger.error(f"Failed to initialize OpenHandsWorker: {e}")
+                raise TaskExecutionError(f"OpenHands initialization failed: {e}")
+        return self.worker
+
+    def execute(
+        self,
+        task: Dict,
+        worktree_path: str,
+        timeout_sec: int = 1800
+    ) -> Dict:
+        """Execute task via OpenHands with Ollama.
+
+        Args:
+            task: Task dict with title, description, acceptance_criteria
+            worktree_path: Absolute path to worktree
+            timeout_sec: Timeout in seconds (default: 1800 = 30 min)
+
+        Returns:
+            Result dict with keys: success, output, cost, duration_sec, files_changed
+        """
+        logger.info(f"Executing task {task['id']} via OpenHands (Ollama)")
+
+        try:
+            worker = self._get_worker()
+
+            # Build prompt from task
+            prompt = self._build_prompt(task, worktree_path)
+
+            # Run via OpenHands
+            result = worker.run_task(prompt, timeout=timeout_sec)
+
+            return {
+                "success": result.success,
+                "output": result.message + "\n" + (result.logs or ""),
+                "cost": result.cost,
+                "duration_sec": result.execution_time,
+                "files_changed": result.files_changed
+            }
+
+        except Exception as e:
+            logger.error(f"OpenHands execution failed: {e}")
+            raise TaskExecutionError(f"OpenHands error: {e}") from e
+
+    def _build_prompt(self, task: Dict, worktree_path: str) -> str:
+        """Build prompt for OpenHands from task specification."""
+        criteria = task.get("acceptance_criteria", [])
+        criteria_text = "\n".join(f"- {c}" for c in criteria) if criteria else "None specified"
+
+        prompt = f"""You are working in: {worktree_path}
+
+Task: {task.get('title', 'Untitled')} ({task.get('id', 'unknown')})
+
+Description:
+{task.get('description', 'No description provided')}
+
+Acceptance Criteria:
+{criteria_text}
+
+Instructions:
+1. Implement the task according to the acceptance criteria
+2. Write tests if applicable
+3. Commit your changes with a descriptive message
+4. Do NOT push to remote or create PRs
+"""
+        return prompt
