@@ -36,6 +36,18 @@ try:
 except ImportError:
     AGGRESSIVE_MODE_AVAILABLE = False
     logger.warning("Ultra-aggressive mode unavailable - missing dependencies")
+    
+    # Fallback definitions to prevent NameError in type hints and methods
+    class WeaknessType(str, Enum):
+        ZERO_ATOMS = "zero_atoms"
+        THIN_COVERAGE = "thin_coverage"
+        LOW_RELEVANCE = "low_relevance"
+        HALLUCINATION_RISK = "hallucination_risk"
+        MISSING_CITATIONS = "missing_citations"
+        HIGH_LATENCY = "high_latency"
+
+    class WeaknessSignal:
+        pass
 
 
 class GapPriority(str, Enum):

@@ -134,7 +134,12 @@ Example:
     factory = AgentFactory(verbose=True)
 
     # Create worker (auto-detects Ollama from .env)
-    worker = factory.create_openhands_agent()
+    # Get configuration
+    use_ollama = os.getenv("USE_OLLAMA", "false").lower() == "true"
+    ollama_model = os.getenv("OLLAMA_MODEL", "deepseek-coder:6.7b")
+
+    # Create worker
+    worker = factory.create_openhands_agent(model=ollama_model, use_ollama=use_ollama)
 
     print(f"\n⚙️  Worker Configuration:")
     print(f"  Model: {worker.model}")
@@ -153,16 +158,12 @@ Example:
         # Display results
         print_header("Step 3: Results")
 
-        status = "✓ SUCCESS" if result.success else "✗ FAILED"
-        print(f"\n{status}")
-        print(f"Message: {result.message}")
-        print(f"Execution Time: {elapsed:.2f} seconds")
-        print(f"Cost: $0.00 (FREE with Ollama!)")
-
-        if result.code:
-            print("\n--- Generated Code ---")
-            print(result.code)
-            print("--- End Code ---")
+        if not result.success:
+            with open("verification_error.log", "w") as f:
+                f.write(f"Message: {result.message}\n")
+                f.write(f"Logs: {result.logs}\n")
+            print(f"❌ FAILED: {result.message}")
+            return False
 
         if result.files_changed:
             print(f"\nFiles Changed: {', '.join(result.files_changed)}")

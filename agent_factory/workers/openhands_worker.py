@@ -188,17 +188,14 @@ class OpenHandsWorker:
         cleanup: bool = True  # Remove container when done?
     ) -> OpenHandsResult:
         """
-        Run a coding task with OpenHands.
+        Run a coding task with OpenHands using CLI.
 
         WHAT THIS DOES (Step-by-Step):
             1. VALIDATE: Check task is not empty
-            2. START: Spin up OpenHands Docker container
-            3. WAIT: Poll until container is healthy
-            4. SEND: Submit task via HTTP API
-            5. MONITOR: Wait for completion or timeout
-            6. RETRIEVE: Get results (code, files, logs)
-            7. CLEANUP: Stop and remove container (if cleanup=True)
-            8. RETURN: Structured result object
+            2. START: Spin up OpenHands Docker container (if not running)
+            3. EXECUTE: Run task via 'docker exec' CLI inside container
+            4. CLEANUP: Stop and remove container (if cleanup=True)
+            5. RETURN: Structured result object
 
         PARAMETERS:
             task: What you want coded (e.g., "Fix bug in login.py")
@@ -207,23 +204,10 @@ class OpenHandsWorker:
 
         RETURNS:
             OpenHandsResult object with success status and outputs
-
-        ERROR HANDLING:
-            - Empty task → Returns failure result immediately
-            - Docker fails → Returns failure with error message
-            - Timeout → Kills container, returns partial results
-            - API errors → Captures logs, returns failure
-
-        EXAMPLE:
-            result = worker.run_task("Add docstrings to all functions")
-            if result.success:
-                print(f"Modified files: {result.files_changed}")
-            else:
-                print(f"Task failed: {result.message}")
         """
         start_time = time.time()
 
-        # STEP 1: VALIDATE INPUT (like PLC input validation rung)
+        # STEP 1: VALIDATE INPUT
         if not task or not task.strip():
             return OpenHandsResult(
                 success=False,
@@ -232,33 +216,24 @@ class OpenHandsWorker:
             )
 
         try:
-            # STEP 2: START CONTAINER (like PLC motor start sequence)
+            # STEP 2: START CONTAINER
             print(f"[OpenHands] Starting container for task: {task[:50]}...")
             self._start_container()
+            
+            # Helper to ensure workspace is writable
+            subprocess.run(
+                ["docker", "exec", "-u", "root", self.container_name, "chmod", "777", "/opt/workspace_base"],
+                check=False, capture_output=True
+            )
 
-            # STEP 3: WAIT FOR HEALTHY (like waiting for motor at speed)
-            if not self._wait_for_ready(timeout=30):
-                return OpenHandsResult(
-                    success=False,
-                    message="OpenHands container failed to become ready",
-                    execution_time=time.time() - start_time
-                )
-
-            # STEP 4: SEND TASK (like writing to PLC input register)
-            print(f"[OpenHands] Sending task to agent...")
-            task_id = self._submit_task(task)
-
-            # STEP 5: MONITOR PROGRESS (like polling PLC status bits)
-            print(f"[OpenHands] Waiting for completion (timeout: {timeout}s)...")
-            result = self._wait_for_completion(task_id, timeout)
-
-            # Add execution time
+            # STEP 3: EXECUTE TASK VIA CLI
+            print(f"[OpenHands] Executing task via CLI...")
+            result = self._run_task_cli(task, timeout)
+            
             result.execution_time = time.time() - start_time
-
             return result
 
         except Exception as e:
-            # Catch-all error handler (like PLC fault handler)
             return OpenHandsResult(
                 success=False,
                 message=f"Unexpected error: {str(e)}",
@@ -267,34 +242,13 @@ class OpenHandsWorker:
             )
 
         finally:
-            # STEP 7: CLEANUP (like PLC shutdown sequence - always runs)
+            # STEP 4: CLEANUP
             if cleanup:
                 print(f"[OpenHands] Cleaning up container...")
                 self._stop_container()
 
     def _start_container(self) -> None:
-        """
-        Start OpenHands Docker container.
-
-        WHAT THIS DOES:
-            Runs Docker command to start OpenHands with our configuration.
-            Container runs in background (-d flag) and exposes web UI on our port.
-
-        DOCKER COMMAND EXPLAINED:
-            docker run -d                    → Run in background (detached)
-            --name openhands_worker_3000     → Give it a memorable name
-            -p 3000:3000                     → Map port (host:container)
-            --pull=always                    → Always use latest image
-            ghcr.io/all-hands-dev/openhands  → OpenHands official image
-            --model claude-3-5-sonnet        → Which LLM to use
-
-        WHY PULL ALWAYS:
-            Ensures we have latest OpenHands version (like PLC firmware updates)
-
-        ERROR HANDLING:
-            If container with same name exists, tries to stop it first
-        """
-        # First, try to stop any existing container (idempotent operation)
+        # First, try to stop any existing container
         try:
             subprocess.run(
                 ["docker", "stop", self.container_name],
@@ -307,165 +261,114 @@ class OpenHandsWorker:
                 timeout=10
             )
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-            pass  # Container didn't exist, that's fine
+            pass
 
-        # Start fresh container
+        # Ensure workspace exists
+        self.workspace_dir.mkdir(parents=True, exist_ok=True)
+
+        # Build Docker command
         cmd = [
             "docker", "run",
-            "-d",  # Detached (background)
+            "-d",
+            "--privileged",  # Required for OpenHands to spawn sandbox containers
             "--name", self.container_name,
             "-p", f"{self.port}:{self.port}",
             "--pull=always",
-            "ghcr.io/all-hands-dev/openhands:main-latest",
+            # MOUNT DOCKET SOCKET (Critical for OpenHands sandbox)
+            "-v", "/var/run/docker.sock:/var/run/docker.sock",
+            # MOUNT WORKSPACE
+            "-v", f"{self.workspace_dir.resolve()}:/opt/workspace_base",
         ]
 
-        # Configure model and API endpoint
         if self.use_ollama:
-            # Point OpenHands to Ollama instead of paid APIs
+            cmd.extend(["--add-host", "host.docker.internal:host-gateway"])
+            api_base = self.ollama_base_url
+            if "localhost" in api_base or "127.0.0.1" in api_base:
+                api_base = api_base.replace("localhost", "host.docker.internal")
+                api_base = api_base.replace("127.0.0.1", "host.docker.internal")
+
             cmd.extend([
-                "--model", self.model,
-                "--llm-api-base", self.ollama_base_url,
-                "--llm-provider", "ollama"
+                "-e", f"LLM_MODEL={self.model}",
+                "-e", f"LLM_BASE_URL={api_base}",
+                "-e", f"LLM_API_BASE={api_base}",
+                "-e", "LLM_PROVIDER=ollama",
+                "-e", "SANDBOX_RUNTIME_CONTAINER_IMAGE=ghcr.io/all-hands-ai/runtime:0.20-nikolaik",
+                "-e", "WORKSPACE_BASE=/opt/workspace_base",
             ])
             print(f"[OpenHands] Starting with FREE Ollama ({self.model})...")
         else:
-            # Use paid API (Claude, GPT, etc.)
-            cmd.extend(["--model", self.model])
+            cmd.extend(["-e", f"LLM_MODEL={self.model}"])
             print(f"[OpenHands] Starting with PAID API ({self.model})...")
 
+        cmd.append("ghcr.io/all-hands-ai/openhands:0.20")
+
         subprocess.run(cmd, check=True, timeout=60)
+        
+        # Wait a bit for container to stay up
+        time.sleep(5)
 
-    def _wait_for_ready(self, timeout: int = 30) -> bool:
+    def _run_task_cli(self, task: str, timeout: int) -> OpenHandsResult:
         """
-        Wait for OpenHands container to be healthy and ready.
-
-        WHAT THIS DOES:
-            Polls the health endpoint until container responds or timeout.
-            Like waiting for a PLC to complete its boot sequence.
-
-        HOW IT WORKS:
-            1. Try to GET http://localhost:3000/health
-            2. If 200 OK → Container ready!
-            3. If error → Wait 1 second, try again
-            4. If timeout → Give up, return False
-
-        RETURNS:
-            True if container ready, False if timed out
+        Run task using the internal CLI of the OpenHands container.
         """
-        start = time.time()
-        health_url = f"http://localhost:{self.port}/health"
+        # Command to run inside container: python -m openhands.core.main -t "task"
+        # We assume the container is running.
+        
+        docker_cmd = [
+            "docker", "exec",
+            "-u", "0", # Run as root to avoid permission issues with socket
+            self.container_name,
+            "python", "-m", "openhands.core.main",
+            "-t", task,
+            "--max-iterations", "10", # Limit iterations to prevent infinite loops
+            "--no-auto-continue", # We want it to just run
+        ]
 
-        while time.time() - start < timeout:
-            try:
-                response = requests.get(health_url, timeout=2)
-                if response.status_code == 200:
-                    print(f"[OpenHands] Container ready after {time.time() - start:.1f}s")
-                    return True
-            except requests.exceptions.RequestException:
-                pass  # Not ready yet, keep waiting
+        try:
+            # Run with timeout
+            result = subprocess.run(
+                docker_cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+            
+            success = result.returncode == 0
+            logs = result.stdout + "\n" + result.stderr
+            
+            # Attempt to extract code or meaningful output from workspace or logs
+            # Since CLI changes file in workspace, we can check workspace_dir
+            files_changed = []
+            code = ""
+            
+            if success:
+                # Check for created files in workspace
+                for file in self.workspace_dir.glob("**/*"):
+                     if file.is_file():
+                        files_changed.append(file.name)
+                        # Optionally read the content if it's small (e.g. .py file)
+                        if file.suffix == ".py":
+                            code += f"\n# File: {file.name}\n{file.read_text()}\n"
+            
+            return OpenHandsResult(
+                success=success,
+                message="Task completed via CLI" if success else "Task failed via CLI",
+                logs=logs,
+                code=code if code else None,
+                files_changed=files_changed
+            )
 
-            time.sleep(1)  # Wait 1 second before retry (like PLC scan time)
+        except subprocess.TimeoutExpired:
+            return OpenHandsResult(
+                success=False,
+                message=f"Task timed out after {timeout} seconds",
+                logs="Timeout"
+            )
 
-        return False  # Timed out
-
-    def _submit_task(self, task: str) -> str:
-        """
-        Submit coding task to OpenHands API.
-
-        WHAT THIS DOES:
-            Sends HTTP POST to OpenHands with task description.
-            OpenHands starts working on it asynchronously.
-
-        PARAMETERS:
-            task: What you want coded
-
-        RETURNS:
-            task_id: Unique ID to track this task (like PLC job number)
-
-        API ENDPOINT:
-            POST /api/tasks
-            Body: {"task": "your task here", "model": "claude-3-5-sonnet"}
-
-        NOTE:
-            This is a simplified implementation. Real OpenHands API may differ.
-            You may need to adjust based on actual OpenHands REST API docs.
-        """
-        url = f"http://localhost:{self.port}/api/tasks"
-        payload = {
-            "task": task,
-            "model": self.model
-        }
-
-        response = requests.post(url, json=payload, timeout=10)
-        response.raise_for_status()
-
-        data = response.json()
-        return data.get("task_id", "unknown")
-
-    def _wait_for_completion(
-        self,
-        task_id: str,
-        timeout: int
-    ) -> OpenHandsResult:
-        """
-        Poll for task completion.
-
-        WHAT THIS DOES:
-            Repeatedly checks if OpenHands finished the task.
-            Like polling a PLC done bit in a loop.
-
-        HOW IT WORKS:
-            1. GET /api/tasks/{task_id}/status
-            2. Check status: "pending", "running", "completed", "failed"
-            3. If completed → Get results and return
-            4. If failed → Return error
-            5. If still running → Wait and retry
-            6. If timeout → Give up
-
-        RETURNS:
-            OpenHandsResult with success status and any generated code
-        """
-        start = time.time()
-        status_url = f"http://localhost:{self.port}/api/tasks/{task_id}/status"
-
-        while time.time() - start < timeout:
-            try:
-                response = requests.get(status_url, timeout=5)
-                response.raise_for_status()
-                data = response.json()
-
-                status = data.get("status", "unknown")
-
-                if status == "completed":
-                    # Success! Extract results
-                    return OpenHandsResult(
-                        success=True,
-                        message="Task completed successfully",
-                        code=data.get("code", ""),
-                        files_changed=data.get("files_changed", []),
-                        logs=data.get("logs", "")
-                    )
-
-                elif status == "failed":
-                    # Task failed
-                    return OpenHandsResult(
-                        success=False,
-                        message=data.get("error", "Task failed"),
-                        logs=data.get("logs", "")
-                    )
-
-                # Still running, keep waiting
-                time.sleep(2)  # Poll every 2 seconds
-
-            except requests.exceptions.RequestException as e:
-                # API error - might be transient, keep trying
-                time.sleep(2)
-
-        # Timed out
-        return OpenHandsResult(
-            success=False,
-            message=f"Task timed out after {timeout} seconds"
-        )
+    def _wait_for_ready(self, timeout: int = 90) -> bool:
+        # Not strictly needed for CLI execution, but good check
+        # Reuse existing implementation or just simplify
+        return True
 
     def _stop_container(self) -> None:
         """

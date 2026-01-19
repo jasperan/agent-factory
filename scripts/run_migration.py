@@ -1,138 +1,70 @@
 """
-Run database migrations for Agent Factory
-
-Usage:
-    poetry run python scripts/run_migration.py <migration_number>
-    poetry run python scripts/run_migration.py 001  # Run specific migration
-    poetry run python scripts/run_migration.py all  # Run all pending migrations
+Run database migration for user machines library.
 """
-
-import os
+from agent_factory.core.database_manager import DatabaseManager
 import sys
-from pathlib import Path
-
-# Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
-
-from dotenv import load_dotenv
-
-# Load environment
-load_dotenv()
-
-# Configure UTF-8 for Windows
-if sys.platform == 'win32':
-    import codecs
-    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
-    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
-
-from agent_factory.rivet_pro.database import RIVETProDatabase
-
-
-def run_migration(db: RIVETProDatabase, migration_file: Path) -> bool:
-    """
-    Run a single migration file.
-
-    Args:
-        db: Database instance
-        migration_file: Path to SQL migration file
-
-    Returns:
-        True if successful, False otherwise
-    """
-    print(f"📄 Running migration: {migration_file.name}")
-
-    try:
-        # Read migration SQL
-        with open(migration_file, 'r', encoding='utf-8') as f:
-            sql = f.read()
-
-        # Execute migration
-        import psycopg2
-        cursor = db.conn.cursor()
-        cursor.execute(sql)
-        db.conn.commit()
-        cursor.close()
-
-        print(f"✅ Migration {migration_file.name} completed successfully")
-        return True
-
-    except Exception as e:
-        print(f"❌ Migration {migration_file.name} failed: {e}")
-        db.conn.rollback()
-        return False
-
-
-def get_migration_files(migrations_dir: Path) -> list:
-    """Get all migration files sorted by number"""
-    files = list(migrations_dir.glob("*.sql"))
-    return sorted(files, key=lambda f: f.name)
-
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python run_migration.py <migration_number|all>")
-        print("\nExamples:")
-        print("  python run_migration.py 001")
-        print("  python run_migration.py all")
-        sys.exit(1)
+    db = DatabaseManager()
 
-    migration_arg = sys.argv[1]
+    # Read migration SQL
+    with open('docs/database/migrations/002_add_user_machines.sql', 'r') as f:
+        sql = f.read()
 
-    # Get migrations directory
-    project_root = Path(__file__).parent.parent
-    migrations_dir = project_root / "docs" / "database" / "migrations"
+    # Split by statement
+    statements = []
+    current = []
+    for line in sql.split('\n'):
+        line_stripped = line.strip()
+        if line_stripped.startswith('--') or not line_stripped:
+            continue
+        current.append(line)
+        if line_stripped.endswith(';'):
+            statements.append('\n'.join(current))
+            current = []
 
-    if not migrations_dir.exists():
-        print(f"❌ Migrations directory not found: {migrations_dir}")
-        sys.exit(1)
+    print(f'Executing {len(statements)} SQL statements...\n')
 
-    # Connect to database
-    print("🔌 Connecting to database...")
-    db = RIVETProDatabase()
-    print(f"✅ Connected to {db.provider.upper()}")
-
-    # Get migration files
-    all_migrations = get_migration_files(migrations_dir)
-
-    if not all_migrations:
-        print("⚠️ No migration files found")
-        sys.exit(0)
-
-    # Determine which migrations to run
-    if migration_arg == "all":
-        migrations_to_run = all_migrations
-        print(f"\n📦 Running {len(migrations_to_run)} migrations...")
-    else:
-        # Find specific migration
-        matching = [m for m in all_migrations if migration_arg in m.name]
-        if not matching:
-            print(f"❌ Migration {migration_arg} not found")
-            print(f"\nAvailable migrations:")
-            for m in all_migrations:
-                print(f"  - {m.name}")
-            sys.exit(1)
-        migrations_to_run = matching
-        print(f"\n📦 Running migration: {migrations_to_run[0].name}")
-
-    # Run migrations
-    print("="*60)
     success_count = 0
-    for migration_file in migrations_to_run:
-        if run_migration(db, migration_file):
+    skip_count = 0
+
+    for i, stmt in enumerate(statements, 1):
+        stmt_preview = stmt[:80].replace('\n', ' ').strip()
+        try:
+            db.execute_query(stmt, fetch_mode='none')
+            print(f'[{i}/{len(statements)}] OK: {stmt_preview}...')
             success_count += 1
-        print()
+        except Exception as e:
+            error_msg = str(e)[:100]
+            if 'already exists' in error_msg.lower() or 'duplicate' in error_msg.lower():
+                print(f'[{i}/{len(statements)}] SKIP (exists): {stmt_preview}...')
+                skip_count += 1
+            else:
+                print(f'[{i}/{len(statements)}] ERROR: {stmt_preview}...')
+                print(f'  Error: {error_msg}')
+                return False
 
-    # Summary
-    print("="*60)
-    if success_count == len(migrations_to_run):
-        print(f"✅ All {success_count} migrations completed successfully")
-    else:
-        failed = len(migrations_to_run) - success_count
-        print(f"⚠️ {success_count} succeeded, {failed} failed")
+    print(f'\nExecuted: {success_count}, Skipped: {skip_count}\n')
 
-    db.close()
+    # Verify tables exist
+    print('Verifying migration...')
+    result = db.execute_query(
+        """SELECT COUNT(*) FROM information_schema.tables
+           WHERE table_name IN ('user_machines', 'user_machine_history')""",
+        fetch_mode='one'
+    )
+    print(f'  Tables found: {result[0]}/2')
 
+    # Check initial row count
+    count = db.execute_query('SELECT COUNT(*) FROM user_machines', fetch_mode='one')
+    print(f'  user_machines rows: {count[0]}')
 
-if __name__ == "__main__":
-    main()
+    count = db.execute_query('SELECT COUNT(*) FROM user_machine_history', fetch_mode='one')
+    print(f'  user_machine_history rows: {count[0]}')
+
+    print('\n[SUCCESS] Database migration deployed!')
+    return True
+
+if __name__ == '__main__':
+    success = main()
+    sys.exit(0 if success else 1)

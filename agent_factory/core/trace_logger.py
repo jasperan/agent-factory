@@ -19,7 +19,14 @@ import os
 import sys
 
 # Paths - environment-aware (VPS uses /root/Agent-Factory, local uses project root)
-if os.name == 'posix' and Path("/root/Agent-Factory").exists():
+is_vps_production = False
+try:
+    if os.name == 'posix' and Path("/root/Agent-Factory").exists():
+        is_vps_production = True
+except PermissionError:
+    pass
+
+if is_vps_production:
     # VPS production environment
     LOG_DIR = Path("/root/Agent-Factory/logs")
 else:
