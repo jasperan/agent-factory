@@ -84,9 +84,10 @@ class TaskRouter:
 class ClaudeCodeHandler:
     """Execute tasks via Claude Code CLI in worktree.
 
-    Executes subprocess: claude code execute --cwd {worktree_path}
+    Executes subprocess: claude --print --add-dir {worktree_path} {prompt}
     Parses output for cost, duration, files changed.
     """
+
 
     def execute(
         self,
@@ -125,13 +126,22 @@ class ClaudeCodeHandler:
         start_time = time.time()
 
         try:
+            # Claude CLI uses: claude --print [prompt] with --add-dir for workspace
+            # We pass the prompt via stdin and use --print for non-interactive mode
             result = subprocess.run(
-                ["claude", "code", "execute", "--cwd", worktree_path],
-                input=prompt,
+                [
+                    "claude",
+                    "--print",  # Non-interactive output
+                    "--add-dir", worktree_path,  # Allow access to worktree
+                    "--dangerously-skip-permissions",  # Skip permission prompts for automation
+                    prompt  # Prompt as positional argument
+                ],
+                cwd=worktree_path,  # Set working directory
                 capture_output=True,
                 text=True,
                 timeout=timeout_sec
             )
+
 
             duration = time.time() - start_time
 
