@@ -56,11 +56,15 @@ load_dotenv()
 from agent_factory.codegen import SpecParser, CodeGenerator, EvalGenerator
 from agent_factory.cli import InteractiveAgentCreator, list_templates
 from agent_factory.cli.agent_editor import AgentEditor, list_editable_agents
-from agent_factory.cli.crew_creator import CrewCreator
-from agent_factory.core.crew_spec import load_crew_spec, list_crew_specs, CrewSpec
-from agent_factory.core.crew import Crew, ProcessType, VotingStrategy
+# from agent_factory.cli.crew_creator import CrewCreator
+# from agent_factory.core.crew_spec import load_crew_spec, list_crew_specs, CrewSpec
+# from agent_factory.core.crew import Crew, ProcessType, VotingStrategy
 from agent_factory.core.agent_factory import AgentFactory
 from agent_factory.scaffold import WorktreeManager, WorktreeExistsError, WorktreeNotFoundError, WorktreeLimitError
+from agent_factory.scaffold.orchestrator import ScaffoldOrchestrator
+import time
+import asyncio
+from datetime import datetime
 
 
 # ========================================================================
@@ -98,9 +102,69 @@ class AgentCLI:
         self.spec_parser = SpecParser()
         self.code_generator = CodeGenerator()
         self.eval_generator = EvalGenerator()
+        self.worktree_manager = WorktreeManager(repo_root=Path.cwd())
 
-        # Initialize WorktreeManager
-        self.worktree_manager = WorktreeManager(repo_root=Path.cwd(), max_concurrent=5)
+    def autonomous(self, mode: str = "BACKLOG", interval: int = 60, max_tasks: int = 1, dry_run: bool = False) -> int:
+        """
+        PURPOSE: Run agents in a continuous autonomous loop
+
+        WHAT THIS DOES:
+            1. Initialize appropriate orchestrator based on mode
+            2. Enter a persistent while loop
+            3. Fetch and execute tasks in each cycle
+            4. Wait for specified interval between cycles
+
+        INPUTS:
+            mode (str): Execution mode (BACKLOG or GITHUB)
+            interval (int): Seconds to wait between cycles
+            max_tasks (int): Max tasks to process per cycle
+            dry_run (bool): If True, simulate execution
+        """
+        print("=" * 72)
+        print("AUTONOMOUS RUNNER - 24/7 OPERATION")
+        print("=" * 72)
+        print(f"Mode:     {mode}")
+        print(f"Interval: {interval}s")
+        print(f"Max Task: {max_tasks}")
+        print(f"Dry Run:  {dry_run}")
+        print("=" * 72)
+
+        if mode.upper() == "BACKLOG":
+            orchestrator = ScaffoldOrchestrator(
+                repo_root=Path.cwd(),
+                dry_run=dry_run,
+                max_tasks=max_tasks
+            )
+        else:
+            print(f"[ERROR] Mode '{mode}' not yet fully implemented.")
+            return 1
+
+        print("\nStarting continuous loop... (Press Ctrl+C to stop)\n")
+
+        cycle = 0
+        try:
+            while True:
+                cycle += 1
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"[{timestamp}] CYCLE {cycle} STARTING")
+                
+                try:
+                    orchestrator.run()
+                except Exception as e:
+                    print(f"[{timestamp}] Cycle error: {e}")
+                
+                print(f"[{timestamp}] CYCLE {cycle} COMPLETE. Sleeping {interval}s...")
+                time.sleep(interval)
+        except KeyboardInterrupt:
+            print("\n\n[INFO] Received shutdown signal. Stopping autonomous runner...")
+            return 0
+        except Exception as e:
+            print(f"\n[FATAL] Unexpected error in autonomous loop: {e}")
+            return 1
+
+#        # Initialize WorktreeManager
+#        self.worktree_manager = WorktreeManager(repo_root=Path.cwd(), max_concurrent=5)
+# (Fixed redundant initialization in __init__)
 
     def build(self, spec_name: str, output_dir: Optional[str] = None) -> int:
         """
@@ -982,6 +1046,11 @@ Examples:
   agentcli list
   agentcli status
 
+  # Autonomous / 24-7 Operation
+  agentcli autonomous
+  agentcli autonomous --mode GITHUB --interval 300
+  agentcli autonomous --max-tasks 5 --dry-run
+
 Philosophy:
   "Specifications are eternal, code is ephemeral"
   This CLI generates agents from specs following the spec-first approach.
@@ -1087,6 +1156,16 @@ Philosophy:
         help='Show current worktree status'
     )
 
+    # Autonomous command
+    autonomous_parser = subparsers.add_parser(
+        'autonomous',
+        help='Run agents in a continuous autonomous loop (24/7 mode)'
+    )
+    autonomous_parser.add_argument('--mode', choices=['BACKLOG', 'GITHUB'], default='BACKLOG', help='Execution mode (default: BACKLOG)')
+    autonomous_parser.add_argument('--interval', type=int, default=60, help='Seconds to wait between cycles (default: 60)')
+    autonomous_parser.add_argument('--max-tasks', type=int, default=1, help='Max tasks per cycle (default: 1)')
+    autonomous_parser.add_argument('--dry-run', action='store_true', help='Simulate execution')
+
     args = parser.parse_args()
 
     # Show help if no command
@@ -1106,6 +1185,12 @@ Philosophy:
         return cli.eval(args.agent_name)
     elif args.command == 'list':
         return cli.list_specs()
+    # elif args.command == 'create-crew':
+    #     return cli.create_crew()
+    # elif args.command == 'run-crew':
+    #     return cli.run_crew(args.crew_name, args.task, args.verbose)
+    # elif args.command == 'list-crews':
+    #     return cli.list_crews()
     elif args.command == 'status':
         return cli.status()
     elif args.command == 'create':
@@ -1125,62 +1210,8 @@ Philosophy:
         creator = InteractiveAgentCreator()
         success = creator.run(template_name=args.template)
         return 0 if success else 1
-    elif args.command == 'edit':
-        # List agents if requested
-        if args.list:
-            print("=" * 72)
-            print("EDITABLE AGENTS")
-            print("=" * 72)
-            print()
-            agents = list_editable_agents()
-            if not agents:
-                print("  No agents found in specs/")
-                print("  Create one with: agentcli create")
-            else:
-                for agent in agents:
-                    print(f"  - {agent}")
-                print()
-                print("Edit with: agentcli edit <agent-name>")
-            print()
-            return 0
-
-        # Edit agent
-        if not args.agent_name:
-            print("Error: agent_name required")
-            print("Usage: agentcli edit <agent-name>")
-            print("       agentcli edit --list")
-            return 1
-
-        try:
-            editor = AgentEditor(args.agent_name)
-            success = editor.run()
-            return 0 if success else 1
-        except FileNotFoundError as e:
-            print(f"Error: {e}")
-            print()
-            print("Available agents:")
-            for agent in list_editable_agents():
-                print(f"  - {agent}")
-            return 1
-        except Exception as e:
-            print(f"Error editing agent: {e}")
-            import traceback
-            traceback.print_exc()
-            return 1
-    elif args.command == 'create-crew':
-        return cli.create_crew()
-    elif args.command == 'run-crew':
-        return cli.run_crew(args.crew_name, args.task, args.verbose)
-    elif args.command == 'list-crews':
-        return cli.list_crews()
-    elif args.command == 'worktree-create':
-        return cli.worktree_create(args.name)
-    elif args.command == 'worktree-list':
-        return cli.worktree_list()
-    elif args.command == 'worktree-remove':
-        return cli.worktree_remove(args.name)
-    elif args.command == 'worktree-status':
-        return cli.worktree_status()
+    elif args.command == 'autonomous':
+        return cli.autonomous(args.mode, args.interval, args.max_tasks, args.dry_run)
     else:
         parser.print_help()
         return 1

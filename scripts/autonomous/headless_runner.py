@@ -225,10 +225,13 @@ def build_claude_prompt(task_data: dict) -> str:
     Returns:
         Formatted prompt string
     """
-    # Read CLAUDE.md for system instructions
+    # Read CLAUDE.md or claude.md for system instructions
     claude_md = ""
-    if Path("CLAUDE.md").exists():
-        claude_md = Path("CLAUDE.md").read_text(encoding="utf-8")
+    for candidate in ["CLAUDE.md", "claude.md"]:
+        if Path(candidate).exists():
+            claude_md = Path(candidate).read_text(encoding="utf-8")
+            break
+
 
     prompt = f"""
 You are implementing task {task_data['id']} from the Agent Factory backlog.

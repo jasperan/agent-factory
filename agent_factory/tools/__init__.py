@@ -11,16 +11,16 @@ Provides various tools for agents:
 # Research tools (Phase 1)
 from .research_tools import CurrentTimeTool
 
-# Research Executor (autonomous research)
-from .research_executor import (
-    ResearchExecutorTool,
-    ResearchTask,
-    ResearchResult,
-    ResearchStatus,
-    ResearchPriority,
-    LLMProvider,
-    create_langchain_tool as create_research_executor_tool,
-)
+# Research Executor (autonomous research) - DISABLED (Missing file)
+# from .research_executor import (
+#     ResearchExecutorTool,
+#     ResearchTask,
+#     ResearchResult,
+#     ResearchStatus,
+#     ResearchPriority,
+#     LLMProvider,
+#     create_langchain_tool as create_research_executor_tool,
+# )
 
 # Gap Filling (knowledge base enrichment)
 from .response_gap_filler import (

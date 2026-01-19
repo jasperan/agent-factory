@@ -58,10 +58,17 @@ python gui.py
 ```
 *Opens a web interface at http://0.0.0.0:7860*
 
-**Option C: Legacy Script**
+**Option D: Autonomous 24/7 Mode (SCAFFOLD)**
 ```bash
-python examples/openhands_ollama_demo.py
+python agentcli.py autonomous --mode BACKLOG --interval 60
 ```
+*Run agents in a continuous loop to solve issues from `Backlog.md` autonomously.*
+
+**Option E: Autonomous GitHub Mode**
+```bash
+python agentcli.py autonomous --mode GITHUB --interval 300
+```
+*Poll and solve GitHub issues automatically.*
 
 ## 📚 Documentation
 

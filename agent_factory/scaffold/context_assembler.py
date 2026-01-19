@@ -57,10 +57,17 @@ class ContextAssembler:
         self.max_commits = max_commits
         self.backlog_parser = BacklogParser()
 
-        # Verify CLAUDE.md exists
-        self.claude_md_path = self.repo_root / "CLAUDE.md"
-        if not self.claude_md_path.exists():
-            logger.warning(f"CLAUDE.md not found at {self.claude_md_path}")
+        # Verify CLAUDE.md/claude.md exists (check both cases)
+        self.claude_md_path = None
+        for candidate in ["CLAUDE.md", "claude.md"]:
+            path = self.repo_root / candidate
+            if path.exists():
+                self.claude_md_path = path
+                break
+        
+        if self.claude_md_path is None:
+            logger.warning(f"CLAUDE.md not found at {self.repo_root}")
+
 
     def assemble_context(
         self,

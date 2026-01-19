@@ -12,6 +12,7 @@ Features:
 import logging
 from typing import List, Dict, Optional
 from dataclasses import dataclass
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -142,8 +143,7 @@ class BacklogParser:
             List of TaskSpec objects
         """
         if not self._mcp_available:
-            logger.warning("MCP not available - returning empty list")
-            return []
+            return self._list_tasks_markdown(status, labels, dependencies_satisfied, limit)
 
         try:
             from mcp import mcp__backlog__task_list
@@ -192,7 +192,7 @@ class BacklogParser:
             BacklogParserError: If task not found or error occurs
         """
         if not self._mcp_available:
-            raise BacklogParserError("MCP not available")
+            return self._get_task_markdown(task_id)
 
         try:
             from mcp import mcp__backlog__task_view
@@ -236,7 +236,7 @@ class BacklogParser:
             )
 
         if not self._mcp_available:
-            raise BacklogParserError("MCP not available")
+            return self._update_status_markdown(task_id, new_status)
 
         try:
             from mcp import mcp__backlog__task_edit
@@ -275,7 +275,7 @@ class BacklogParser:
             BacklogParserError: If update fails
         """
         if not self._mcp_available:
-            raise BacklogParserError("MCP not available")
+            return self._add_notes_markdown(task_id, notes, append)
 
         try:
             from mcp import mcp__backlog__task_edit
@@ -338,3 +338,153 @@ class BacklogParser:
         except Exception as e:
             logger.warning(f"Error checking dependencies for {task.task_id}: {e}")
             return False
+
+    def add_task(self, task: TaskSpec) -> bool:
+        """Add a new task to Backlog.md.
+
+        Args:
+            task: TaskSpec to add
+
+        Returns:
+            True if successful
+        """
+        if not self._mcp_available:
+            return self._add_task_markdown(task)
+
+        try:
+            from mcp import mcp__backlog__task_add
+            mcp__backlog__task_add(**task.to_dict())
+            return True
+        except Exception as e:
+            logger.error(f"Failed to add task via MCP: {e}")
+            return self._add_task_markdown(task)
+
+    # --- Markdown Fallback Methods ---
+
+    def _get_backlog_dir(self) -> Path:
+        """Get directory containing task files."""
+        return Path("backlog/tasks")
+
+    def _get_backlog_summary_path(self) -> Path:
+        """Get path to the summary backlog.md."""
+        return Path("backlog.md")
+
+    def _list_tasks_markdown(self, status=None, labels=None, dependencies_satisfied=False, limit=100) -> List[TaskSpec]:
+        """Fallback: Parse backlog tasks from the tasks directory."""
+        tasks_dir = self._get_backlog_dir()
+        tasks = []
+        
+        if not tasks_dir.exists():
+            # Fallback to summary file if tasks dir missing
+            summary_path = self._get_backlog_summary_path()
+            if not summary_path.exists():
+                return []
+            return self._parse_file_for_tasks(summary_path, status, limit)
+
+        try:
+            # Scan all .md files in the tasks directory
+            for task_file in tasks_dir.glob("*.md"):
+                file_tasks = self._parse_file_for_tasks(task_file, status, limit - len(tasks))
+                tasks.extend(file_tasks)
+                if len(tasks) >= limit:
+                    break
+            return tasks
+        except Exception as e:
+            logger.error(f"Manual backlog parse failed in {tasks_dir}: {e}")
+            return []
+
+    def _parse_file_for_tasks(self, path: Path, status_filter=None, limit=100) -> List[TaskSpec]:
+        """Helper to parse a single markdown file for tasks."""
+        tasks = []
+        try:
+            content = path.read_text()
+            import re
+            
+            # Look for task ID in filename if not in content (e.g., task-86)
+            filename_id = None
+            filename_match = re.search(r'(task-\w+)', path.name)
+            if filename_match:
+                filename_id = filename_match.group(1)
+
+            # Split by headers
+            blocks = re.split(r'\n(?=#{1,4} )', content)
+            if len(blocks) == 1 and filename_id:
+                # Whole file is one task
+                blocks = [content]
+
+            for block in blocks:
+                # Find ID: <!-- id: task-id --> or in YAML frontmatter id: task-id
+                id_match = re.search(r'(?:<!-- id: |id: )(["\']?)(task-[\w\.]+)\1', block)
+                tid = id_match.group(2) if id_match else filename_id
+                
+                if not tid:
+                    continue
+                
+                # Find Title and Status
+                title_match = re.search(r'#+ (?:\[(.*?)\] )?(.*)', block)
+                status_val = "To Do"
+                title = tid
+                
+                if title_match:
+                    status_val = title_match.group(1) or "To Do"
+                    title = title_match.group(2).split("<!--")[0].strip()
+                
+                # Check status filter
+                if status_filter and status_val.lower() != status_filter.lower():
+                    continue
+                
+                # Basic TaskSpec creation
+                task = TaskSpec(
+                    task_id=tid,
+                    title=title,
+                    description=block[:500] + "..." if len(block) > 500 else block,
+                    status=status_val,
+                    priority="medium",
+                    labels=[],
+                    dependencies=[],
+                    acceptance_criteria=[]
+                )
+                tasks.append(task)
+                if len(tasks) >= limit:
+                    break
+            return tasks
+        except Exception as e:
+            logger.error(f"Failed to parse tasks from {path}: {e}")
+            return []
+
+    def _get_task_markdown(self, task_id: str) -> TaskSpec:
+        tasks = self._list_tasks_markdown()
+        for t in tasks:
+            if t.task_id == task_id: return t
+        raise BacklogParserError(f"Task {task_id} not found in markdown")
+
+    def _update_status_markdown(self, task_id: str, new_status: str) -> bool:
+        path = self._get_backlog_path()
+        if not path.exists(): return False
+        content = path.read_text()
+        import re
+        # Look for the task block and update the status in brackets
+        pattern = rf'### \[.*?\] (.*?) <!-- id: {re.escape(task_id)} -->'
+        replacement = f'### [{new_status}] \\1 <!-- id: {task_id} -->'
+        new_content = re.sub(pattern, replacement, content)
+        path.write_text(new_content)
+        return True
+
+    def _add_task_markdown(self, task: TaskSpec) -> bool:
+        path = self._get_backlog_path()
+        task_markdown = f"\n### [{task.status}] {task.title} <!-- id: {task.task_id} -->\n{task.description}\n"
+        if task.priority:
+            task_markdown += f"- **Priority**: {task.priority}\n"
+        if task.labels:
+            task_markdown += f"- **Labels**: {', '.join(task.labels)}\n"
+        
+        with open(path, "a") as f:
+            f.write(task_markdown)
+        return True
+
+    def _add_notes_markdown(self, task_id: str, notes: str, append: bool) -> bool:
+        # Simplified: just append to the end of the file for now if fallback
+        path = self._get_backlog_path()
+        with open(path, "a") as f:
+            f.write(f"\n\n#### Implementation Notes for {task_id}\n{notes}\n")
+        return True

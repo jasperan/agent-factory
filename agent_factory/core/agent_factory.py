@@ -294,9 +294,43 @@ class AgentFactory:
                 # Fallback: schema will be used for validation only
                 pass
 
-        # Validate tools
+        # Load appropriate prompt template
         if not tools_list:
-            raise ValueError("tools_list cannot be empty")
+            # Dropdown to simple chat if no tools provided
+            if self.verbose:
+                logger.warning(f"No tools provided for agent '{role}'. Creating simple chat agent.")
+            
+            # Use a minimal system prompt if none provided
+            prompt = system_prompt or "You are a helpful assistant."
+            
+            # Create a simple agent executor that just calls the LLM
+            from langchain_core.runnables import RunnablePassthrough
+            
+            # For simplicity in the shim, we still wrap it in AgentExecutor 
+            # but it won't have tools to call.
+            agent = (
+                {"input": RunnablePassthrough(), "chat_history": lambda x: []}
+                | llm
+            )
+            
+            agent_executor = AgentExecutor(
+                agent=agent,
+                tools=[],
+                verbose=self.verbose,
+                handle_parsing_errors=handle_parsing_errors,
+                **kwargs
+            )
+            
+            agent_executor.metadata = {
+                "role": role,
+                "agent_type": "simple_chat",
+                "llm_provider": llm_provider or self.default_llm_provider,
+                "model": model or self.default_model,
+                "tools_count": 0,
+                "memory_enabled": enable_memory,
+                "response_schema": response_schema
+            }
+            return agent_executor
 
         # Load appropriate prompt template
         if agent_type == self.AGENT_TYPE_REACT:

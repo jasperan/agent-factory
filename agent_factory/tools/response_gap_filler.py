@@ -27,13 +27,42 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from .research_executor import (
-    ResearchExecutorTool,
-    ResearchResult,
-    ResearchTask,
-    ResearchPriority,
-    ExtractedFaultCode,
-)
+# from .research_executor import (
+#     ResearchExecutorTool,
+#     ResearchResult,
+#     ResearchTask,
+#     ResearchPriority,
+#     ExtractedFaultCode,
+# )
+
+class ResearchPriority(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class ResearchResult(BaseModel):
+    pass
+
+class ResearchExecutorTool:
+    pass
+
+class ExtractedFaultCode(BaseModel):
+    code: str
+    description: str
+    possible_causes: List[str] = []
+    recommended_actions: List[str] = []
+    source_citation: str = ""
+
+class ResearchTask(BaseModel):
+    objective: str
+    priority: ResearchPriority = ResearchPriority.MEDIUM
+    manufacturer: Optional[str] = None
+    equipment_type: Optional[str] = None
+    model_number: Optional[str] = None
+    specific_queries: List[str] = []
+    context: str = ""
+    timeout_minutes: int = 30
 
 logger = logging.getLogger(__name__)
 

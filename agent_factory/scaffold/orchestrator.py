@@ -21,6 +21,8 @@ from agent_factory.scaffold.task_fetcher import TaskFetcher
 from agent_factory.scaffold.task_router import TaskRouter, TaskExecutionError
 from agent_factory.scaffold.session_manager import SessionManager
 from agent_factory.scaffold.result_processor import ResultProcessor
+from agent_factory.core.agent_factory import AgentFactory
+from agent_factory.scaffold.backlog_parser import TaskSpec
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +59,8 @@ class ScaffoldOrchestrator:
         max_concurrent: int = 3,
         max_cost: float = 5.0,
         max_time_hours: float = 4.0,
-        labels: Optional[List[str]] = None
+        labels: Optional[List[str]] = None,
+        query: Optional[str] = None
     ):
         """Initialize ScaffoldOrchestrator.
 
@@ -69,11 +72,13 @@ class ScaffoldOrchestrator:
             max_cost: Maximum API cost in USD
             max_time_hours: Maximum wall-clock time in hours
             labels: Optional label filter for tasks
+            query: Optional starting query/task description
         """
         self.repo_root = Path(repo_root).resolve()
         self.dry_run = dry_run
         self.max_tasks = max_tasks
         self.labels = labels
+        self.query = query
 
         # Components
         self.task_fetcher = TaskFetcher(cache_ttl_sec=60)
@@ -120,8 +125,25 @@ class ScaffoldOrchestrator:
                 labels=self.labels
             )
 
+            # Handle starting query if provided
+            if self.query:
+                self.logger.info(f"Adding starting query as virtual task: {self.query}")
+                virtual_task = {
+                    "id": f"task-query-{abs(hash(self.query)) % 10000}",
+                    "title": self.query,
+                    "description": self.query,
+                    "status": "To Do",
+                    "priority": "high",
+                    "labels": ["query"]
+                }
+                tasks.insert(0, virtual_task)
+
             if not tasks:
-                self.logger.info("No eligible tasks found")
+                self.logger.info("No eligible tasks found. Triggering task suggestion...")
+                tasks = self._suggest_new_tasks()
+                
+            if not tasks:
+                self.logger.info("Still no tasks found after suggestion. Exiting.")
                 return self._build_summary()
 
             # Queue tasks
@@ -394,3 +416,53 @@ class ScaffoldOrchestrator:
                 self.logger.info("\nTasks Still In Progress (cleanup recommended):")
                 for task_id in state.tasks_in_progress:
                     self.logger.info(f"  ⧗ {task_id}")
+
+    def _suggest_new_tasks(self) -> List[Dict]:
+        """Use Task Architect agent to suggest new tasks when backlog is empty.
+
+        Returns:
+            List of suggested task dicts (added to backlog)
+        """
+        self.logger.info("Spawning Task Architect to suggest new tasks...")
+        
+        try:
+            factory = AgentFactory()
+            # Simple list of tools - maybe search or file read?
+            # For now, let's just use a basic agent with codebase knowledge
+            agent = factory.create_agent(
+                role="Task Architect",
+                tools_list=[], # No tools for suggestion for now, just reasoning
+                system_prompt="You are a Task Architect for the Agent Factory project. "
+                              "Analyze the current state of the project and suggest 1-3 highly priority tasks. "
+                              "Format each task as a JSON object with: title, description, priority, labels."
+            )
+            
+            # Simple context for the agent
+            context = "Backlog is empty. We need to continue improving the Agent Factory. " \
+                      "Focus on robustness, new handlers, or CLI enhancements."
+            
+            response = agent.invoke({"input": context})
+            output = response.get("output", "")
+            self.logger.info(f"Task Architect suggested: {output[:100]}...")
+            
+            # TODO: Better parsing of JSON from output
+            # For now, create a single task from the suggestion
+            suggested_task = TaskSpec(
+                task_id=f"task-suggest-{abs(hash(output)) % 10000}",
+                title="AI Suggested Task",
+                description=output,
+                status="To Do",
+                priority="medium",
+                labels=["ai-suggested"]
+            )
+            
+            success = self.task_fetcher._parser.add_task(suggested_task)
+            if success:
+                self.logger.info(f"Added suggested task: {suggested_task.task_id}")
+                return [suggested_task.to_dict()]
+            
+            return []
+            
+        except Exception as e:
+            self.logger.error(f"Failed to suggest tasks: {e}")
+            return []

@@ -26,8 +26,10 @@ except ImportError:
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
+from datetime import datetime
 from agent_factory.core.agent_factory import AgentFactory
 from agent_factory.workers.openhands_worker import OpenHandsWorker
+from agent_factory.scaffold.orchestrator import ScaffoldOrchestrator
 
 # Initialize Rich Console
 console = Console()
@@ -148,6 +150,70 @@ def start():
             
     except Exception as e:
         console.print(f"[bold red]An error occurred:[/bold red] {e}")
+
+@app.command()
+def autonomous(
+    mode: str = typer.Option("BACKLOG", help="Execution mode (BACKLOG or GITHUB)"),
+    interval: int = typer.Option(60, help="Seconds to wait between cycles"),
+    max_tasks: int = typer.Option(1, help="Max tasks per cycle"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Simulate execution"),
+    workspace: Optional[str] = typer.Option(None, help="Working directory"),
+    query: Optional[str] = typer.Option(None, help="Starting task query")
+):
+    """Run agents in a continuous autonomous loop."""
+    print_header()
+    load_dotenv()
+    
+    repo_root = Path(workspace) if workspace else Path.cwd()
+    
+    if not check_dependencies():
+        raise typer.Exit(code=1)
+        
+    console.print(f"[bold green]🤖 Starting Autonomous Runner[/bold green]")
+    console.print(f"Mode: [cyan]{mode}[/cyan], Interval: [cyan]{interval}s[/cyan], Max Tasks: [cyan]{max_tasks}[/cyan]")
+    if workspace:
+        console.print(f"Workspace: [cyan]{workspace}[/cyan]")
+    if query:
+        console.print(f"Query: [cyan]{query}[/cyan]")
+    if dry_run:
+        console.print("[yellow]DRY RUN ACTIVE - No changes will be made[/yellow]")
+
+    try:
+        # Initialize orchestrator
+        orchestrator = ScaffoldOrchestrator(
+            repo_root=repo_root,
+            dry_run=dry_run,
+            max_tasks=max_tasks,
+            query=query
+        )
+
+        console.print("\n[bold cyan]Press Ctrl+C to stop the runner[/bold cyan]\n")
+
+        while True:
+            start_time = time.time()
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            console.print(f"[dim][{timestamp}][/dim] [bold blue]Cycle Starting...[/bold blue]")
+
+            # Run orchestrator for one cycle
+            summary = orchestrator.run()
+
+            # Log cycle summary
+            console.print(f"[bold green]Cycle Complete.[/bold green] Completed: {summary.get('tasks_completed', 0)}, Failed: {summary.get('tasks_failed', 0)}")
+
+            # Calculate sleep time
+            elapsed_time = time.time() - start_time
+            sleep_time = max(0, interval - elapsed_time)
+
+            if sleep_time > 0:
+                console.print(f"[dim]Sleeping for {sleep_time:.0f}s...[/dim]")
+                time.sleep(sleep_time)
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Shutdown signal received. Stopping...[/yellow]")
+        raise typer.Exit()
+    except Exception as e:
+        console.print(f"\n[bold red]FATAL ERROR:[/bold red] {e}")
+        raise typer.Exit(code=1)
 
 @app.command()
 def doctor():
