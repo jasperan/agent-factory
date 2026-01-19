@@ -128,10 +128,14 @@ def start():
             console=console,
             transient=True
         ) as progress:
-            task_id = progress.add_task("Agent is working... (this may take minutes)", total=None)
+            # Streaming execution
+            def stream_logger(msg):
+                progress.console.print(f"[dim]{msg}[/dim]", highlight=False)
+                
+            task_id = progress.add_task("Agent is working...", total=None)
             
-            # Synchronous execution
-            result = worker.run_task(task_desc, timeout=600)
+            # Synchronous execution with streaming
+            result = worker.run_task(task_desc, timeout=600, on_log=stream_logger)
             
         if result.success:
             console.print(Panel(f"[bold green]✅ Task Completed Successfully![/bold green]\n\n{result.message}", title="Result"))

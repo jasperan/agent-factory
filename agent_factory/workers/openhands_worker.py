@@ -162,18 +162,22 @@ class OpenHandsWorker:
         self.container_name = f"openhands_worker_{port}"
         self.use_ollama = use_ollama
         self.ollama_base_url = ollama_base_url
-
-        # Validate Docker is available (like checking PLC I/O before starting)
+        
+        # Hardcoded to use Docker based on user environment
+        self.container_engine = "docker"
+        self.docker_socket = "/var/run/docker.sock"
+        
+        # Validate Container Engine is available
         try:
             subprocess.run(
-                ["docker", "--version"],
+                [self.container_engine, "--version"],
                 check=True,
                 capture_output=True,
                 timeout=5
             )
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
             raise RuntimeError(
-                "Docker not found or not running. Please install Docker Desktop.\n"
+                f"{self.container_engine} not found or not running. Please install Docker Desktop.\n"
                 f"Error: {e}"
             )
 
@@ -185,7 +189,8 @@ class OpenHandsWorker:
         self,
         task: str,
         timeout: int = 300,  # 5 minutes default
-        cleanup: bool = True  # Remove container when done?
+        cleanup: bool = True,  # Remove container when done?
+        on_log: Optional[Any] = None  # Callback for streaming logs
     ) -> OpenHandsResult:
         """
         Run a coding task with OpenHands using CLI.
@@ -201,6 +206,7 @@ class OpenHandsWorker:
             task: What you want coded (e.g., "Fix bug in login.py")
             timeout: Max seconds to wait before giving up
             cleanup: Should we delete container after? (True = yes)
+            on_log: Optional function(str) to receive streaming logs
 
         RETURNS:
             OpenHandsResult object with success status and outputs
@@ -217,18 +223,24 @@ class OpenHandsWorker:
 
         try:
             # STEP 2: START CONTAINER
-            print(f"[OpenHands] Starting container for task: {task[:50]}...")
+            msg = f"[OpenHands] Starting container for task: {task[:50]}..."
+            print(msg)
+            if on_log: on_log(msg)
+            
             self._start_container()
             
             # Helper to ensure workspace is writable
             subprocess.run(
-                ["docker", "exec", "-u", "root", self.container_name, "chmod", "777", "/opt/workspace_base"],
+                [self.container_engine, "exec", "-u", "root", self.container_name, "chmod", "777", "/opt/workspace_base"],
                 check=False, capture_output=True
             )
 
             # STEP 3: EXECUTE TASK VIA CLI
-            print(f"[OpenHands] Executing task via CLI...")
-            result = self._run_task_cli(task, timeout)
+            msg = f"[OpenHands] Executing task via CLI..."
+            print(msg)
+            if on_log: on_log(msg)
+            
+            result = self._run_task_cli(task, timeout, on_log=on_log)
             
             result.execution_time = time.time() - start_time
             return result
@@ -251,12 +263,12 @@ class OpenHandsWorker:
         # First, try to stop any existing container
         try:
             subprocess.run(
-                ["docker", "stop", self.container_name],
+                [self.container_engine, "stop", self.container_name],
                 capture_output=True,
                 timeout=10
             )
             subprocess.run(
-                ["docker", "rm", self.container_name],
+                [self.container_engine, "rm", self.container_name],
                 capture_output=True,
                 timeout=10
             )
@@ -266,78 +278,132 @@ class OpenHandsWorker:
         # Ensure workspace exists
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
 
-        # Build Docker command
+        # Build Docker/Podman command
         cmd = [
-            "docker", "run",
+            self.container_engine, "run",
             "-d",
             "--privileged",  # Required for OpenHands to spawn sandbox containers
             "--name", self.container_name,
-            "-p", f"{self.port}:{self.port}",
-            "--pull=always",
             # MOUNT DOCKET SOCKET (Critical for OpenHands sandbox)
             "-v", "/var/run/docker.sock:/var/run/docker.sock",
+            # MOUNT PATCHED DOCKER RUNTIME
+            "-v", "/home/ubuntu/git/agent-factory/docker_runtime_patch.py:/app/openhands/runtime/impl/docker/docker_runtime.py",
             # MOUNT WORKSPACE
             "-v", f"{self.workspace_dir.resolve()}:/opt/workspace_base",
+            "--network=host", # Use host networking to avoid bridge routing issues
+            # Map host.docker.internal to localhost so OpenHands can find the runtime
+            "--add-host", "host.docker.internal:127.0.0.1",
         ]
-
+        
         if self.use_ollama:
-            cmd.extend(["--add-host", "host.docker.internal:host-gateway"])
+            # With --network host, we can access localhost directly
             api_base = self.ollama_base_url
-            if "localhost" in api_base or "127.0.0.1" in api_base:
-                api_base = api_base.replace("localhost", "host.docker.internal")
-                api_base = api_base.replace("127.0.0.1", "host.docker.internal")
-
+            # No need to replace localhost with host.docker.internal
+            
             cmd.extend([
                 "-e", f"LLM_MODEL={self.model}",
                 "-e", f"LLM_BASE_URL={api_base}",
                 "-e", f"LLM_API_BASE={api_base}",
                 "-e", "LLM_PROVIDER=ollama",
-                "-e", "SANDBOX_RUNTIME_CONTAINER_IMAGE=ghcr.io/all-hands-ai/runtime:0.20-nikolaik",
+                "-e", f"LLM_PROVIDER=ollama",
+                # Using 0.20-nikolaik as primary, with fallback to latest
+                # docker pull ghcr.io/all-hands-ai/runtime:0.20-nikolaik
+                # os.environ["SANDBOX_RUNTIME_CONTAINER_IMAGE"] = "python:3.12" 
+                "-e", "SANDBOX_RUNTIME_CONTAINER_IMAGE=ubuntu:22.04",
+                "-e", "SANDBOX_USE_HOST_NETWORK=true",
                 "-e", "WORKSPACE_BASE=/opt/workspace_base",
+                # Env vars for the controller (to configure sandbox)
+                "-e", "SANDBOX_ENV_PYTHONPATH=/openhands/code",
+                "-e", "SANDBOX_ENV_API_HOSTNAME=0.0.0.0",
+                "-e", "SANDBOX_ENV_UVICORN_HOST=0.0.0.0",
+                "-e", "SANDBOX_ENV_API_ALLOWED_ORIGINS=*",
+                # Env vars for the controller itself
+                "-e", "API_HOSTNAME=0.0.0.0",
+                "-e", "SANDBOX_API_HOSTNAME=localhost",
+                "-e", "API_ALLOWED_ORIGINS=*",
+                "-e", "UVICORN_HOST=0.0.0.0",
             ])
-            print(f"[OpenHands] Starting with FREE Ollama ({self.model})...")
-        else:
-            cmd.extend(["-e", f"LLM_MODEL={self.model}"])
-            print(f"[OpenHands] Starting with PAID API ({self.model})...")
+        if not self.use_ollama:
+            cmd.extend([
+                "-e", f"LLM_API_KEY={self.api_key}",
+                "-e", f"LLM_MODEL={self.model}",
+            ])
+            
+        # Hardening: Check if container exists and remove it
+        try:
+            subprocess.run([self.container_engine, "rm", "-f", self.container_name], 
+                         check=False, capture_output=True)
+        except Exception:
+            pass
 
-        cmd.append("ghcr.io/all-hands-ai/openhands:0.20")
-
-        subprocess.run(cmd, check=True, timeout=60)
+        print(f"[OpenHands] Starting with {'FREE Ollama' if self.use_ollama else 'API'} ({self.model})...")
+        
+        try:
+            cmd.append("ghcr.io/all-hands-ai/openhands:0.20")
+            subprocess.run(cmd, check=True, capture_output=True)
+            # wait for container to be ready
+            self._wait_for_ready()
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"Failed to start OpenHands container: {e.stderr.decode()}")
         
         # Wait a bit for container to stay up
         time.sleep(5)
 
-    def _run_task_cli(self, task: str, timeout: int) -> OpenHandsResult:
+    def _run_task_cli(self, task: str, timeout: int, on_log: Optional[Any] = None) -> OpenHandsResult:
         """
         Run task using the internal CLI of the OpenHands container.
         """
         # Command to run inside container: python -m openhands.core.main -t "task"
-        # We assume the container is running.
         
         docker_cmd = [
-            "docker", "exec",
+            self.container_engine, "exec",
             "-u", "0", # Run as root to avoid permission issues with socket
             self.container_name,
-            "python", "-m", "openhands.core.main",
+            "python", "-u", "-m", "openhands.core.main",
             "-t", task,
             "--max-iterations", "10", # Limit iterations to prevent infinite loops
             "--no-auto-continue", # We want it to just run
         ]
 
+        logs = []
+        start_time = time.time()
+        
         try:
-            # Run with timeout
-            result = subprocess.run(
+            # Run with Popen for streaming
+            process = subprocess.Popen(
                 docker_cmd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
-                timeout=timeout
+                bufsize=1,
+                universal_newlines=True
             )
             
-            success = result.returncode == 0
-            logs = result.stdout + "\n" + result.stderr
+            # Reads logs line by line
+            while True:
+                # Check for timeout
+                if time.time() - start_time > timeout:
+                    process.terminate()
+                    return OpenHandsResult(
+                        success=False,
+                        message=f"Task timed out after {timeout} seconds",
+                        logs="".join(logs) + "\n[Timeout]"
+                    )
+                
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                
+                if output:
+                    logs.append(output)
+                    if on_log:
+                        on_log(output.strip())
+            
+            returncode = process.poll()
+            success = returncode == 0
+            full_logs = "".join(logs)
             
             # Attempt to extract code or meaningful output from workspace or logs
-            # Since CLI changes file in workspace, we can check workspace_dir
             files_changed = []
             code = ""
             
@@ -347,22 +413,25 @@ class OpenHandsWorker:
                      if file.is_file():
                         files_changed.append(file.name)
                         # Optionally read the content if it's small (e.g. .py file)
-                        if file.suffix == ".py":
-                            code += f"\n# File: {file.name}\n{file.read_text()}\n"
+                        if file.suffix in [".py", ".md", ".txt"]:
+                            try:
+                                code += f"\n# File: {file.name}\n{file.read_text()}\n"
+                            except:
+                                pass
             
             return OpenHandsResult(
                 success=success,
                 message="Task completed via CLI" if success else "Task failed via CLI",
-                logs=logs,
+                logs=full_logs,
                 code=code if code else None,
                 files_changed=files_changed
             )
 
-        except subprocess.TimeoutExpired:
+        except Exception as e:
             return OpenHandsResult(
                 success=False,
-                message=f"Task timed out after {timeout} seconds",
-                logs="Timeout"
+                message=f"Error running CLI: {str(e)}",
+                logs=str(e)
             )
 
     def _wait_for_ready(self, timeout: int = 90) -> bool:
@@ -388,12 +457,12 @@ class OpenHandsWorker:
         """
         try:
             subprocess.run(
-                ["docker", "stop", self.container_name],
+                [self.container_engine, "stop", self.container_name],
                 capture_output=True,
                 timeout=10
             )
             subprocess.run(
-                ["docker", "rm", self.container_name],
+                [self.container_engine, "rm", self.container_name],
                 capture_output=True,
                 timeout=10
             )
