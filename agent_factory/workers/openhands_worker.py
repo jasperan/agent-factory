@@ -2,56 +2,55 @@
 OpenHands Worker - AI Coding Agent Integration
 
 PURPOSE:
-    Integrates OpenHands (formerly OpenDevin) autonomous coding agent into the factory.
+    Integrates OpenHands autonomous coding agent into the factory.
     OpenHands can write code, run commands, browse web, edit files autonomously.
 
 WHAT THIS DOES:
     - Uses OpenHands SDK for programmatic agent control
-    - Configures agents with FileEditor and Bash tools
-    - executes tasks within the Python process
+    - Configures agents with all available tools (Terminal, FileEditor, ApplyPatch, etc.)
+    - Supports LiteLLM with Ollama for local model execution
+    - Executes tasks within the Python process
     - Returns structured results
 
-WHY WE NEED THIS:
-    - Avoid $200/month Claude Code fee (deadline Dec 15th!)
-    - Get production-grade coding agent (50%+ SWE-Bench score)
-    - Model-agnostic (works with Claude, GPT, Gemini, Llama)
-    - Direct control over tools and execution environment
-
-HOW IT WORKS (PLC-Style Explanation):
+HOW IT WORKS:
     1. User calls: worker.run_task("Fix bug in file.py")
     2. Worker creates OpenHands SDK components (LLM, Agent, Conversation)
-    3. Worker injects FileEditor and Bash tools
+    3. Worker configures tools based on enabled options
     4. Task executed via Conversation.run()
     5. Result parsed and returned
 
 INPUTS:
     - task: String describing what to code/fix
-    - model: Which LLM to use (default: claude-3-5-sonnet)
+    - model: Which LLM to use (default: ollama/qwen2.5-coder)
     - timeout: Max seconds to wait (default: 300)
+    - tools: List of tools to enable (default: terminal, file_editor)
 
 OUTPUTS:
-    - Dict with: success (bool), code (str), message (str), files_changed (list)
+    - OpenHandsResult with: success (bool), message (str), logs (str), cost (float)
+
+LITELLM OLLAMA INTEGRATION:
+    - Use `ollama/model` for standard chat
+    - Use `ollama_chat/model` for tool calling with supported models
+    - Set `api_base` to Ollama server URL
+    - Set `keep_alive` for persistent model loading
 """
 
 import os
 import time
-import asyncio
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, field
-from pathlib import Path
-
-# OpenHands SDK Imports
 import logging
 import warnings
+from typing import List, Optional, Any, Set
+from dataclasses import dataclass, field
+from pathlib import Path
+from enum import Enum
 
-# Suppress warnings and noisy logs as requested
+# Suppress warnings and noisy logs
 warnings.filterwarnings("ignore")
 logging.getLogger("openhands").setLevel(logging.ERROR)
 logging.getLogger("litellm").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.ERROR)
 
-# OpenHands SDK Imports
-# OpenHands SDK Imports
+# Check SDK availability
 try:
     import openhands.sdk
     SDK_AVAILABLE = True
@@ -59,11 +58,47 @@ except ImportError:
     SDK_AVAILABLE = False
 
 
+class ToolOption(str, Enum):
+    """Available OpenHands tools."""
+    TERMINAL = "terminal"
+    FILE_EDITOR = "file_editor"
+    APPLY_PATCH = "apply_patch"
+    TASK_TRACKER = "task_tracker"
+    # Browser and Delegate require additional dependencies
+    BROWSER = "browser"
+    DELEGATE = "delegate"
+
+
+# Default tools for most tasks
+DEFAULT_TOOLS: Set[ToolOption] = {
+    ToolOption.TERMINAL,
+    ToolOption.FILE_EDITOR,
+    ToolOption.APPLY_PATCH,
+}
+
+# All available tools
+ALL_TOOLS: Set[ToolOption] = set(ToolOption)
+
+# Models known to support function/tool calling via Ollama
+TOOL_CALLING_MODELS = {
+    "llama3.1",
+    "llama3.2", 
+    "qwen2.5",
+    "qwen2.5-coder",
+    "qwen3",
+    "qwen3-coder",
+    "mistral",
+    "mixtral",
+    "deepseek-coder",
+    "deepseek-coder-v2",
+    "codellama",
+    "codegemma",
+}
+
+
 @dataclass
 class OpenHandsResult:
-    """
-    Result from an OpenHands coding task.
-    """
+    """Result from an OpenHands coding task."""
     success: bool
     message: str
     code: Optional[str] = None
@@ -71,23 +106,48 @@ class OpenHandsResult:
     execution_time: float = 0.0
     cost: float = 0.0
     logs: str = ""
+    token_usage: Optional[dict] = None
 
 
 class OpenHandsWorker:
     """
     OpenHands AI Coding Agent Worker (SDK Version)
+    
+    Integrates with OpenHands SDK to provide autonomous coding capabilities
+    using local Ollama models or cloud providers via LiteLLM.
+    
+    Features:
+        - All SDK tools: Terminal, FileEditor, ApplyPatch, TaskTracker
+        - LiteLLM Ollama integration with tool calling support
+        - Configurable tool selection
+        - Workspace management
+        - Token usage and cost tracking
     """
 
     def __init__(
         self,
-        model: str = "ollama/llama3:latest",
+        model: str = "qwen2.5-coder:latest",
         workspace_dir: Optional[Path] = None,
         use_ollama: bool = None,
         ollama_base_url: str = None,
-        port: int = 3000, # Ignored, kept for compatibility
+        verbose: bool = None,
+        enabled_tools: Optional[Set[ToolOption]] = None,
+        enable_tool_calling: bool = True,
+        keep_alive: str = "5m",
+        **kwargs
     ):
         """
         Initialize OpenHands worker.
+        
+        Args:
+            model: Model name (e.g., "qwen2.5-coder:latest" for Ollama)
+            workspace_dir: Directory where agent will work
+            use_ollama: Whether to use local Ollama (auto-detected from env if None)
+            ollama_base_url: Ollama API URL (default: http://localhost:11434)
+            verbose: Whether to print debug information
+            enabled_tools: Set of tools to enable (default: terminal, file_editor, apply_patch)
+            enable_tool_calling: Use native tool calling for supported models
+            keep_alive: How long Ollama keeps model loaded (default: 5m, use -1 for forever)
         """
         if not SDK_AVAILABLE:
             raise ImportError(
@@ -96,43 +156,117 @@ class OpenHandsWorker:
 
         # Auto-detect Ollama from environment
         if use_ollama is None:
-            use_ollama = os.getenv("USE_OLLAMA", "false").lower() == "true"
+            use_ollama = os.getenv("USE_OLLAMA", "true").lower() == "true"
 
         if ollama_base_url is None:
             ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-        # If no model specified but USE_OLLAMA=true, use default Ollama model
+        if verbose is None:
+            verbose = os.getenv("VERBOSE", "true").lower() == "true"
+
+        # Store original model name for capability checking
+        self._original_model = model.replace("ollama/", "").replace("ollama_chat/", "").split(":")[0]
+        
+        # Determine if model supports tool calling
+        self._supports_tool_calling = any(
+            tc_model in self._original_model.lower() 
+            for tc_model in TOOL_CALLING_MODELS
+        )
+        
+        # Configure model prefix for LiteLLM
         if use_ollama:
-             # Ensure ollama/ prefix for litellm
-            if model == "deepseek-coder:6.7b":
-                 model = os.getenv("OLLAMA_MODEL", "ollama/deepseek-coder:6.7b")
+            # Strip any existing prefixes
+            clean_model = model.replace("ollama/", "").replace("ollama_chat/", "")
             
-            # Always check prefix
-            if not model.startswith("ollama/") and not model.startswith("ollama_chat/"):
-                model = f"ollama_chat/{model}"
-            elif model.startswith("ollama/"):
-                 # Swap to ollama_chat for better tool support if possible, or keep as is if user explicitly set it
-                 # But let's try forcing ollama_chat which LiteLLM docs say supports tool calling
-                 model = model.replace("ollama/", "ollama_chat/")
+            # Use ollama_chat/ for tool calling if supported and enabled
+            if enable_tool_calling and self._supports_tool_calling:
+                model = f"ollama_chat/{clean_model}"
+            else:
+                model = f"ollama/{clean_model}"
 
         self.model = model
         self.use_ollama = use_ollama
         self.ollama_base_url = ollama_base_url
-        self.workspace_dir = workspace_dir or Path.cwd() / "openhands_workspace"
-        self.verbose = os.getenv("VERBOSE", "true").lower() == "true"
+        self.workspace_dir = Path(workspace_dir) if workspace_dir else Path.cwd() / "tests"
+        self.verbose = verbose
+        self.enabled_tools = enabled_tools or DEFAULT_TOOLS
+        self.enable_tool_calling = enable_tool_calling
+        self.keep_alive = keep_alive
         
         # Ensure workspace exists
         self.workspace_dir.mkdir(parents=True, exist_ok=True)
+        
+        if self.verbose:
+            print(f"[OpenHands] Model: {self.model}")
+            print(f"[OpenHands] Tool Calling: {self._supports_tool_calling and enable_tool_calling}")
+            print(f"[OpenHands] Enabled Tools: {[t.value for t in self.enabled_tools]}")
+
+    def _build_tools(self) -> list:
+        """Build list of Tool objects based on enabled options."""
+        from openhands.sdk import Tool
+        
+        tools = []
+        
+        # Core tools (always available)
+        if ToolOption.TERMINAL in self.enabled_tools:
+            from openhands.tools.terminal import TerminalTool
+            tools.append(Tool(name=TerminalTool.name))
+            
+        if ToolOption.FILE_EDITOR in self.enabled_tools:
+            from openhands.tools.file_editor import FileEditorTool
+            tools.append(Tool(name=FileEditorTool.name))
+            
+        if ToolOption.APPLY_PATCH in self.enabled_tools:
+            try:
+                from openhands.tools.apply_patch import ApplyPatchTool
+                tools.append(Tool(name=ApplyPatchTool.name))
+            except ImportError:
+                if self.verbose:
+                    print("[OpenHands] ApplyPatch tool not available")
+                    
+        if ToolOption.TASK_TRACKER in self.enabled_tools:
+            try:
+                from openhands.tools.task_tracker import TaskTrackerTool
+                tools.append(Tool(name=TaskTrackerTool.name))
+            except ImportError:
+                if self.verbose:
+                    print("[OpenHands] TaskTracker tool not available")
+        
+        # Optional tools (may require additional dependencies)
+        if ToolOption.BROWSER in self.enabled_tools:
+            try:
+                from openhands.tools.browser_use import BrowserUseTool
+                tools.append(Tool(name=BrowserUseTool.name))
+            except ImportError:
+                if self.verbose:
+                    print("[OpenHands] BrowserUse tool not available (requires playwright)")
+                    
+        if ToolOption.DELEGATE in self.enabled_tools:
+            try:
+                from openhands.tools.delegate import DelegateTool
+                tools.append(Tool(name=DelegateTool.name))
+            except ImportError:
+                if self.verbose:
+                    print("[OpenHands] Delegate tool not available")
+        
+        return tools
 
     def run_task(
         self,
         task: str,
         timeout: int = 300,
-        cleanup: bool = False, # Default to False to persist files for user
         on_log: Optional[Any] = None
     ) -> OpenHandsResult:
         """
         Run a coding task using OpenHands SDK.
+        
+        Args:
+            task: Task description for the agent
+            timeout: Maximum execution time in seconds
+            on_log: Optional callback for log events
+            
+        Returns:
+            OpenHandsResult with execution details
         """
         start_time = time.time()
 
@@ -144,87 +278,96 @@ class OpenHandsWorker:
             )
 
         try:
-            # 1. Configure LLM
-            # We use the SDK primitives as discovered
             return self._run_sdk_task(task, timeout, on_log=on_log)
-
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
             return OpenHandsResult(
                 success=False,
                 message=f"SDK Error: {str(e)}",
-                logs=str(e),
+                logs=error_details,
                 execution_time=time.time() - start_time
             )
 
     def _run_sdk_task(self, task: str, timeout: int, on_log=None) -> OpenHandsResult:
-        """
-        Internal method to run task using the high-level SDK.
-        """
+        """Internal method to run task using the SDK."""
         from openhands.sdk import Agent, LLM, Conversation
+        from openhands.sdk.context.condenser import LLMSummarizingCondenser
         from pydantic import SecretStr
 
         start_time = time.time()
         
-        # 1. Setup LLM
-        api_key = os.getenv("LLM_API_KEY", "dummy") # Ollama doesn't need key
+        # 1. Setup LLM with Ollama optimizations
+        api_key = os.getenv("LLM_API_KEY", "ollama")  # Ollama accepts any key
         
-        llm = LLM(
-            model=self.model,
-            api_key=SecretStr(api_key),
-            base_url=self.ollama_base_url if self.use_ollama else None,
-        )
+        llm_kwargs = {
+            "model": self.model,
+            "api_key": SecretStr(api_key),
+        }
+        
+        if self.use_ollama:
+            llm_kwargs["base_url"] = self.ollama_base_url
+            # For Ollama: use prompt-based tool calling if model doesn't support native
+            llm_kwargs["native_tool_calling"] = self._supports_tool_calling and self.enable_tool_calling
+            
+            # Add keep_alive for persistent model loading (Ollama-specific)
+            # Note: This is passed through LiteLLM's extra params
+            llm_kwargs["extra_body"] = {"keep_alive": self.keep_alive}
+        else:
+            llm_kwargs["native_tool_calling"] = True
+        
+        llm = LLM(**llm_kwargs)
 
-        # 2. Setup Agent using Preset
-        # Use the default preset which includes FileEditor, Terminal, etc.
-        from openhands.tools.preset import get_default_agent
+        # 2. Build tools based on configuration
+        tools = self._build_tools()
         
-        # We set cli_mode=True to avoid browser tools if headless, 
-        # or False if we want them (default_tools logic: enable_browser=not cli_mode).
-        # Since we are running headless/programmatic, we might want browser if user asks.
-        # But for now let's stick to base tools.
-        agent = get_default_agent(llm=llm, cli_mode=True)
+        if self.verbose:
+            print(f"[OpenHands SDK] Loaded {len(tools)} tools")
+
+        # 3. Setup Agent with condenser for context management
+        condenser = LLMSummarizingCondenser(
+            llm=llm.model_copy(update={"usage_id": "condenser"}),
+            max_size=80,
+            keep_first=4
+        )
+        
+        agent = Agent(
+            llm=llm,
+            tools=tools,
+            condenser=condenser,
+            system_prompt_kwargs={"cli_mode": True},
+        )
 
         if self.verbose:
             print(f"[OpenHands SDK] Starting task in {self.workspace_dir}")
 
-        # Enforce execution
-        task += " (IMPORTANT: You must use the 'bash' or 'file_editor' tools to execute this immediately. Do NOT use task_tracker or provide a plan. Just action the request.)"
-
-        # 4. Conversation
-        # Workspace is where files will be created
-        # We pass visualizer=None to suppress the default noisy output
+        # 4. Create Conversation with LocalWorkspace
         conversation = Conversation(
             agent=agent,
             workspace=str(self.workspace_dir),
-            visualizer=None
+            visualizer=None  # Suppress default noisy output
         )
 
-        # 5. Run
-        # We wrap in a simple try block.
+        # 5. Run the task
         try:
-             # Basic conversation loop wrapper
-             conversation.send_message(task)
-             conversation.run()
+            conversation.send_message(task)
+            conversation.run()
         except Exception as e:
-            if on_log: on_log(f"Error during execution: {e}")
-            raise e
+            if on_log:
+                on_log(f"Error during execution: {e}")
+            raise
 
-        # 6. Parse Results
-        # Files changed logic handled by CLI now
-        files_changed = []
-
-        # 7. Collect Metrics and Logs
+        # 6. Collect Metrics and Logs
         metrics = agent.llm.metrics
-        token_usage = metrics.accumulated_token_usage
+        token_usage = {
+            "prompt_tokens": metrics.accumulated_token_usage.prompt_tokens if hasattr(metrics.accumulated_token_usage, 'prompt_tokens') else 0,
+            "completion_tokens": metrics.accumulated_token_usage.completion_tokens if hasattr(metrics.accumulated_token_usage, 'completion_tokens') else 0,
+            "total_tokens": metrics.accumulated_token_usage.total_tokens if hasattr(metrics.accumulated_token_usage, 'total_tokens') else 0,
+        }
         cost = metrics.accumulated_cost
         
         # Build logs from events
-        event_logs = []
-        for event in conversation.state.events:
-             screen_text = str(event)
-             # Try to be more descriptive if possible, but str(event) is a start
-             event_logs.append(screen_text)
-        
+        event_logs = [str(event) for event in conversation.state.events]
         history_str = "\n".join(event_logs)
         
         # Format logs with stats
@@ -237,13 +380,43 @@ class OpenHandsWorker:
         return OpenHandsResult(
             success=True,
             message="Task completed via SDK",
-            code="", # Extract code if possible
-            files_changed=files_changed,
+            code="",
+            files_changed=[],
             logs=full_logs,
             execution_time=time.time() - start_time,
-            cost=cost
+            cost=cost,
+            token_usage=token_usage
         )
+    
+    @classmethod
+    def get_available_tools(cls) -> List[str]:
+        """Get list of all available tool options."""
+        return [t.value for t in ToolOption]
+    
+    @property
+    def supports_tool_calling(self) -> bool:
+        """Check if current model supports native tool calling."""
+        return self._supports_tool_calling
 
 
-def create_openhands_worker(model: str = "ollama/llama3:latest") -> OpenHandsWorker:
-    return OpenHandsWorker(model=model)
+def create_openhands_worker(
+    model: str = "qwen2.5-coder:latest",
+    enabled_tools: Optional[Set[ToolOption]] = None,
+    **kwargs
+) -> OpenHandsWorker:
+    """
+    Factory function to create an OpenHands worker.
+    
+    Args:
+        model: Ollama model name
+        enabled_tools: Set of ToolOption to enable (defaults to terminal, file_editor, apply_patch)
+        **kwargs: Additional arguments passed to OpenHandsWorker
+        
+    Returns:
+        Configured OpenHandsWorker instance
+    """
+    return OpenHandsWorker(
+        model=model,
+        enabled_tools=enabled_tools,
+        **kwargs
+    )

@@ -53,7 +53,8 @@ from pydantic import BaseModel
 
 from .orchestrator import RivetOrchestrator
 from .callbacks import EventBus, create_default_event_bus
-from ..workers.openhands_worker import OpenHandsWorker, create_openhands_worker
+from ..workers.openhands_worker import OpenHandsWorker, create_openhands_worker, ToolOption, DEFAULT_TOOLS
+
 
 # Phase 2: Intelligent routing imports
 try:
@@ -506,51 +507,50 @@ class AgentFactory:
     def create_openhands_agent(
         self,
         model: Optional[str] = None,
-        port: int = 3000,
+        workspace_dir: Optional[Any] = None,
         use_ollama: Optional[bool] = None,
+        enabled_tools: Optional[set] = None,
+        enable_tool_calling: bool = True,
+        keep_alive: str = "5m",
         **kwargs
     ) -> OpenHandsWorker:
         """
         Create an OpenHands autonomous coding agent worker.
-        ...
-        Args:
-            model: LLM model name
-            port: HTTP port
-            use_ollama: Whether to use local Ollama
-            **kwargs: Additional arguments
-        """
-        # ... logic ... (retained or simplified, but here I just update signature and call)
         
-        # Use factory's default model if not specified and not using ollama
+        Args:
+            model: LLM model name (e.g., "qwen2.5-coder:latest")
+            workspace_dir: Directory where agent will work
+            use_ollama: Whether to use local Ollama (auto-detected if None)
+            enabled_tools: Set of ToolOption to enable (default: terminal, file_editor, apply_patch)
+            enable_tool_calling: Use native tool calling for supported models
+            keep_alive: How long Ollama keeps model loaded (default: 5m)
+            **kwargs: Additional arguments passed to OpenHandsWorker
+            
+        Returns:
+            OpenHandsWorker: Configured worker instance
+        """
+        # Use factory's default model if not specified
         if model is None:
-            # Check if using provider-based default
             provider = self.default_llm_provider
             
             # Auto-enable ollama if factory defaults to it
             if provider == self.LLM_OLLAMA and use_ollama is None:
                 use_ollama = True
                 
-            if use_ollama:
-                # For Ollama, use the factory default model if not specified
+            if use_ollama or provider == self.LLM_OLLAMA:
                 model = self.default_model
             else:
-                # Use the factory's configured model for other providers
-                factory_model = self.default_model
+                model = self.default_model
 
-                # Map to OpenHands-compatible names
-                if provider == self.LLM_ANTHROPIC:
-                    model = factory_model
-                elif provider == self.LLM_OPENAI:
-                    model = factory_model
-                elif provider == self.LLM_GOOGLE:
-                    model = factory_model
-                else:
-                    model = "claude-3-5-sonnet-20241022"
-
-        # Create and return worker
+        # Create and return worker with all options
         return OpenHandsWorker(
             model=model,
-            port=port,
+            workspace_dir=workspace_dir,
             use_ollama=use_ollama,
+            enabled_tools=enabled_tools or DEFAULT_TOOLS,
+            enable_tool_calling=enable_tool_calling,
+            keep_alive=keep_alive,
+            verbose=self.verbose,
             **kwargs
         )
+
