@@ -41,6 +41,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 # OpenHands SDK Imports
+import logging
+import warnings
+
+# Suppress warnings and noisy logs as requested
+warnings.filterwarnings("ignore")
+logging.getLogger("openhands").setLevel(logging.ERROR)
+logging.getLogger("litellm").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.ERROR)
+
+# OpenHands SDK Imports
 # OpenHands SDK Imports
 try:
     import openhands.sdk
@@ -170,15 +180,17 @@ class OpenHandsWorker:
         # But for now let's stick to base tools.
         agent = get_default_agent(llm=llm, cli_mode=True)
 
-        # 4. Conversation
-        # Workspace is where files will be created
-        conversation = Conversation(
-            agent=agent,
-            workspace=str(self.workspace_dir)
-        )
-
         if self.verbose:
             print(f"[OpenHands SDK] Starting task in {self.workspace_dir}")
+
+        # 4. Conversation
+        # Workspace is where files will be created
+        # We pass visualizer=None to suppress the default noisy output
+        conversation = Conversation(
+            agent=agent,
+            workspace=str(self.workspace_dir),
+            visualizer=None
+        )
 
         # 5. Run
         # We wrap in a simple try block.
@@ -198,7 +210,26 @@ class OpenHandsWorker:
              if file.is_file() and not str(file).startswith(str(self.workspace_dir / ".openhands")):
                 files_changed.append(str(file.relative_to(self.workspace_dir)))
 
-        full_logs = "Conversation finished." 
+        # 7. Collect Metrics and Logs
+        metrics = agent.llm.metrics
+        token_usage = metrics.accumulated_token_usage
+        cost = metrics.accumulated_cost
+        
+        # Build logs from events
+        event_logs = []
+        for event in conversation.events:
+             screen_text = str(event)
+             # Try to be more descriptive if possible, but str(event) is a start
+             event_logs.append(screen_text)
+        
+        history_str = "\n".join(event_logs)
+        
+        # Format logs with stats
+        stats_msg = f"Task Completed.\nToken Usage: {token_usage}\nCost: ${cost:.4f}"
+        full_logs = f"{history_str}\n\n{stats_msg}"
+        
+        if self.verbose:
+            print(f"[OpenHands SDK] {stats_msg}")
 
         return OpenHandsResult(
             success=True,
@@ -206,7 +237,8 @@ class OpenHandsWorker:
             code="", # Extract code if possible
             files_changed=files_changed,
             logs=full_logs,
-            execution_time=time.time() - start_time
+            execution_time=time.time() - start_time,
+            cost=cost
         )
 
 

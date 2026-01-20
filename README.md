@@ -32,9 +32,13 @@ This will launch:
 
 ### 1. Backend (Orchestrator & API)
 
-**Prerequisites:** Python 3.10+
+**Prerequisites:** Python 3.12+
 
 ```bash
+# Create and activate conda environment
+conda create -n agent-factory python=3.12 -y
+conda activate agent-factory
+
 # Install dependencies
 pip install -r requirements.txt
 
@@ -44,6 +48,8 @@ python orchestrator.py
 # Run API (in a separate terminal)
 uvicorn dashboard_api.main:app --reload
 ```
+
+**Note:** The `openhands-sdk` and `openhands-tools` packages require Python 3.12 or higher.
 
 ### 2. Frontend (Dashboard)
 
