@@ -51,8 +51,6 @@ except ImportError:
 
 from pydantic import BaseModel
 
-from .orchestrator import RivetOrchestrator
-from .callbacks import EventBus, create_default_event_bus
 from ..workers.openhands_worker import OpenHandsWorker, create_openhands_worker, ToolOption, DEFAULT_TOOLS
 
 
@@ -481,30 +479,8 @@ class AgentFactory:
             **kwargs
         )
 
-    def create_orchestrator(
-        self,
-        event_bus: Optional[EventBus] = None,
-        verbose: Optional[bool] = None
-    ) -> RivetOrchestrator:
-        """
-        Create an orchestrator for multi-agent routing.
-
-        Args:
-            event_bus: Optional shared event bus
-            verbose: Override factory verbose setting
-
-        Returns:
-            AgentOrchestrator configured with factory's LLM
-        """
-        llm = self._create_llm()
-
-        return AgentOrchestrator(
-            llm=llm,
-            event_bus=event_bus,
-            verbose=verbose if verbose is not None else self.verbose
-        )
-
     def create_openhands_agent(
+
         self,
         model: Optional[str] = None,
         workspace_dir: Optional[Any] = None,

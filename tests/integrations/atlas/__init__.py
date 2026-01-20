@@ -1,1 +1,0 @@
-"""Atlas CMMS integration tests."""
