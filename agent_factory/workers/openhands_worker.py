@@ -108,8 +108,12 @@ class OpenHandsWorker:
                  model = os.getenv("OLLAMA_MODEL", "ollama/deepseek-coder:6.7b")
             
             # Always check prefix
-            if not model.startswith("ollama/"):
-                model = f"ollama/{model}"
+            if not model.startswith("ollama/") and not model.startswith("ollama_chat/"):
+                model = f"ollama_chat/{model}"
+            elif model.startswith("ollama/"):
+                 # Swap to ollama_chat for better tool support if possible, or keep as is if user explicitly set it
+                 # But let's try forcing ollama_chat which LiteLLM docs say supports tool calling
+                 model = model.replace("ollama/", "ollama_chat/")
 
         self.model = model
         self.use_ollama = use_ollama
@@ -184,7 +188,7 @@ class OpenHandsWorker:
             print(f"[OpenHands SDK] Starting task in {self.workspace_dir}")
 
         # Enforce execution
-        task += " (IMPORTANT: Execute the task immediately using the available tools. Do not provide a plan, just do it.)"
+        task += " (IMPORTANT: You must use the 'bash' or 'file_editor' tools to execute this immediately. Do NOT use task_tracker or provide a plan. Just action the request.)"
 
         # 4. Conversation
         # Workspace is where files will be created

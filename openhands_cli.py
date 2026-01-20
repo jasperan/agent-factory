@@ -74,10 +74,39 @@ def main():
     print_header()
     workspace = setup_workspace()
     
+    # Get available OLLAMA models
+    try:
+        import subprocess
+        result = subprocess.run(["ollama", "list"], capture_output=True, text=True)
+        models = []
+        if result.returncode == 0:
+            lines = result.stdout.strip().split('\n')[1:] # Skip header
+            for line in lines:
+                if line.strip():
+                     models.append(line.split()[0])
+        
+        # Filter for coding/tool capable models or just show all
+        # Priority models
+        priority = ["qwen2.5-coder:latest", "llama3.2:latest", "codegemma:latest", "glm4:latest"]
+        sorted_models = sorted(models, key=lambda x: (x not in priority, x))
+        
+        if models:
+            selected_model = questionary.select(
+                "Select Ollama Model:",
+                choices=sorted_models,
+                default=sorted_models[0] if sorted_models else None
+            ).ask()
+        else:
+            selected_model = "qwen2.5-coder:latest" # Fallback
+            
+    except Exception as e:
+        console.print(f"[yellow]Could not list Ollama models: {e}[/yellow]")
+        selected_model = "qwen2.5-coder:latest"
+
     # Initialize Factory
     factory = AgentFactory(
         default_llm_provider="ollama",
-        default_model="llama3:latest"
+        default_model=selected_model
     )
     
     # Create Worker with specific workspace
@@ -110,9 +139,8 @@ def main():
                 border_style="green"
             ))
             
-            # Show file tree
-            console.print("\n[bold]Current Workspace Files:[/bold]")
-            display_file_tree(workspace)
+            # Show execution context
+            console.print(f"\n[dim]Current Working Directory: {workspace.resolve()}[/dim]")
             
             # Determine changed files
             state_after = get_file_state(workspace)
