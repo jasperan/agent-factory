@@ -70,7 +70,7 @@ class OpenHandsWorker:
 
     def __init__(
         self,
-        model: str = "deepseek-coder:6.7b",
+        model: str = "ollama/deepseek-coder:6.7b",
         workspace_dir: Optional[Path] = None,
         use_ollama: bool = None,
         ollama_base_url: str = None,
@@ -92,8 +92,14 @@ class OpenHandsWorker:
             ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
         # If no model specified but USE_OLLAMA=true, use default Ollama model
-        if use_ollama and model == "deepseek-coder:6.7b":
-            model = os.getenv("OLLAMA_MODEL", "deepseek-coder:6.7b")
+        if use_ollama:
+             # Ensure ollama/ prefix for litellm
+            if model == "deepseek-coder:6.7b":
+                 model = os.getenv("OLLAMA_MODEL", "ollama/deepseek-coder:6.7b")
+            
+            # Always check prefix
+            if not model.startswith("ollama/"):
+                model = f"ollama/{model}"
 
         self.model = model
         self.use_ollama = use_ollama
@@ -204,5 +210,5 @@ class OpenHandsWorker:
         )
 
 
-def create_openhands_worker(model: str = "claude-3-5-sonnet-20241022") -> OpenHandsWorker:
+def create_openhands_worker(model: str = "ollama/deepseek-coder:6.7b") -> OpenHandsWorker:
     return OpenHandsWorker(model=model)

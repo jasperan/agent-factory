@@ -5,7 +5,7 @@ from agent_factory.core.agent_factory import AgentFactory
 # Advanced logging can be triggered by VERBOSE=true environment variable
 factory = AgentFactory(
     default_llm_provider="ollama",
-    default_model="deepseek-coder:6.7b"
+    default_model="qwen2.5:7b"
 )
 
 print("Creating OpenHands worker...")
