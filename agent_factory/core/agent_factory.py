@@ -71,6 +71,7 @@ class AgentFactory:
     LLM_OPENAI = "openai"
     LLM_ANTHROPIC = "anthropic"
     LLM_GOOGLE = "google"
+    LLM_OLLAMA = "ollama"
 
     def __init__(
         self,
@@ -500,20 +501,30 @@ class AgentFactory:
         # ... logic ... (retained or simplified, but here I just update signature and call)
         
         # Use factory's default model if not specified and not using ollama
-        if model is None and not use_ollama:
-            # Use the factory's configured model
+        if model is None:
+            # Check if using provider-based default
             provider = self.default_llm_provider
-            factory_model = self.default_model
-
-            # Map to OpenHands-compatible names
-            if provider == self.LLM_ANTHROPIC:
-                model = factory_model
-            elif provider == self.LLM_OPENAI:
-                model = factory_model
-            elif provider == self.LLM_GOOGLE:
-                model = factory_model
+            
+            # Auto-enable ollama if factory defaults to it
+            if provider == self.LLM_OLLAMA and use_ollama is None:
+                use_ollama = True
+                
+            if use_ollama:
+                # For Ollama, use the factory default model if not specified
+                model = self.default_model
             else:
-                model = "claude-3-5-sonnet-20241022"
+                # Use the factory's configured model for other providers
+                factory_model = self.default_model
+
+                # Map to OpenHands-compatible names
+                if provider == self.LLM_ANTHROPIC:
+                    model = factory_model
+                elif provider == self.LLM_OPENAI:
+                    model = factory_model
+                elif provider == self.LLM_GOOGLE:
+                    model = factory_model
+                else:
+                    model = "claude-3-5-sonnet-20241022"
 
         # Create and return worker
         return OpenHandsWorker(

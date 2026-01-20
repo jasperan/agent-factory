@@ -1,110 +1,72 @@
-# Agent Factory
+# AgentCommand
 
-**A scalable framework for creating specialized AI agents with dynamic tool assignment.**
+**Autonomous Multi-Agent Development System**
 
-> 📚 **Documentation:** Main documentation is now located in the `docs/` directory.
-> - [Free LLM Guide](docs/OPENHANDS_FREE_LLM_GUIDE.md)
-> - [Create New Repo Guide](docs/guides/CREATE_NEW_REPO.md)
+AgentCommand is a closed-loop autonomous coding system where AI agents acting as Planners, Workers, and Judges continuously improve a codebase 24/7. It features a real-time SvelteKit dashboard to visualize the agent activity.
 
-## 🚀 Zero-Cost Autonomous Coding
+![AgentCommand Dashboard](https://i.imgur.com/example-dashboard.png)
 
-Run autonomous coding agents **100% locally** using OpenHands + Ollama. No API costs, no subscriptions.
+## Overview
 
-| Solution | Cost/Month |
-|----------|------------|
-| **Agent Factory + Ollama** | **$0** |
-| Claude Code Subscription | $200 |
-| Claude/GPT API | $100-300 |
+The system runs a continuous loop (`orchestrator.py`):
+1.  **Planner Agent**: Analyzes the codebase and creates improvement tasks.
+2.  **Worker Agent**: Claims tasks, writes code changes, and runs tests.
+3.  **Judge Agent**: Validates the work and decides whether to continue the cycle.
 
-## ⚡ Quick Start
+All data is persisted in a local SQLite database (`agent_factory.db`).
 
-### 1. Prerequisites
-- [Ollama](https://ollama.com) installed and running
-- Python 3.12+
-- Docker (for OpenHands sandbox)
+## Quick Start
 
-### 2. Install
+The easiest way to run the entire system (Orchestrator + API + Dashboard) is:
+
 ```bash
-# Clone and install
-git clone https://github.com/jasperan/agent-factory.git
-cd agent-factory
+./start_all.sh
+```
+
+This will launch:
+- **Orchestrator**: Background Python process running agent loops.
+- **Backend API**: FastAPI server at `http://localhost:8000`.
+- **Dashboard UI**: SvelteKit app at `http://localhost:3000`.
+
+## Manual Setup
+
+### 1. Backend (Orchestrator & API)
+
+**Prerequisites:** Python 3.10+
+
+```bash
+# Install dependencies
 pip install -r requirements.txt
 
-# Install OpenHands
-uv tool install openhands --python 3.12
+# Run Orchestrator (Autonomous Agents)
+python orchestrator.py
 
-# Pull a coding model
-ollama pull deepseek-coder:6.7b
+# Run API (in a separate terminal)
+uvicorn dashboard_api.main:app --reload
 ```
 
-### 3. Run Autonomous Mode (Default)
+### 2. Frontend (Dashboard)
+
+**Prerequisites:** Node.js 18+
 
 ```bash
-USE_OLLAMA=true python agentcli.py autonomous
+cd agent_command_ui
+npm install
+npm run dev
 ```
 
-This will:
-- Read tasks from `backlog/tasks/*.md`
-- Execute each task using OpenHands + Ollama
-- Run continuously until stopped (Ctrl+C)
+## System Architecture
 
-**Options:**
-```bash
-# Dry run (no actual execution)
-USE_OLLAMA=true python agentcli.py autonomous --dry-run
+- **`agent_factory/`**: Core logic for Agents and Database.
+    - `agents/`: `PlannerAgent`, `WorkerAgent`, `JudgeAgent`.
+    - `core/`: SQLAlchemy models (`Task`, `Agent`, `Cycle`).
+- **`dashboard_api/`**: FastAPI implementation for the UI.
+- **`agent_command_ui/`**: SvelteKit + Tailwind CSS frontend.
+- **`orchestrator.py`**: The main entry point for the autonomous loop.
 
-# Custom interval (seconds between cycles)
-USE_OLLAMA=true python agentcli.py autonomous --interval 120
+## configuration
 
-# Limit tasks per cycle
-USE_OLLAMA=true python agentcli.py autonomous --max-tasks 5
-```
+Configuration is managed via environment variables (see `.env`) or defaults in `agent_factory/core/database.py`.
 
-### Alternative: Interactive CLI
-```bash
-python cli.py start
-```
-
-### Alternative: Web GUI
-```bash
-python gui.py
-```
-
-## 📁 Task Format
-
-Create task files in `backlog/tasks/`:
-
-```markdown
----
-id: task-42
-title: Add user authentication
-status: To Do
-priority: high
----
-
-## Description
-Implement JWT-based authentication for the API.
-
-## Acceptance Criteria
-- [ ] Login endpoint returns JWT token
-- [ ] Protected routes require valid token
-- [ ] Unit tests pass
-```
-
-## 🔧 Configuration
-
-Add to `.env`:
-```bash
-USE_OLLAMA=true
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-coder:6.7b
-```
-
-## 📚 Documentation
-
-- **[Free LLM Guide](docs/OPENHANDS_FREE_LLM_GUIDE.md)**: Full Ollama setup guide
-- **[Create a New Repository](docs/guides/CREATE_NEW_REPO.md)**: Scaffold new projects
-- **[Architecture](docs/SYSTEM_MAP.md)**: System overview
-
-## 🤝 Contributing
-Open issues or submit PRs to improve the factory!
+Default Database: `sqlite:///agent_factory.db`
+DEFAULT Model: `gpt-4o` (configurable in `orchestrator.py`)
