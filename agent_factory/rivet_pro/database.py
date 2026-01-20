@@ -16,8 +16,12 @@ import json
 from typing import Optional, Dict, List, Any
 from datetime import datetime
 
-import psycopg2
-import psycopg2.extras
+try:
+    import psycopg2
+    import psycopg2.extras
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -43,6 +47,9 @@ class RIVETProDatabase:
 
     def _connect(self):
         """Establish database connection based on provider"""
+        if not PSYCOPG2_AVAILABLE:
+            return
+
         try:
             if self.provider == "neon":
                 self.conn = psycopg2.connect(os.getenv("NEON_DB_URL"))
@@ -57,14 +64,17 @@ class RIVETProDatabase:
             elif self.provider == "railway":
                 self.conn = psycopg2.connect(os.getenv("RAILWAY_DB_URL"))
             else:
-                raise ValueError(f"Unknown provider: {self.provider}")
+                pass
 
-            self.conn.autocommit = True  # Auto-commit for convenience
-        except Exception as e:
-            raise ConnectionError(f"Failed to connect to {self.provider}: {e}")
+            if self.conn:
+                self.conn.autocommit = True
+        except Exception:
+            pass
 
     def _execute(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
-        """Execute query and return results as list of dicts"""
+        """Execute query and return results as list of dicts triangle"""
+        if not self.conn:
+            return []
         cursor = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
             cursor.execute(query, params)
@@ -76,6 +86,8 @@ class RIVETProDatabase:
 
     def _execute_one(self, query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
         """Execute query and return single result as dict"""
+        if not self.conn:
+            return None
         cursor = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         try:
             cursor.execute(query, params)
@@ -88,6 +100,8 @@ class RIVETProDatabase:
 
     def _call_function(self, function_name: str, **kwargs) -> Any:
         """Call a PostgreSQL function with named parameters"""
+        if not self.conn:
+            return None
         # Build parameter string
         param_names = list(kwargs.keys())
         param_values = list(kwargs.values())

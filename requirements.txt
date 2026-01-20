@@ -6,7 +6,7 @@ langchain-google-genai>=0.0.1
 langchain-community>=0.0.10
 langchainhub>=0.1.0
 python-dotenv>=1.0.0
-litellm==1.30.0
+litellm>=1.80.10
 requests>=2.31.0
 pydantic>=2.0.0
 psycopg2-binary>=2.9.9
@@ -27,4 +27,6 @@ python-multipart>=0.0.6
 # UI & CLI
 gradio>=4.0.0
 questionary>=2.0.0
+openhands-sdk>=0.1.0
+openhands-tools>=0.1.0
 

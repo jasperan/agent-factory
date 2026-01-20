@@ -23,7 +23,11 @@ Example:
 """
 
 import os
-import stripe
+try:
+    import stripe
+    STRIPE_AVAILABLE = True
+except ImportError:
+    STRIPE_AVAILABLE = False
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
@@ -69,7 +73,8 @@ class StripeManager:
         if not self.api_key:
             raise ValueError("Stripe API key not configured")
 
-        stripe.api_key = self.api_key
+        if STRIPE_AVAILABLE:
+            stripe.api_key = self.api_key
         self.webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
     # =========================================================================

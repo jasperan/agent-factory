@@ -23,7 +23,11 @@ import logging
 from typing import Optional, Dict, List
 from dataclasses import dataclass, field
 
-import anthropic
+try:
+    import anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -125,13 +129,17 @@ class ContextExtractor:
         self.enable_llm = enable_llm
 
         if enable_llm:
-            try:
-                self.client = anthropic.Anthropic()
-                self.model = "claude-sonnet-4-20250514"
-                logger.info("ContextExtractor initialized with Claude API")
-            except Exception as e:
-                logger.warning(f"Claude API initialization failed, using rule-based only: {e}")
+            if not ANTHROPIC_AVAILABLE:
+                logger.warning("anthropic package not installed, disabling LLM extraction in ContextExtractor")
                 self.enable_llm = False
+            else:
+                try:
+                    self.client = anthropic.Anthropic()
+                    self.model = "claude-sonnet-4-20250514"
+                    logger.info("ContextExtractor initialized with Claude API")
+                except Exception as e:
+                    logger.warning(f"Claude API initialization failed, using rule-based only: {e}")
+                    self.enable_llm = False
 
     async def extract(
         self,

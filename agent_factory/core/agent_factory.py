@@ -31,9 +31,24 @@ except ImportError:
             self.chat_memory.add_ai_message(str(outputs))
 from langchain_core.tools import BaseTool
 from langchain_core.messages import SystemMessage
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
+try:
+    from langchain_openai import ChatOpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
+try:
+    from langchain_anthropic import ChatAnthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
+
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    GOOGLE_AVAILABLE = True
+except ImportError:
+    GOOGLE_AVAILABLE = False
+
 from pydantic import BaseModel
 
 from .orchestrator import RivetOrchestrator
@@ -141,18 +156,24 @@ class AgentFactory:
 
         # Legacy path: Direct provider LLM (backward compatible)
         if provider == self.LLM_OPENAI:
+            if not OPENAI_AVAILABLE:
+                raise ImportError("langchain-openai package not installed. Run 'pip install langchain-openai'")
             return ChatOpenAI(
                 model=model,
                 temperature=temperature,
                 **kwargs
             )
         elif provider == self.LLM_ANTHROPIC:
+            if not ANTHROPIC_AVAILABLE:
+                raise ImportError("langchain-anthropic package not installed. Run 'pip install langchain-anthropic'")
             return ChatAnthropic(
                 model=model,
                 temperature=temperature,
                 **kwargs
             )
         elif provider == self.LLM_GOOGLE:
+            if not GOOGLE_AVAILABLE:
+                raise ImportError("langchain-google-genai package not installed. Run 'pip install langchain-google-genai'")
             return ChatGoogleGenerativeAI(
                 model=model,
                 temperature=temperature,

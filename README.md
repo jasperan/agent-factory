@@ -63,6 +63,18 @@ npm run dev
 - **`dashboard_api/`**: FastAPI implementation for the UI.
 - **`agent_command_ui/`**: SvelteKit + Tailwind CSS frontend.
 - **`orchestrator.py`**: The main entry point for the autonomous loop.
+- **`openhands_cli.py`**: Entry point for running specific OpenHands agents (100% free with local Ollama).
+
+## OpenHands CLI (Free Local LLMs)
+
+You can run individual tasks using the OpenHands agent with local Ollama models (no API costs):
+
+```bash
+# Run the OpenHands example
+python openhands_cli.py
+```
+
+This will launches an agent using `deepseek-coder:6.7b` (by default) to execute a coding task. It requires `ollama` and `openhands` to be installed.
 
 ## configuration
 
