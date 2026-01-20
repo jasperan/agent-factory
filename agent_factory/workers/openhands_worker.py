@@ -80,7 +80,7 @@ class OpenHandsWorker:
 
     def __init__(
         self,
-        model: str = "ollama/deepseek-coder:6.7b",
+        model: str = "ollama/llama3:latest",
         workspace_dir: Optional[Path] = None,
         use_ollama: bool = None,
         ollama_base_url: str = None,
@@ -183,6 +183,9 @@ class OpenHandsWorker:
         if self.verbose:
             print(f"[OpenHands SDK] Starting task in {self.workspace_dir}")
 
+        # Enforce execution
+        task += " (IMPORTANT: Execute the task immediately using the available tools. Do not provide a plan, just do it.)"
+
         # 4. Conversation
         # Workspace is where files will be created
         # We pass visualizer=None to suppress the default noisy output
@@ -203,12 +206,8 @@ class OpenHandsWorker:
             raise e
 
         # 6. Parse Results
-        # Check files changed (naive diff or timestamp check)
+        # Files changed logic handled by CLI now
         files_changed = []
-        all_files = list(self.workspace_dir.glob("**/*"))
-        for file in all_files:
-             if file.is_file() and not str(file).startswith(str(self.workspace_dir / ".openhands")):
-                files_changed.append(str(file.relative_to(self.workspace_dir)))
 
         # 7. Collect Metrics and Logs
         metrics = agent.llm.metrics
@@ -217,7 +216,7 @@ class OpenHandsWorker:
         
         # Build logs from events
         event_logs = []
-        for event in conversation.events:
+        for event in conversation.state.events:
              screen_text = str(event)
              # Try to be more descriptive if possible, but str(event) is a start
              event_logs.append(screen_text)
@@ -242,5 +241,5 @@ class OpenHandsWorker:
         )
 
 
-def create_openhands_worker(model: str = "ollama/deepseek-coder:6.7b") -> OpenHandsWorker:
+def create_openhands_worker(model: str = "ollama/llama3:latest") -> OpenHandsWorker:
     return OpenHandsWorker(model=model)

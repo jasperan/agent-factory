@@ -60,6 +60,16 @@ def display_file_content(workspace: Path, filename: Path):
         except Exception as e:
             console.print(f"[red]Error reading {filename}: {e}[/red]")
 
+def get_file_state(workspace: Path):
+    """Returns a dict of {rel_path: mtime} for all files in workspace."""
+    state = {}
+    if not workspace.exists():
+        return state
+    for path in workspace.rglob("*"):
+        if path.is_file() and ".openhands" not in str(path):
+            state[str(path.relative_to(workspace))] = path.stat().st_mtime
+    return state
+
 def main():
     print_header()
     workspace = setup_workspace()
@@ -67,12 +77,13 @@ def main():
     # Initialize Factory
     factory = AgentFactory(
         default_llm_provider="ollama",
-        default_model="qwen2.5:7b"
+        default_model="llama3:latest"
     )
     
     # Create Worker with specific workspace
-    console.print(f"[dim]Initializing OpenHands Worker in: {workspace.resolve()}[/dim]")
-    worker = factory.create_openhands_agent(workspace_dir=workspace)
+    abs_workspace = workspace.resolve()
+    console.print(f"[dim]Initializing OpenHands Worker in: {abs_workspace}[/dim]")
+    worker = factory.create_openhands_agent(workspace_dir=abs_workspace)
     console.print("[dim]Ready.[/dim]\n")
 
     while True:
@@ -86,6 +97,9 @@ def main():
             console.print("[bold green]Goodbye![/bold green]")
             break
             
+        # Capture state before
+        state_before = get_file_state(workspace)
+        
         with console.status("[bold green]Agent Working...[/bold green]"):
             result = worker.run_task(task)
             
@@ -98,24 +112,23 @@ def main():
             
             # Show file tree
             console.print("\n[bold]Current Workspace Files:[/bold]")
-            visible_files = display_file_tree(workspace)
+            display_file_tree(workspace)
             
-            # Show content of files
-            # Since the worker returns 'files_changed' as all files in workspace (current implementation)
-            # We filter/show them. 
-            if result.files_changed:
-                console.print("\n[bold]File Contents:[/bold]")
-                # Use result.files_changed which are strings relative to workspace
-                # Limit to avoid huge dumps if many files
-                count = 0
-                for f_str in result.files_changed:
-                    if count >= 3:
-                        console.print(f"[dim]... and {len(result.files_changed) - count} more files[/dim]")
-                        break
-                    
-                    # f_str is relative path string
-                    display_file_content(workspace, Path(f_str))
-                    count += 1
+            # Determine changed files
+            state_after = get_file_state(workspace)
+            changed_files = []
+            
+            for f_path, mtime in state_after.items():
+                if f_path not in state_before or state_before[f_path] != mtime:
+                    changed_files.append(f_path)
+            
+            if changed_files:
+                 console.print("\n[bold]Modified/Created Files:[/bold]")
+                 for f_str in changed_files:
+                     display_file_content(workspace, Path(f_str))
+            else:
+                 console.print("\n[dim]No files changed.[/dim]")
+
         else:
             console.print(Panel(
                 f"[bold red]Failed[/bold red]\n{result.message}\n{result.logs}",

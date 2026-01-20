@@ -71,16 +71,20 @@ npm run dev
 - **`orchestrator.py`**: The main entry point for the autonomous loop.
 - **`openhands_cli.py`**: Entry point for running specific OpenHands agents (100% free with local Ollama).
 
-## OpenHands CLI (Free Local LLMs)
+## OpenHands CLI (Interactive & Free)
 
-You can run individual tasks using the OpenHands agent with local Ollama models (no API costs):
+Experience the new Gemini-style interactive CLI for controlling OpenHands agents with local LLMs (Ollama):
 
 ```bash
-# Run the OpenHands example
 python openhands_cli.py
 ```
 
-This will launches an agent using `deepseek-coder:6.7b` (by default) to execute a coding task. It requires `ollama` and `openhands` to be installed.
+**Features:**
+- **Interactive Shell**: Type tasks directly and get real-time feedback.
+- **Auto-Visualization**: Automatically displays only *new or modified* files in `tests/`.
+- **Live Stats**: Shows token usage and cost per task.
+- **Safe Sandbox**: Defaults to `tests/` directory for safe experimentation.
+- **Model**: Uses `llama3:latest` for reliable tool execution via Ollama.
 
 ## configuration
 
