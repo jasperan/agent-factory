@@ -1,8 +1,10 @@
-# Agent Factory - OpenHands CLI
+# Agent Factory
 
-**AI Coding Agent powered by OpenHands SDK + Ollama (100% Free & Local)**
+**Autonomous AI Coding Agent powered by OpenHands SDK + Ollama (100% Free & Local)**
 
-A Gemini-style interactive CLI for autonomous code generation using local LLMs via Ollama. No API keys required.
+Two entry points:
+1. **`openhands_cli.py`** - Interactive CLI for manual coding tasks
+2. **`autonomous_cli.py`** - Autonomous code improvement system with Planner → Worker → Judge pipeline
 
 ## Quick Start
 
@@ -10,25 +12,97 @@ A Gemini-style interactive CLI for autonomous code generation using local LLMs v
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the interactive CLI
+# Interactive CLI (manual tasks)
+python openhands_cli.py
+
+# Autonomous CLI (auto code improvement)
+python autonomous_cli.py
+
+# Headless mode (for CI/automation)
+python autonomous_cli.py --headless --target /path/to/repo --max-suggestions 3
+```
+
+## Autonomous Code Improvement System
+
+The autonomous system continuously improves your codebase using a three-agent pipeline:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  PLANNER (LLM)                                              │
+│  • Scans codebase structure                                 │
+│  • Analyzes code for improvements                           │
+│  • Generates prioritized suggestions with acceptance criteria│
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  USER REVIEW                                                 │
+│  • Accept / Reject / Skip each suggestion                   │
+│  • Or auto-accept all                                        │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  WORKER (OpenHands)                                         │
+│  • Implements accepted suggestions                          │
+│  • Uses Terminal, FileEditor, ApplyPatch tools              │
+│  • Iterates based on Judge feedback                         │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  JUDGE (LLM)                                                │
+│  • Verifies implementation against acceptance criteria      │
+│  • Provides feedback for iteration                          │
+│  • PASS / FAIL / NEEDS_ITERATION verdict                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Autonomous CLI Usage
+
+```bash
+python autonomous_cli.py
+```
+
+Menu options:
+- **🚀 Start Autonomous Run** - Analyze codebase and generate improvement suggestions
+- **⚙️ Settings** - View/modify configuration
+- **❓ Help** - Usage instructions
+
+### Programmatic Usage
+
+```python
+from agent_factory.autonomous import AutonomousRunner, AutonomousConfig
+
+config = AutonomousConfig(
+    target_repo="/path/to/your/repo",
+    model="qwen2.5-coder:latest",
+    max_suggestions=5,
+    max_iterations=3,  # Max Worker-Judge loops per suggestion
+    num_ctx=32768,     # Large context for codebases
+)
+
+runner = AutonomousRunner(config)
+
+# Generate suggestions
+suggestions = runner.generate_suggestions()
+
+# Run accepted suggestions
+runner.run_all(suggestions)
+```
+
+## OpenHands Interactive CLI
+
+For manual coding tasks, use the original CLI:
+
+```bash
 python openhands_cli.py
 ```
 
-## Features
+Features:
+- Arrow-key model selection
+- Tool configuration
+- Real-time file change display
+- Token usage tracking
 
-| Feature | Description |
-|---------|-------------|
-| **Interactive CLI** | Gemini-style interface with arrow key navigation |
-| **Model Selection** | Choose from any installed Ollama model |
-| **Tool Calling** | Native function calling for supported models (qwen2.5-coder, llama3.1, etc.) |
-| **All SDK Tools** | Terminal, FileEditor, ApplyPatch, TaskTracker, Browser, Delegate |
-| **Auto-Visualization** | Displays only new or modified files |
-| **Token Tracking** | Shows token usage and cost per task |
-| **Local & Free** | Uses Ollama - no API costs |
-
-## Available Tools
-
-The OpenHands SDK provides these tools that agents can use:
+## Available SDK Tools
 
 | Tool | Description | Default |
 |------|-------------|---------|
@@ -37,116 +111,93 @@ The OpenHands SDK provides these tools that agents can use:
 | `apply_patch` | Apply unified diff patches | ✅ |
 | `task_tracker` | Track task progress | ❌ |
 | `browser` | Web browsing (requires playwright) | ❌ |
-| `delegate` | Multi-agent delegation | ❌ |
 
 ## Recommended Ollama Models
 
 ```bash
-# Best for coding tasks (with tool calling support)
-ollama pull qwen2.5-coder:latest    # Recommended
+ollama pull qwen2.5-coder:latest    # Best for coding
 ollama pull deepseek-coder:latest   # Alternative
-ollama pull llama3.2:latest         # General purpose + tools
-ollama pull codegemma:latest        # Code focused
-```
-
-## Configuration
-
-| Environment Variable | Default | Description |
-|---------------------|---------|-------------|
-| `USE_OLLAMA` | `true` | Enable Ollama mode |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API endpoint |
-| `VERBOSE` | `true` | Show debug output |
-
-## How It Works
-
-The CLI uses the [OpenHands SDK](https://docs.openhands.dev/sdk/getting-started) with [LiteLLM](https://docs.litellm.ai/docs/providers/ollama) for Ollama integration:
-
-1. **Model Selection**: Choose from available Ollama models (coding models prioritized)
-2. **Tool Configuration**: Optionally customize which tools the agent can use
-3. **Task Execution**: Agent uses tools to complete your coding task
-4. **Result Display**: Shows modified files with syntax highlighting
-
-### LiteLLM Ollama Integration
-
-- Uses `ollama_chat/` prefix for models with native tool calling
-- Uses `ollama/` prefix for models requiring prompt-based tool calling
-- Supports `keep_alive` for persistent model loading
-
-## Example Session
-
-```
-╭─────────────────────────────────────────────────╮
-│ OpenHands Interactive CLI                       │
-│ Model: qwen2.5-coder:latest | Tools: terminal, file_editor, apply_patch │
-╰─────────────────────────────────────────────────╯
-Workspace: /home/user/project/tests
-Ready. Type 'exit' or 'quit' to leave.
-
- Task > create a python script that generates fibonacci numbers
-
-╭─────────── Result ───────────╮
-│ Success                      │
-│ Tokens: 1234 | Cost: $0.0000 │
-╰──────────────────────────────╯
-
-Modified/Created Files:
-╭──── fibonacci.py ────╮
-│   1 def fibonacci(n):│
-│   2     if n <= 1:   │
-│   3         return n │
-│   ...                │
-╰──────────────────────╯
+ollama pull llama3.2:latest         # General purpose
 ```
 
 ## Project Structure
 
 ```
 agent-factory/
-├── openhands_cli.py           # Main entry point - Interactive CLI
+├── openhands_cli.py           # Interactive CLI entry point
+├── autonomous_cli.py          # Autonomous improvement CLI
 ├── agent_factory/
+│   ├── agents/
+│   │   ├── planner.py         # LLM-powered suggestion generation
+│   │   ├── worker.py          # OpenHands implementation
+│   │   └── judge.py           # LLM-powered verification
+│   ├── autonomous/
+│   │   ├── models.py          # Suggestion, Verdict, Run models
+│   │   ├── config.py          # AutonomousConfig
+│   │   ├── suggestion_generator.py
+│   │   └── autonomous_runner.py
 │   ├── core/
 │   │   └── agent_factory.py   # Factory for creating agents
 │   └── workers/
 │       └── openhands_worker.py # OpenHands SDK integration
-├── requirements.txt           # Python dependencies
-└── tests/                     # Default workspace directory
+├── requirements.txt
+└── tests/                     # Default workspace
 ```
+
+## Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USE_OLLAMA` | `true` | Enable Ollama mode |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama endpoint |
+| `VERBOSE` | `true` | Show debug output |
 
 ## Requirements
 
 - Python 3.12+
 - [Ollama](https://ollama.ai) installed and running
-- OpenHands SDK packages:
-  ```bash
-  pip install openhands-sdk openhands-tools
-  ```
+- OpenHands SDK: `pip install openhands-sdk openhands-tools`
 
-## Programmatic Usage
+## Architecture
 
-```python
-from agent_factory.core.agent_factory import AgentFactory
-from agent_factory.workers.openhands_worker import ToolOption
-
-# Create factory configured for Ollama
-factory = AgentFactory(
-    default_llm_provider="ollama",
-    default_model="qwen2.5-coder:latest",
-    enable_routing=False
-)
-
-# Create worker with specific tools
-worker = factory.create_openhands_agent(
-    workspace_dir="/path/to/workspace",
-    enabled_tools={ToolOption.TERMINAL, ToolOption.FILE_EDITOR},
-    enable_tool_calling=True,
-    keep_alive="10m"
-)
-
-# Run a task
-result = worker.run_task("Create a hello world script")
-print(result.logs)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    AUTONOMOUS CLI                                │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
+│  │ Start Run│  │ History  │  │ Settings │  │   Exit   │        │
+│  └────┬─────┘  └──────────┘  └──────────┘  └──────────┘        │
+└───────┼─────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                    AUTONOMOUS RUNNER                               │
+│                                                                    │
+│  ┌─────────┐    generate     ┌──────────┐    implement    ┌─────┐│
+│  │ PLANNER │ ──────────────► │ Suggestion│ ──────────────► │WORKER││
+│  │  (LLM)  │                 │  Queue    │                 │(OH) ││
+│  └─────────┘                 └──────────┘                 └──┬──┘│
+│       ▲                           │                          │    │
+│       │                           │                          ▼    │
+│       │ iterate if fail           │                    ┌─────────┐│
+│       └───────────────────────────┼────────────────────│  JUDGE  ││
+│                                   │                    │  (LLM)  ││
+│                                   │                    └────┬────┘│
+│                                   │      verdict            │     │
+│                                   ◄─────────────────────────┘     │
+136: └───────────────────────────────────────────────────────────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                    OPENHANDS SDK                                   │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐                   │
+│  │ Terminal   │  │ FileEditor │  │ ApplyPatch │                   │
+│  └────────────┘  └────────────┘  └────────────┘                   │
+│                                                                    │
+│  Target Repository: /path/to/repo                                  │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ## License
 
 MIT
+

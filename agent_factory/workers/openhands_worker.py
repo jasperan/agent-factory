@@ -294,8 +294,19 @@ class OpenHandsWorker:
         from openhands.sdk import Agent, LLM, Conversation
         from openhands.sdk.context.condenser import LLMSummarizingCondenser
         from pydantic import SecretStr
+        import glob
 
         start_time = time.time()
+        
+        # Track files BEFORE execution for change detection
+        workspace = Path(self.workspace_dir)
+        files_before = {}
+        for f in workspace.rglob("*"):
+            if f.is_file() and not any(p in str(f) for p in [".git", "__pycache__", ".pyc"]):
+                try:
+                    files_before[str(f)] = f.stat().st_mtime
+                except:
+                    pass
         
         # 1. Setup LLM with Ollama optimizations
         api_key = os.getenv("LLM_API_KEY", "ollama")  # Ollama accepts any key
@@ -348,16 +359,32 @@ class OpenHandsWorker:
             visualizer=None  # Suppress default noisy output
         )
 
-        # 5. Run the task
+        # 5. Enhance task prompt with explicit tool usage instructions
+        enhanced_task = f"""{task}
+
+INSTRUCTIONS:
+- Use the file_editor tool to create or modify files
+- Use the terminal tool to run commands if needed
+- After making changes, verify the files exist
+- Working directory: {self.workspace_dir}
+
+Begin implementing now. Create or modify the necessary files."""
+
+        # 6. Run the task
         try:
-            conversation.send_message(task)
+            conversation.send_message(enhanced_task)
             conversation.run()
         except Exception as e:
             if on_log:
                 on_log(f"Error during execution: {e}")
-            raise
+            return OpenHandsResult(
+                success=False,
+                message=f"Execution error: {e}",
+                logs=str(e),
+                execution_time=time.time() - start_time,
+            )
 
-        # 6. Collect Metrics and Logs
+        # 7. Collect Metrics and Logs
         metrics = agent.llm.metrics
         token_usage = {
             "prompt_tokens": metrics.accumulated_token_usage.prompt_tokens if hasattr(metrics.accumulated_token_usage, 'prompt_tokens') else 0,
@@ -366,12 +393,51 @@ class OpenHandsWorker:
         }
         cost = metrics.accumulated_cost
         
-        # Build logs from events
-        event_logs = [str(event) for event in conversation.state.events]
+        # 8. Parse events for file operations and extract code
+        event_logs = []
+        extracted_code = ""
+        files_from_events = set()
+        
+        for event in conversation.state.events:
+            event_str = str(event)
+            event_logs.append(event_str)
+            
+            # Look for file editor operations in events
+            if "file_editor" in event_str.lower() or "write" in event_str.lower():
+                # Try to extract file paths mentioned
+                import re
+                file_pattern = r'(?:path|file)["\']?\s*[:=]\s*["\']?([^\s"\']+)'
+                matches = re.findall(file_pattern, event_str, re.IGNORECASE)
+                for match in matches:
+                    if match and not match.startswith("http"):
+                        files_from_events.add(match)
+                
+                # Extract code blocks
+                code_pattern = r'```[\w]*\n(.*?)```'
+                code_matches = re.findall(code_pattern, event_str, re.DOTALL)
+                if code_matches:
+                    extracted_code = code_matches[-1]  # Take last code block
+        
         history_str = "\n".join(event_logs)
         
+        # 9. Detect file changes by comparing before/after
+        files_changed = list(files_from_events)
+        
+        for f in workspace.rglob("*"):
+            if f.is_file() and not any(p in str(f) for p in [".git", "__pycache__", ".pyc"]):
+                try:
+                    f_str = str(f)
+                    current_mtime = f.stat().st_mtime
+                    # New file or modified file
+                    if f_str not in files_before or files_before[f_str] < current_mtime:
+                        rel_path = str(f.relative_to(workspace))
+                        if rel_path not in files_changed:
+                            files_changed.append(rel_path)
+                except:
+                    pass
+        
         # Format logs with stats
-        stats_msg = f"Task Completed.\nToken Usage: {token_usage}\nCost: ${cost:.4f}"
+        stats_msg = f"Task Completed.\nFiles Changed: {files_changed}\nToken Usage: {token_usage}\nCost: ${cost:.4f}"
         full_logs = f"{history_str}\n\n{stats_msg}"
         
         if self.verbose:
@@ -380,8 +446,8 @@ class OpenHandsWorker:
         return OpenHandsResult(
             success=True,
             message="Task completed via SDK",
-            code="",
-            files_changed=[],
+            code=extracted_code,
+            files_changed=files_changed,
             logs=full_logs,
             execution_time=time.time() - start_time,
             cost=cost,
