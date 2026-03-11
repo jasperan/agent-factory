@@ -8,6 +8,29 @@ Two entry points:
 
 ## Quick Start
 
+<!-- one-command-install -->
+> **One-command install** — clone, configure, and run in a single step:
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/jasperan/agent-factory/main/install.sh | bash
+> ```
+>
+> <details><summary>Advanced options</summary>
+>
+> Override install location:
+> ```bash
+> PROJECT_DIR=/opt/myapp curl -fsSL https://raw.githubusercontent.com/jasperan/agent-factory/main/install.sh | bash
+> ```
+>
+> Or install manually:
+> ```bash
+> git clone https://github.com/jasperan/agent-factory.git
+> cd agent-factory
+> # See below for setup instructions
+> ```
+> </details>
+
+
 ```bash
 # Install dependencies
 pip install -r requirements.txt
@@ -200,4 +223,3 @@ agent-factory/
 ## License
 
 MIT
-
