@@ -198,3 +198,9 @@ docs/*.md
 *_FEATURES.md
 *_ENHANCEMENTS.md
 *_REPORT.md
+
+# Agent/skill directories (never track)
+.agents/
+.claude/
+.crush/
+.openhands/
