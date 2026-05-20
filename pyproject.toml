@@ -1,115 +1,106 @@
-[tool.poetry]
+[project]
 name = "agent-factory"
 version = "0.1.0"
 description = "A scalable framework for creating specialized AI agents with dynamic tool assignment"
-authors = ["Agent Factory Contributors"]
+authors = [{ name = "Agent Factory Contributors" }]
+requires-python = ">=3.11.0,<3.14"
 readme = "README.md"
 license = "MIT"
-keywords = ["langchain", "agents", "ai", "llm", "automation"]
-package-mode = false  # Poetry 2.x: This is a framework/application, not a library package
+keywords = [
+    "langchain",
+    "agents",
+    "ai",
+    "llm",
+    "automation",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "langchain>=1.2.0,<2",
+    "langchain-openai>=1.1.3,<2",
+    "langchain-community>=0.4.1,<0.5",
+    "langchain-anthropic>=1.3.0,<2",
+    "langchain-google-genai>=4.0.0,<5",
+    "langchainhub>=0.1.18,<0.2",
+    "wikipedia>=1.4.0,<2",
+    "tavily-python>=0.3.3,<0.4",
+    "duckduckgo-search>=4.1.0,<5",
+    "youtube-transcript-api>=0.6.1,<0.7",
+    "trafilatura>=1.6.0,<2",
+    "beautifulsoup4>=4.12.0,<5",
+    "gitpython>=3.1.40,<4",
+    "python-dotenv>=1.0.1,<2",
+    "rich>=13.7.0,<14",
+    "tenacity>=8.2.3,<9",
+    "requests>=2.31.0,<3",
+    "typer>=0.12.0,<0.13",
+    "prompt-toolkit>=3.0.43,<4",
+    "jinja2>=3.1.2,<4",
+    "markdown>=3.5.0,<4",
+    "PyPDF2>=3.0.1,<4",
+    "tqdm>=4.66.0,<5",
+    "pydantic>=2.5.0,<3",
+    "networkx>=3.2,<3.6",
+    "pygithub>=2.1.1,<3",
+    "pyyaml>=6.0,<7",
+    "google-api-python-client>=2.108.0,<3",
+    "google-auth-oauthlib>=1.2.0,<2",
+    "google-auth-httplib2>=0.2.0,<0.3",
+    "litellm==1.30.0",
+    "fastapi>=0.124.0,<0.125",
+    "uvicorn[standard]>=0.38.0,<0.39",
+    "python-multipart>=0.0.20,<0.0.21",
+    "python-telegram-bot>=22.5,<23",
+    "supabase>=2.25.0,<3",
+    "edge-tts>=7.2.3,<8",
+    "pillow==11.0.0",
+    "filelock>=3.13.0,<4",
+    "aiohttp>=3.9.0,<4",
+    "psycopg2-binary>=2.9.11,<3",
+    "psycopg[binary]>=3.3.2,<4",
+    "psycopg-pool>=3.3.0,<4",
+    "langchain-core>=1.2.1,<2",
+    "langgraph>=1.0.5,<2",
+    "langfuse>=3.10.6,<4",
+    "praw>=7.8.1,<8",
+    "ratelimit>=2.2.1,<3",
+    "groq>=1.0.0,<2",
+    "paramiko>=4.0.0,<5",
+    "pdfplumber>=0.11.8,<0.12",
+    "chromadb>=1.4.0,<2",
+    "sentence-transformers>=5.2.0,<6",
+    "openai>=2.14.0,<3",
+    "arize-phoenix[evals]>=12.27.0,<13",
+    "slowapi>=0.1.9,<0.2",
+    "asyncpg>=0.31.0,<0.32",
+    "httpx>=0.28.1,<0.29",
+    "aiosqlite>=0.22.1,<0.23",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.11.0,<3.14"
+[project.scripts]
+agentcli = "agentcli:main"
 
-# Core LangChain dependencies
-langchain = "^1.2.0"
-langchain-openai = "^1.1.3"
-langchain-community = "^0.4.1"
-langchain-anthropic = "^1.3.0"
-langchain-google-genai = "^4.0.0"
-langchainhub = "^0.1.18"
+[dependency-groups]
+dev = [
+    "pytest>=7.4.3,<8",
+    "pytest-asyncio>=0.21.1,<0.22",
+    "black>=23.12.0,<24",
+    "isort>=5.13.0,<6",
+    "ruff>=0.1.8,<0.2",
+    "responses>=0.25.8,<0.26",
+]
 
-# LLM & Embeddings
-# tiktoken removed - not used, causes Rust compilation issues on Render
+[tool.uv]
+package = false
+default-groups = "all"
 
-# Web search and research tools
-wikipedia = "^1.4.0"
-tavily-python = "^0.3.3"
-duckduckgo-search = "^4.1.0"
-
-# Content ingestion tools
-youtube-transcript-api = "^0.6.1"  # YouTube transcript extraction
-trafilatura = "^1.6.0"  # Web article extraction
-beautifulsoup4 = "^4.12.0"  # HTML parsing fallback
-
-# File operations and Git
-gitpython = "^3.1.40"
-
-# Utilities
-python-dotenv = "^1.0.1"
-rich = "^13.7.0"
-tenacity = "^8.2.3"
-requests = "^2.31.0"  # HTTP library for Hostinger API
-
-# CLI tools
-typer = "^0.12.0"
-prompt-toolkit = "^3.0.43"
-
-# Code generation
-jinja2 = "^3.1.2"
-markdown = "^3.5.0"
-
-# File format support
-PyPDF2 = "^3.0.1"  # Basic PDF reading (no C dependencies)
-tqdm = "^4.66.0"  # Progress bars for batch processing
-# PyMuPDF = "^1.24.0"  # REMOVED - requires C++ compilation, fails on Render
-# pdfplumber = "^0.10.0"  # REMOVED - requires C++ compilation, fails on Render
-# NOTE: PDF processing features gracefully degrade without these libraries
-
-# Data structures
-pydantic = "^2.5.0"
-networkx = ">=3.2,<3.6"
-
-# GitHub integration
-pygithub = "^2.1.1"
-pyyaml = "^6.0"
-
-# YouTube Data API integration
-google-api-python-client = "^2.108.0"
-google-auth-oauthlib = "^1.2.0"
-google-auth-httplib2 = "^0.2.0"
-litellm = "1.30.0"
-fastapi = "^0.124.0"
-uvicorn = {extras = ["standard"], version = "^0.38.0"}
-python-multipart = "^0.0.20"
-
-# Telegram bot integration
-python-telegram-bot = "^22.5"
-supabase = "^2.25.0"
-edge-tts = "^7.2.3"
-# moviepy removed - not imported, caused numpy build issues on Render
-# numpy removed - only needed for field_eye which gracefully degrades if unavailable
-pillow = "11.0.0"
-filelock = "^3.13.0"  # Cross-platform process lock to prevent duplicate bot instances
-aiohttp = "^3.9.0"  # HTTP server for health check endpoint
-psycopg2-binary = "^2.9.11"
-psycopg = {extras = ["binary"], version = "^3.3.2"}
-psycopg-pool = "^3.3.0"
-langchain-core = "^1.2.1"
-langgraph = "^1.0.5"
-langfuse = "^3.10.6"
-praw = "^7.8.1"
-ratelimit = "^2.2.1"
-groq = "^1.0.0"
-paramiko = "^4.0.0"
-pdfplumber = "^0.11.8"
-chromadb = "^1.4.0"
-sentence-transformers = "^5.2.0"
-openai = "^2.14.0"
-arize-phoenix = {extras = ["evals"], version = "^12.27.0"}
-slowapi = "^0.1.9"
-asyncpg = "^0.31.0"
-httpx = "^0.28.1"
-aiosqlite = "^0.22.1"
-
-[tool.poetry.group.dev.dependencies]
-# Development tools
-pytest = "^7.4.3"
-pytest-asyncio = "^0.21.1"
-black = "^23.12.0"
-isort = "^5.13.0"
-ruff = "^0.1.8"
-responses = "^0.25.8"
+[build-system]
+requires = ["uv_build>=0.11.15,<0.12.0"]
+build-backend = "uv_build"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
@@ -160,10 +151,3 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
 ]
-
-[tool.poetry.scripts]
-agentcli = "agentcli:main"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
