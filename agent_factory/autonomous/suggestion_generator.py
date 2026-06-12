@@ -5,15 +5,13 @@ Uses decomposed reasoning strategy from agent-reasoning to break down
 complex improvement opportunities into actionable suggestions.
 """
 
-import os
 import json
 import logging
-from pathlib import Path
 from typing import List, Optional, Generator
-from fnmatch import fnmatch
 
 from .models import Suggestion, SuggestionCategory
 from .config import AutonomousConfig
+from .llm_utils import ollama_complete, extract_json
 
 logger = logging.getLogger(__name__)
 
@@ -146,37 +144,7 @@ class SuggestionGenerator:
             config: Autonomous configuration with model and analysis settings
         """
         self.config = config
-        self._llm = None
-    
-    def _get_llm(self):
-        """Lazy-load LLM client with Ollama."""
-        if self._llm is None:
-            try:
-                import litellm
-                litellm.set_verbose = False
-                self._llm = litellm
-            except ImportError:
-                raise ImportError("litellm not installed. Run: pip install litellm")
-        return self._llm
-    
-    def _call_llm(self, prompt: str, system_prompt: str = "") -> str:
-        """Call LLM with the given prompt."""
-        llm = self._get_llm()
-        
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-        
-        response = llm.completion(
-            model=f"ollama/{self.config.model}",
-            messages=messages,
-            api_base=self.config.ollama_base_url,
-            num_ctx=self.config.num_ctx,
-        )
-        
-        return response.choices[0].message.content
-    
+
     def scan_codebase(self) -> List[str]:
         """
         Scan the target repository for files to analyze, scoped to target_dir.
@@ -282,17 +250,9 @@ IMPORTANT: You MUST provide at least 1 improvement suggestion. Even if the code 
 Provide your analysis as a JSON array of improvements."""
 
         try:
-            response = self._call_llm(prompt, system_prompt)
-            
-            # Parse JSON from response
-            # Handle markdown code blocks
-            if "```json" in response:
-                response = response.split("```json")[1].split("```")[0]
-            elif "```" in response:
-                response = response.split("```")[1].split("```")[0]
-            
-            improvements = json.loads(response.strip())
-            
+            response = ollama_complete(prompt, self.config, system_prompt)
+            improvements = extract_json(response)
+
             # Add file path to each improvement
             for imp in improvements:
                 imp["affected_files"] = [file_path]
@@ -325,11 +285,13 @@ Provide your analysis as a JSON array of improvements."""
         max_suggestions = max_suggestions or self.config.max_suggestions
         files = self.scan_codebase()
         
-        # Debug output
         target_dir = self.config.get_target_dir_path()
-        print(f"[DEBUG] Scanning directory: {target_dir}")
-        print(f"[DEBUG] Found {len(files)} files: {files[:10]}{'...' if len(files) > 10 else ''}")
-        
+        logger.debug("Scanning directory: %s", target_dir)
+        logger.debug(
+            "Found %d files: %s%s",
+            len(files), files[:10], "..." if len(files) > 10 else "",
+        )
+
         if self.config.verbose:
             logger.info(f"Scanning {len(files)} files for improvements...")
         
@@ -337,15 +299,15 @@ Provide your analysis as a JSON array of improvements."""
         
         # If no files found, use fallback immediately
         if not files:
-            print("[DEBUG] No files found in target directory, using fallback suggestions")
+            logger.debug("No files found in target directory, using fallback suggestions")
             all_improvements = self._get_generic_improvements_for_codebase([])
         else:
             # Analyze files
             for file_path in files:
                 for analysis_type in self.config.analysis_types:
-                    print(f"[DEBUG] Analyzing {file_path} for {analysis_type}...")
+                    logger.debug("Analyzing %s for %s...", file_path, analysis_type)
                     improvements = self.analyze_file(file_path, analysis_type)
-                    print(f"[DEBUG] Found {len(improvements)} improvements")
+                    logger.debug("Found %d improvements", len(improvements))
                     all_improvements.extend(improvements)
                     
                     if on_file_analyzed:
@@ -360,15 +322,15 @@ Provide your analysis as a JSON array of improvements."""
         
         # If still no improvements after analysis, use fallback
         if not all_improvements:
-            print("[DEBUG] LLM returned no improvements, using fallback suggestions")
+            logger.debug("LLM returned no improvements, using fallback suggestions")
             all_improvements = self._get_generic_improvements_for_codebase(files)
         
         # Sort by priority (descending) and take top N
         all_improvements.sort(key=lambda x: x.get("priority", 5), reverse=True)
         top_improvements = all_improvements[:max_suggestions]
-        
-        print(f"[DEBUG] Returning {len(top_improvements)} suggestions")
-        
+
+        logger.debug("Returning %d suggestions", len(top_improvements))
+
         # Convert to Suggestion objects
         for imp in top_improvements:
             try:

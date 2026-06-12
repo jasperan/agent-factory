@@ -147,24 +147,19 @@ ollama pull llama3.2:latest         # General purpose
 
 ```
 agent-factory/
-├── openhands_cli.py           # Interactive CLI entry point
-├── autonomous_cli.py          # Autonomous improvement CLI
+├── openhands_cli.py               # Interactive CLI entry point
+├── autonomous_cli.py              # Autonomous improvement CLI
 ├── agent_factory/
-│   ├── agents/
-│   │   ├── planner.py         # LLM-powered suggestion generation
-│   │   ├── worker.py          # OpenHands implementation
-│   │   └── judge.py           # LLM-powered verification
 │   ├── autonomous/
-│   │   ├── models.py          # Suggestion, Verdict, Run models
-│   │   ├── config.py          # AutonomousConfig
-│   │   ├── suggestion_generator.py
-│   │   └── autonomous_runner.py
-│   ├── core/
-│   │   └── agent_factory.py   # Factory for creating agents
+│   │   ├── models.py              # Suggestion, Verdict, Run models
+│   │   ├── config.py              # AutonomousConfig
+│   │   ├── suggestion_generator.py # Planner: scans code and proposes improvements
+│   │   ├── autonomous_runner.py   # Orchestrates Planner → Worker → Judge, persists runs
+│   │   └── llm_utils.py           # Shared Ollama completion + JSON extraction helpers
 │   └── workers/
-│       └── openhands_worker.py # OpenHands SDK integration
-├── requirements.txt
-└── tests/                     # Default workspace
+│       └── openhands_worker.py    # Worker: OpenHands SDK integration
+├── pyproject.toml
+└── tests/                         # Default workspace
 ```
 
 ## Configuration

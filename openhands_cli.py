@@ -15,8 +15,6 @@ Usage:
     python openhands_cli.py
 """
 
-import os
-import sys
 import subprocess
 import warnings
 from pathlib import Path
@@ -31,8 +29,11 @@ import questionary
 # Suppress warnings
 warnings.filterwarnings("ignore")
 
-from agent_factory.core.agent_factory import AgentFactory
-from agent_factory.workers.openhands_worker import ToolOption, DEFAULT_TOOLS, ALL_TOOLS
+from agent_factory.workers.openhands_worker import (
+    OpenHandsWorker,
+    ToolOption,
+    DEFAULT_TOOLS,
+)
 
 console = Console()
 
@@ -240,19 +241,15 @@ def main():
     console.clear()
     print_header(selected_model, enabled_tools)
     
-    # Initialize Factory and Worker
-    factory = AgentFactory(
-        default_llm_provider="ollama",
-        default_model=selected_model,
-        enable_routing=False  # Disable cloud routing for local Ollama
-    )
-    
+    # Initialize the OpenHands worker for local Ollama execution
     abs_workspace = workspace.resolve()
     console.print(f"[dim]Workspace: {abs_workspace}[/dim]")
-    
-    worker = factory.create_openhands_agent(
+
+    worker = OpenHandsWorker(
+        model=selected_model,
         workspace_dir=abs_workspace,
-        enabled_tools=enabled_tools
+        use_ollama=True,
+        enabled_tools=enabled_tools,
     )
     
     # Display model info

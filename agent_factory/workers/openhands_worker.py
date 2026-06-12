@@ -294,7 +294,6 @@ class OpenHandsWorker:
         from openhands.sdk import Agent, LLM, Conversation
         from openhands.sdk.context.condenser import LLMSummarizingCondenser
         from pydantic import SecretStr
-        import glob
 
         start_time = time.time()
         
@@ -305,7 +304,7 @@ class OpenHandsWorker:
             if f.is_file() and not any(p in str(f) for p in [".git", "__pycache__", ".pyc"]):
                 try:
                     files_before[str(f)] = f.stat().st_mtime
-                except:
+                except OSError:
                     pass
         
         # 1. Setup LLM with Ollama optimizations
@@ -433,7 +432,7 @@ Begin implementing now. Create or modify the necessary files."""
                         rel_path = str(f.relative_to(workspace))
                         if rel_path not in files_changed:
                             files_changed.append(rel_path)
-                except:
+                except OSError:
                     pass
         
         # Format logs with stats

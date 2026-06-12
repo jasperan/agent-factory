@@ -4,9 +4,9 @@ Data models for the Autonomous Code Improvement System.
 Defines Pydantic models for suggestions, verdicts, and run state.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from pydantic import BaseModel, Field
 import uuid
 
@@ -45,7 +45,7 @@ class Suggestion(BaseModel):
     reasoning: str = Field(default="", description="Why this improvement is suggested")
     
     status: SuggestionStatus = Field(default=SuggestionStatus.PENDING)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     # Implementation details (filled after worker completes)
     files_changed: List[str] = Field(default_factory=list)
@@ -72,7 +72,7 @@ class Verdict(BaseModel):
     criteria_met: List[str] = Field(default_factory=list, description="Which acceptance criteria passed")
     criteria_failed: List[str] = Field(default_factory=list, description="Which acceptance criteria failed")
     suggested_fixes: List[str] = Field(default_factory=list, description="Specific fixes to try")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class Config:
         use_enum_values = True

@@ -21,7 +21,6 @@ Usage:
     python autonomous_cli.py --max-suggestions 3
 """
 
-import os
 import sys
 import argparse
 from pathlib import Path
@@ -30,12 +29,7 @@ from typing import List, Optional
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.syntax import Syntax
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.markdown import Markdown
-from rich.live import Live
-from rich.layout import Layout
-from rich.text import Text
 import questionary
 
 # Ensure agent_factory is importable

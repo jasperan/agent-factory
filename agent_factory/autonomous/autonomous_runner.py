@@ -8,11 +8,10 @@ Manages the complete autonomous code improvement cycle:
 4. Loop until success or max iterations reached
 """
 
-import time
 import logging
 import json
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Callable, List, Dict, Any
 
@@ -26,6 +25,7 @@ from .models import (
 )
 from .config import AutonomousConfig
 from .suggestion_generator import SuggestionGenerator
+from .llm_utils import ollama_complete, extract_json
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +73,7 @@ class AutonomousRunner:
         # Initialize components
         self.generator = SuggestionGenerator(config)
         self._worker = None  # Lazy loaded
-        self._llm = None     # Lazy loaded for judge
-        
+
         # Current run state
         self.current_run: Optional[AutonomousRun] = None
     
@@ -91,33 +90,7 @@ class AutonomousRunner:
                 verbose=self.config.verbose,
             )
         return self._worker
-    
-    def _get_llm(self):
-        """Lazy-load LLM for judge."""
-        if self._llm is None:
-            import litellm
-            litellm.set_verbose = False
-            self._llm = litellm
-        return self._llm
-    
-    def _call_llm(self, prompt: str, system_prompt: str = "") -> str:
-        """Call LLM for judge reasoning."""
-        llm = self._get_llm()
-        
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-        
-        response = llm.completion(
-            model=f"ollama/{self.config.model}",
-            messages=messages,
-            api_base=self.config.ollama_base_url,
-            num_ctx=self.config.num_ctx,
-        )
-        
-        return response.choices[0].message.content
-    
+
     def _emit_status(self, status: str):
         """Emit status change callback."""
         if self.on_status_change:
@@ -267,17 +240,9 @@ Description: {suggestion.description}
 Provide your verdict as JSON."""
 
         try:
-            import json
-            response = self._call_llm(prompt, system_prompt)
-            
-            # Parse JSON
-            if "```json" in response:
-                response = response.split("```json")[1].split("```")[0]
-            elif "```" in response:
-                response = response.split("```")[1].split("```")[0]
-            
-            verdict_data = json.loads(response.strip())
-            
+            response = ollama_complete(prompt, self.config, system_prompt)
+            verdict_data = extract_json(response)
+
             verdict = Verdict(
                 suggestion_id=suggestion.id,
                 status=VerdictStatus(verdict_data.get("status", "fail")),
@@ -367,7 +332,7 @@ Provide your verdict as JSON."""
         """
         run = self.create_run(accepted_suggestions)
         run.status = RunStatus.RUNNING
-        run.started_at = datetime.utcnow()
+        run.started_at = datetime.now(timezone.utc)
         
         for suggestion in accepted_suggestions:
             suggestion.status = SuggestionStatus.ACCEPTED
@@ -387,7 +352,7 @@ Provide your verdict as JSON."""
                 run.failed_count += 1
         
         run.status = RunStatus.COMPLETED
-        run.completed_at = datetime.utcnow()
+        run.completed_at = datetime.now(timezone.utc)
         
         self._emit_status(
             f"Run completed: {run.completed_count} succeeded, {run.failed_count} failed"
